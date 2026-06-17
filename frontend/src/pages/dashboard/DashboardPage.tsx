@@ -53,7 +53,12 @@ function ProjectCard({ project }: { project: Project }) {
       </div>
 
       {project.description && (
-        <p className="text-xs text-gray-500 mb-3 line-clamp-2">{project.description}</p>
+        <p className="text-xs text-gray-500 mb-3 overflow-hidden" style={{
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+        }}>{project.description}</p>
       )}
 
       <div className="mb-3">

@@ -2,9 +2,11 @@ import { useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  DndContext, DragOverlay, PointerSensor, useSensor, useSensors, closestCorners,
+  DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
+  pointerWithin, rectIntersection, getFirstCollision,
 } from '@dnd-kit/core';
-import type { DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core';
+import type { UniqueIdentifier } from '@dnd-kit/core';
+import type { DragEndEvent, DragOverEvent, DragStartEvent, CollisionDetection } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { ChevronRight, Plus, LayoutGrid, List } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -63,8 +65,19 @@ export function KanbanPage() {
   });
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
+
+  const collisionDetection = useCallback((args: any) => {
+    const pointerCollisions = pointerWithin(args);
+    if (pointerCollisions.length > 0) {
+      const columnHit = pointerCollisions.find((c: any) => kanban?.some((col) => col.id === c.id));
+      if (columnHit) return [columnHit];
+      return pointerCollisions;
+    }
+    const rectCollisions = rectIntersection(args);
+    return getFirstCollision(rectCollisions) ? rectCollisions : [];
+  }, [kanban]);
 
   const handleDragStart = (event: DragStartEvent) => {
     const task = event.active.data.current?.task as Task;
@@ -150,7 +163,7 @@ export function KanbanPage() {
           ) : (
             <DndContext
               sensors={sensors}
-              collisionDetection={closestCorners}
+              collisionDetection={collisionDetection}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >

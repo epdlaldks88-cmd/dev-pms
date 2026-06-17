@@ -55,6 +55,9 @@ export function ProjectsPage() {
       qc.invalidateQueries({ queryKey: ['projects'] });
       toast.success('프로젝트가 삭제되었습니다.');
     },
+    onError: (e: any) => {
+      toast.error(e.response?.data?.message ?? '삭제에 실패했습니다.');
+    },
   });
 
   const filtered = projects?.filter((p) => {
@@ -220,7 +223,7 @@ export function ProjectsPage() {
         >
           <Input
             label="프로젝트 이름 *"
-            placeholder="멋진 프로젝트"
+            placeholder="프로젝트 명칭을 입력하세요."
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             required

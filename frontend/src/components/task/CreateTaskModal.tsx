@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { tasksApi } from '../../api/tasks';
 import { projectsApi } from '../../api/projects';
 import { partnersApi } from '../../api/partners';
+import { usersApi } from '../../api/users';
 import { useUiStore } from '../../store/ui.store';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -27,17 +28,16 @@ export function CreateTaskModal() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<Priority>('MEDIUM');
+  const [startDate, setStartDate] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [personnelIds, setPersonnelIds] = useState<string[]>([]);
 
-  const { data: project } = useQuery({
-    queryKey: ['project', createTaskProjectId],
-    queryFn: () => projectsApi.getOne(createTaskProjectId!),
+  const { data: allUsers } = useQuery({
+    queryKey: ['users'],
+    queryFn: usersApi.getAll,
     enabled: open,
   });
-  // 담당자는 프로젝트 멤버로 한정
-  const users = project?.members.map((m) => m.user) ?? [];
 
   // 파트너사 인력 (전체)
   const { data: allPersonnel } = useQuery({
@@ -61,6 +61,7 @@ export function CreateTaskModal() {
     setTitle('');
     setDescription('');
     setPriority('MEDIUM');
+    setStartDate('');
     setDueDate('');
     setAssigneeIds([]);
     setPersonnelIds([]);
@@ -75,6 +76,7 @@ export function CreateTaskModal() {
       description: description.trim() || undefined,
       priority,
       stepId: createTaskStepId ?? undefined,
+      startDate: startDate || undefined,
       dueDate: dueDate || undefined,
       assigneeIds,
       personnelIds,
@@ -86,8 +88,8 @@ export function CreateTaskModal() {
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleClose} />
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-br from-indigo-50 via-white to-violet-50 border-b border-gray-200">
           <h2 className="font-semibold text-gray-900">새 태스크</h2>
           <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
             <X size={18} />
@@ -126,17 +128,23 @@ export function CreateTaskModal() {
               </select>
             </div>
             <Input
-              label="마감일"
+              label="시작일"
               type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
             />
           </div>
-          {users && users.length > 0 && (
+          <Input
+            label="마감일"
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+          />
+          {allUsers && allUsers.length > 0 && (
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1.5 block">담당자</label>
               <div className="flex flex-wrap gap-1.5">
-                {users.map((u: any) => (
+                {allUsers.map((u: any) => (
                   <button
                     key={u.id}
                     type="button"

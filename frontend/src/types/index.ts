@@ -163,6 +163,34 @@ export interface Personnel {
   _count?: { tasks: number };
 }
 
+export interface Notice {
+  id: string;
+  title: string;
+  content: string;
+  isPinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+  projectId: string;
+  project: Pick<Project, 'id' | 'name' | 'color'>;
+  createdBy: Pick<User, 'id' | 'name' | 'avatar'>;
+}
+
+export type IssueRisk = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type IssueStatus = 'OPEN' | 'IN_REVIEW' | 'RESOLVED' | 'ON_HOLD';
+
+export interface Issue {
+  id: string;
+  title: string;
+  description?: string;
+  riskLevel: IssueRisk;
+  status: IssueStatus;
+  createdAt: string;
+  updatedAt: string;
+  projectId: string;
+  createdBy: Pick<User, 'id' | 'name' | 'avatar'>;
+  assignee?: Pick<User, 'id' | 'name' | 'avatar'> | null;
+}
+
 export interface ProjectStats {
   total: number;
   byStatus: { status: TaskStatus; _count: number }[];

@@ -1,13 +1,15 @@
 import { useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Clock, Briefcase, ChevronDown, ChevronRight, Trash2, X } from 'lucide-react';
+import { Plus, Clock, Briefcase, Trash2, X, Pencil, CheckCircle2, Check, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { worklogsApi } from '../../api/worklogs';
+import { worklogsApi, STAGE_CONFIG, STAGE_ORDER, type WorkLogStage } from '../../api/worklogs';
 import { projectsApi } from '../../api/projects';
 import { tasksApi } from '../../api/tasks';
+import { usersApi } from '../../api/users';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
-import { formatDate } from '../../lib/utils';
+import { formatDate, cn } from '../../lib/utils';
 
 interface AddWorkLogForm {
   projectId: string;
@@ -15,45 +17,71 @@ interface AddWorkLogForm {
   userId: string;
   hours: number;
   description: string;
-  workDate: string;
+  startDate: string;
+  endDate: string;
 }
 
 export function WorkloadPage() {
   const qc = useQueryClient();
   const currentUser = useAuthStore((s) => s.user);
+  const isGlobalAdmin = currentUser?.role === 'ADMIN';
+  const { projectId: routeProjectId } = useParams<{ projectId: string }>();
 
-  const [filterProject, setFilterProject] = useState('');
+  // ── 조회 필터 ──────────────────────────────────────────
+  const [filterProject, setFilterProject] = useState(routeProjectId ?? '');
+  const [filterUser, setFilterUser] = useState('');
+  const [filterStage, setFilterStage] = useState<WorkLogStage | ''>('');
+  const [filterStart, setFilterStart] = useState('');
+  const [filterEnd, setFilterEnd] = useState('');
+
+  // ── 등록 폼 ────────────────────────────────────────────
   const [showAddModal, setShowAddModal] = useState(false);
-  const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
+  const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState<AddWorkLogForm>({
-    projectId: '',
+    projectId: routeProjectId ?? '',
     taskId: '',
     userId: currentUser?.id ?? '',
     hours: 1,
     description: '',
-    workDate: new Date().toISOString().slice(0, 10),
+    startDate: today,
+    endDate: today,
   });
 
-  const { data: projects } = useQuery({
-    queryKey: ['projects'],
-    queryFn: projectsApi.getAll,
+  // ── 상세 보기 ───────────────────────────────────────────
+  const [viewLog, setViewLog] = useState<any>(null);
+
+  // ── 수정 모달 ───────────────────────────────────────────
+  const [editLog, setEditLog] = useState<any>(null);
+  const [editForm, setEditForm] = useState({
+    hours: 1, description: '', startDate: '', endDate: '', userId: '', stage: '' as WorkLogStage | '',
   });
 
+  // ── 담당자 카드 선택 필터 ─────────────────────────────
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const toggleUser = (uid: string) =>
+    setSelectedUserId((prev) => (prev === uid ? null : uid));
+
+  // ── Queries ─────────────────────────────────────────────
+  const { data: projects } = useQuery({ queryKey: ['projects'], queryFn: projectsApi.getAll });
+  const { data: allUsers } = useQuery({ queryKey: ['users'], queryFn: usersApi.getAll });
   const { data: formTasks } = useQuery({
     queryKey: ['tasks', form.projectId],
     queryFn: () => tasksApi.getAll(form.projectId),
     enabled: !!form.projectId,
   });
 
-  const { data: formProject } = useQuery({
-    queryKey: ['project', form.projectId],
-    queryFn: () => projectsApi.getOne(form.projectId),
-    enabled: !!form.projectId,
-  });
+  const queryParams = {
+    ...(filterProject && { projectId: filterProject }),
+    ...(filterUser && { userId: filterUser }),
+    ...(filterStage && { stage: filterStage }),
+    ...(filterStart && { startDate: filterStart }),
+    ...(filterEnd && { endDate: filterEnd }),
+  };
+  const queryKey = ['worklogs', filterProject, filterUser, filterStage, filterStart, filterEnd];
 
   const { data: worklogs, isLoading } = useQuery({
-    queryKey: ['worklogs', filterProject],
-    queryFn: () => worklogsApi.getAll(filterProject ? { projectId: filterProject } : undefined),
+    queryKey,
+    queryFn: () => worklogsApi.getAll(queryParams),
   });
 
   const { data: summary } = useQuery({
@@ -61,55 +89,63 @@ export function WorkloadPage() {
     queryFn: worklogsApi.getSummary,
   });
 
+  // ── Mutations ────────────────────────────────────────────
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['worklogs'] });
+    qc.invalidateQueries({ queryKey: ['worklogs-summary'] });
+  };
+
   const createWorklog = useMutation({
     mutationFn: () => worklogsApi.create({
-      taskId: form.taskId,
-      userId: form.userId,
-      hours: form.hours,
-      description: form.description,
-      workDate: form.workDate,
+      taskId: form.taskId, userId: form.userId, hours: form.hours,
+      description: form.description, startDate: form.startDate, endDate: form.endDate,
     }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['worklogs'] });
-      qc.invalidateQueries({ queryKey: ['worklogs-summary'] });
+      invalidate();
       setShowAddModal(false);
-      setForm({
-        projectId: '',
-        taskId: '',
-        userId: currentUser?.id ?? '',
-        hours: 1,
-        description: '',
-        workDate: new Date().toISOString().slice(0, 10),
-      });
+      setForm({ projectId: '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', startDate: today, endDate: today });
       toast.success('일감이 등록되었습니다.');
     },
     onError: () => toast.error('등록에 실패했습니다.'),
   });
 
-  const deleteWorklog = useMutation({
-    mutationFn: (id: string) => worklogsApi.delete(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['worklogs'] });
-      qc.invalidateQueries({ queryKey: ['worklogs-summary'] });
-      toast.success('일감이 삭제되었습니다.');
-    },
+  const updateWorklog = useMutation({
+    mutationFn: (data: { id: string; patch: any }) => worklogsApi.update(data.id, data.patch),
+    onSuccess: () => { invalidate(); setEditLog(null); toast.success('일감이 수정되었습니다.'); },
+    onError: () => toast.error('수정에 실패했습니다.'),
   });
 
-  // 담당자별 그룹핑
-  const grouped = worklogs?.reduce((acc: Record<string, any>, log: any) => {
-    const uid = log.user.id;
-    if (!acc[uid]) acc[uid] = { user: log.user, logs: [] };
-    acc[uid].logs.push(log);
-    return acc;
-  }, {}) ?? {};
 
-  const toggleUser = (uid: string) => {
-    setExpandedUsers((prev) => {
-      const next = new Set(prev);
-      next.has(uid) ? next.delete(uid) : next.add(uid);
-      return next;
-    });
+  const deleteWorklog = useMutation({
+    mutationFn: (id: string) => worklogsApi.delete(id),
+    onSuccess: () => { invalidate(); toast.success('일감이 삭제되었습니다.'); },
+  });
+
+  const acknowledgeWorklog = useMutation({
+    mutationFn: (id: string) => worklogsApi.acknowledge(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['worklogs'] }); toast.success('일감을 확인했습니다.'); },
+    onError: () => toast.error('확인 처리에 실패했습니다.'),
+  });
+
+  // ── 미확인 + 테이블 필터 ──────────────────────────────
+  const pendingAck = (worklogs ?? []).filter(
+    (log: any) => log.user.id === currentUser?.id && !log.isAcknowledged,
+  );
+
+  const filteredLogs = selectedUserId
+    ? (worklogs ?? []).filter((log: any) => log.user.id === selectedUserId)
+    : (worklogs ?? []);
+
+  const displayDate = (log: any) => {
+    if (log.startDate && log.endDate) {
+      const s = formatDate(log.startDate);
+      const e = formatDate(log.endDate);
+      return s === e ? s : `${s} ~ ${e}`;
+    }
+    return formatDate(log.workDate);
   };
+
+  const activeFilters = [filterUser, filterStage, filterStart, filterEnd].filter(Boolean).length;
 
   return (
     <div className="flex flex-col h-full">
@@ -121,238 +157,657 @@ export function WorkloadPage() {
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
         >
           <Plus size={15} /> 일감 등록
         </button>
       </div>
 
+      {/* ── 조회 필터 바 ── */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-100 px-6 py-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-400">
+            <Filter size={12} /> 조회 조건
+            {activeFilters > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-[10px] font-bold">
+                {activeFilters}
+              </span>
+            )}
+          </div>
+
+          {/* 기간 */}
+          <div className="flex items-center gap-1.5">
+            <input
+              type="date" value={filterStart}
+              onChange={(e) => setFilterStart(e.target.value)}
+              className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+            />
+            <span className="text-gray-300 text-xs">~</span>
+            <input
+              type="date" value={filterEnd} min={filterStart}
+              onChange={(e) => setFilterEnd(e.target.value)}
+              className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+            />
+          </div>
+
+          {/* 담당자 */}
+          <select
+            value={filterUser}
+            onChange={(e) => setFilterUser(e.target.value)}
+            className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+          >
+            <option value="">전체 담당자</option>
+            {allUsers?.map((u: any) => (
+              <option key={u.id} value={u.id}>{u.name}</option>
+            ))}
+          </select>
+
+          {/* 상태 */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setFilterStage('')}
+              className={cn(
+                'text-xs px-2.5 py-1.5 rounded-lg border transition-colors',
+                filterStage === ''
+                  ? 'bg-gray-900 text-white border-gray-900'
+                  : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300',
+              )}
+            >
+              전체
+            </button>
+            {STAGE_ORDER.map((s) => {
+              const cfg = STAGE_CONFIG[s];
+              return (
+                <button
+                  key={s}
+                  onClick={() => setFilterStage(filterStage === s ? '' : s)}
+                  className={cn(
+                    'text-xs px-2.5 py-1.5 rounded-lg border transition-colors',
+                    filterStage === s
+                      ? `${cfg.bg} ${cfg.color} ${cfg.border}`
+                      : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300',
+                  )}
+                >
+                  {cfg.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 프로젝트 (독립 페이지만) */}
+          {!routeProjectId && (
+            <select
+              value={filterProject}
+              onChange={(e) => setFilterProject(e.target.value)}
+              className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+            >
+              <option value="">전체 프로젝트</option>
+              {projects?.map((p: any) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          )}
+
+          {/* 초기화 */}
+          {activeFilters > 0 && (
+            <button
+              onClick={() => { setFilterUser(''); setFilterStage(''); setFilterStart(''); setFilterEnd(''); }}
+              className="text-xs text-gray-400 hover:text-gray-600 underline ml-1"
+            >
+              초기화
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* Summary cards */}
-        {summary && summary.length > 0 && (
-          <div>
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">담당자별 공수 요약</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {summary.map((s: any) => (
-                <div key={s.user?.id ?? 'unknown'} className="bg-white rounded-xl border border-gray-200 p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Avatar name={s.user?.name ?? '?'} avatar={s.user?.avatar} size="sm" />
-                    <span className="text-sm font-semibold text-gray-800 truncate">{s.user?.name ?? '알 수 없음'}</span>
+        {/* 미확인 일감 인박스 */}
+        {pendingAck.length > 0 && (
+          <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+              <div className="flex items-center gap-2.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
+                </span>
+                <span className="text-sm font-semibold text-gray-900">확인 대기 중인 일감</span>
+                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-100 text-orange-600 text-[11px] font-bold">
+                  {pendingAck.length}
+                </span>
+              </div>
+              <span className="text-xs text-gray-400">담당자로 지정된 일감을 확인해 주세요</span>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {pendingAck.map((log: any) => (
+                <div key={log.id} className="group flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50/70 transition-colors">
+                  <button
+                    onClick={() => acknowledgeWorklog.mutate(log.id)}
+                    disabled={acknowledgeWorklog.isPending}
+                    className="flex-shrink-0 w-5 h-5 rounded-full border-2 border-gray-300 group-hover:border-emerald-400 hover:bg-emerald-50 transition-all flex items-center justify-center"
+                  >
+                    <Check size={11} className="text-gray-300 group-hover:text-emerald-500 transition-colors" />
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">
+                      {log.task?.title ?? log.taskTitle ?? '(삭제된 태스크)'}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {log.task?.project?.name && <span className="text-[11px] text-gray-400">{log.task.project.name}</span>}
+                      {log.task?.project?.name && <span className="text-gray-200">·</span>}
+                      <span className="text-[11px] text-gray-400">{displayDate(log)}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 text-indigo-600">
-                    <Clock size={14} />
-                    <span className="text-lg font-bold">{s.totalHours}h</span>
+                  <div className="flex items-center gap-1 text-xs text-gray-400">
+                    <Clock size={11} /><span>{log.hours}h</span>
                   </div>
-                  <p className="text-[11px] text-gray-400 mt-1">총 {s.count}건</p>
+                  <button
+                    onClick={() => acknowledgeWorklog.mutate(log.id)}
+                    disabled={acknowledgeWorklog.isPending}
+                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[11px] font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-full transition-all"
+                  >
+                    <CheckCircle2 size={12} /> 확인했어요
+                  </button>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Filter */}
-        <div className="flex items-center gap-3">
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">상세 내역</h2>
-          <select
-            value={filterProject}
-            onChange={(e) => setFilterProject(e.target.value)}
-            className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-          >
-            <option value="">전체 프로젝트</option>
-            {projects?.map((p: any) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Grouped logs */}
-        {isLoading ? (
-          <div className="space-y-3">
-            {[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}
-          </div>
-        ) : Object.keys(grouped).length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-            <Briefcase size={32} className="mb-3 opacity-40" />
-            <p className="text-sm">등록된 일감이 없습니다.</p>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="mt-3 text-xs text-indigo-600 hover:text-indigo-800 font-medium"
-            >
-              첫 번째 일감 등록하기
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {Object.values(grouped).map((group: any) => {
-              const isExpanded = expandedUsers.has(group.user.id);
-              const totalHours = group.logs.reduce((sum: number, l: any) => sum + (l.hours ?? 0), 0);
-              return (
-                <div key={group.user.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        {/* 담당자별 공수 요약 카드 */}
+        {summary && summary.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">담당자별 공수 요약</h2>
+              {selectedUserId && (
+                <button
+                  onClick={() => setSelectedUserId(null)}
+                  className="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-full transition-colors"
+                >
+                  전체 보기 ✕
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {summary.map((s: any) => {
+                const uid = s.user?.id ?? 'unknown';
+                const isSelected = selectedUserId === uid;
+                const isDimmed = selectedUserId !== null && !isSelected;
+                return (
                   <button
-                    onClick={() => toggleUser(group.user.id)}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer"
+                    key={uid}
+                    onClick={() => s.user?.id && toggleUser(s.user.id)}
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-2 rounded-xl border transition-all duration-150',
+                      isSelected
+                        ? 'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-200 shadow-sm'
+                        : isDimmed
+                          ? 'bg-white border-gray-200 opacity-40 hover:opacity-70'
+                          : 'bg-white border-gray-200 hover:border-indigo-200 hover:shadow-sm',
+                    )}
                   >
-                    {isExpanded ? <ChevronDown size={15} className="text-gray-400" /> : <ChevronRight size={15} className="text-gray-400" />}
-                    <Avatar name={group.user.name} avatar={group.user.avatar} size="sm" />
-                    <span className="flex-1 text-sm font-semibold text-gray-800 text-left">{group.user.name}</span>
-                    <span className="flex items-center gap-1 text-xs text-indigo-600 font-medium">
-                      <Clock size={12} /> {totalHours}h
+                    <Avatar name={s.user?.name ?? '?'} avatar={s.user?.avatar} size="xs" />
+                    <span className={cn('text-xs font-bold truncate flex-1 text-left', isSelected ? 'text-indigo-700' : 'text-gray-800')}>
+                      {s.user?.name ?? '—'}
                     </span>
-                    <span className="text-xs text-gray-400 ml-2">{group.logs.length}건</span>
+                    <span className={cn(
+                      'flex-shrink-0 text-xs font-extrabold',
+                      isSelected ? 'text-indigo-600' : 'text-violet-600',
+                    )}>
+                      {s.count}건
+                    </span>
+                    <span className={cn('flex-shrink-0 text-[11px] font-semibold', isSelected ? 'text-indigo-400' : 'text-gray-400')}>
+                      {s.totalHours}h
+                    </span>
+                    {isSelected && (
+                      <span className="flex-shrink-0 w-3.5 h-3.5 rounded-full bg-indigo-500 flex items-center justify-center">
+                        <Check size={8} className="text-white" />
+                      </span>
+                    )}
                   </button>
-
-                  {isExpanded && (
-                    <div className="border-t border-gray-100">
-                      {group.logs.map((log: any) => (
-                        <div key={log.id} className="flex items-start gap-3 px-4 py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50/50 group">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs font-medium text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full truncate max-w-[200px]">
-                                {log.task?.title ?? '태스크 없음'}
-                              </span>
-                              {log.task?.project && (
-                                <span className="text-[10px] text-gray-400">{log.task.project.name}</span>
-                              )}
-                            </div>
-                            {log.description && (
-                              <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">{log.description}</p>
-                            )}
-                            <p className="text-[10px] text-gray-400 mt-1">{formatDate(log.workDate)}</p>
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="flex items-center gap-0.5 text-sm font-bold text-gray-700">
-                              <Clock size={12} className="text-gray-400" /> {log.hours}h
-                            </span>
-                            <button
-                              onPointerDown={(e) => e.stopPropagation()}
-                              onClick={() => {
-                                if (confirm('일감을 삭제하시겠습니까?')) deleteWorklog.mutate(log.id);
-                              }}
-                              className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 p-0.5 rounded transition-all"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
+
+
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-40">기간</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">담당자</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-36">태스크</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-36">프로젝트</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">작업 내용</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-14">공수</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">상태</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">사용자확인일</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-14">확인</th>
+                <th className="w-10" />
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                [...Array(5)].map((_, i) => (
+                  <tr key={i} className="border-b border-gray-100">
+                    {[...Array(10)].map((__, j) => (
+                      <td key={j} className="px-4 py-3"><div className="h-4 bg-gray-100 rounded animate-pulse" /></td>
+                    ))}
+                  </tr>
+                ))
+              ) : !filteredLogs.length ? (
+                <tr>
+                  <td colSpan={10}>
+                    <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                      <Briefcase size={32} className="mb-3 opacity-40" />
+                      <p className="text-sm">{selectedUserId ? '해당 담당자의 일감이 없습니다.' : '등록된 일감이 없습니다.'}</p>
+                      {!selectedUserId && (
+                        <button onClick={() => setShowAddModal(true)} className="mt-3 text-xs text-indigo-600 hover:text-indigo-800 font-medium">
+                          첫 번째 일감 등록하기
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredLogs.map((log: any) => {
+                  const stageCfg = STAGE_CONFIG[log.stage as WorkLogStage] ?? STAGE_CONFIG.RECEIVED;
+                  return (
+                    <tr
+                      key={log.id}
+                      onClick={() => setViewLog(log)}
+                      className="border-b border-gray-100 last:border-0 hover:bg-indigo-50/40 cursor-pointer group transition-colors"
+                    >
+                      <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{displayDate(log)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          <Avatar name={log.user.name} avatar={log.user.avatar} size="xs" />
+                          <span className="text-xs text-gray-700 truncate">{log.user.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full truncate max-w-[120px] block ${log.task ? 'text-indigo-700 bg-indigo-50' : 'text-gray-400 bg-gray-100 line-through'}`}>
+                          {log.task?.title ?? log.taskTitle ?? '-'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-500 truncate max-w-[110px]">
+                        {log.task?.project?.name ?? log.projectName ?? '-'}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-600 max-w-[200px] truncate">{log.description || '-'}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="flex items-center justify-center gap-0.5 text-sm font-bold text-gray-700">
+                          <Clock size={12} className="text-gray-400" />{log.hours}h
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={cn('text-[11px] font-semibold px-2 py-0.5 rounded-full border', stageCfg.bg, stageCfg.color, stageCfg.border)}>
+                          {stageCfg.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center text-[11px] text-gray-400">
+                        {log.userConfirmedAt ? formatDate(log.userConfirmedAt) : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        {log.isAcknowledged ? (
+                          <span title={log.acknowledgedAt ? `${formatDate(log.acknowledgedAt)} 확인` : '확인됨'}>
+                            <CheckCircle2 size={16} className="text-emerald-500 mx-auto" />
+                          </span>
+                        ) : log.user.id === currentUser?.id ? (
+                          <button
+                            onClick={() => acknowledgeWorklog.mutate(log.id)}
+                            className="text-xs text-amber-600 hover:text-amber-800 font-medium px-1.5 py-0.5 rounded hover:bg-amber-50 transition-colors mx-auto block"
+                          >
+                            확인
+                          </button>
+                        ) : (
+                          <span className="text-xs text-gray-300">미확인</span>
+                        )}
+                      </td>
+                      <td className="px-2 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        <span className="text-[10px] text-gray-300 group-hover:text-indigo-400 transition-colors font-medium">상세 →</span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* Add WorkLog Modal */}
+      {/* ── 상세 보기 모달 ── */}
+      {viewLog && (() => {
+        const stageCfg = STAGE_CONFIG[viewLog.stage as WorkLogStage] ?? STAGE_CONFIG.RECEIVED;
+        const canEdit = isGlobalAdmin || viewLog.user.id === currentUser?.id;
+        const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
+          <div className="flex items-start gap-4 py-3 border-b border-gray-100 last:border-0">
+            <span className="w-24 flex-shrink-0 text-[11px] font-semibold text-gray-400 uppercase tracking-wider pt-0.5">{label}</span>
+            <div className="flex-1 min-w-0">{children}</div>
+          </div>
+        );
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setViewLog(null)} />
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+
+              {/* 헤더 */}
+              <div className="px-6 py-5 bg-gradient-to-br from-indigo-50 via-white to-violet-50 border-b border-gray-200">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-semibold text-indigo-400 uppercase tracking-wider mb-1.5">
+                      {viewLog.task?.project?.name ?? viewLog.projectName ?? '프로젝트 없음'}
+                    </p>
+                    <h2 className="text-base font-bold text-gray-900 leading-snug">
+                      {viewLog.task?.title ?? viewLog.taskTitle ?? '(삭제된 태스크)'}
+                    </h2>
+                  </div>
+                  <div className="flex items-center gap-0.5 flex-shrink-0">
+                    {canEdit && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setViewLog(null);
+                            setEditLog(viewLog);
+                            setEditForm({
+                              hours: viewLog.hours,
+                              description: viewLog.description ?? '',
+                              startDate: viewLog.startDate ? viewLog.startDate.slice(0, 10) : viewLog.workDate?.slice(0, 10) ?? '',
+                              endDate: viewLog.endDate ? viewLog.endDate.slice(0, 10) : viewLog.workDate?.slice(0, 10) ?? '',
+                              userId: viewLog.user.id,
+                              stage: viewLog.stage ?? '',
+                            });
+                          }}
+                          className="p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
+                          title="수정"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          onClick={() => { if (confirm('일감을 삭제하시겠습니까?')) { deleteWorklog.mutate(viewLog.id); setViewLog(null); } }}
+                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="삭제"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </>
+                    )}
+                    <button onClick={() => setViewLog(null)} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg ml-0.5 transition-colors">
+                      <X size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 상세 항목 */}
+              <div className="px-6 py-2">
+                <Row label="담당자">
+                  <div className="flex items-center gap-2">
+                    <Avatar name={viewLog.user.name} avatar={viewLog.user.avatar} size="xs" />
+                    <span className="text-sm font-medium text-gray-800">{viewLog.user.name}</span>
+                  </div>
+                </Row>
+                <Row label="기간">
+                  <span className="text-sm text-gray-800">{displayDate(viewLog)}</span>
+                </Row>
+                <Row label="공수">
+                  <div className="flex items-center gap-1.5">
+                    <Clock size={13} className="text-indigo-400" />
+                    <span className="text-sm font-bold text-gray-900">{viewLog.hours}h</span>
+                    <span className="text-xs text-gray-400">({viewLog.hours * 60}분)</span>
+                  </div>
+                </Row>
+                <Row label="진행 상태">
+                  <span className={cn('text-xs font-bold px-2.5 py-1 rounded-full border', stageCfg.bg, stageCfg.color, stageCfg.border)}>
+                    {stageCfg.label}
+                  </span>
+                </Row>
+                <Row label="사용자확인일">
+                  <span className={cn('text-sm', viewLog.userConfirmedAt ? 'text-violet-600 font-medium' : 'text-gray-400')}>
+                    {viewLog.userConfirmedAt ? formatDate(viewLog.userConfirmedAt) : '—'}
+                  </span>
+                </Row>
+                <Row label="확인 여부">
+                  {viewLog.isAcknowledged ? (
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle2 size={14} className="text-emerald-500" />
+                      <span className="text-sm font-medium text-emerald-600">
+                        확인됨{viewLog.acknowledgedAt ? ` · ${formatDate(viewLog.acknowledgedAt)}` : ''}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-400">미확인</span>
+                      {viewLog.user.id === currentUser?.id && (
+                        <button
+                          onClick={() => { acknowledgeWorklog.mutate(viewLog.id); setViewLog(null); }}
+                          className="text-[11px] font-semibold text-amber-600 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-full transition-colors"
+                        >
+                          확인하기
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </Row>
+                {viewLog.description && (
+                  <Row label="작업 내용">
+                    <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                      {viewLog.description}
+                    </p>
+                  </Row>
+                )}
+              </div>
+
+              {/* 닫기 버튼 */}
+              <div className="px-6 py-4 border-t border-gray-100 flex justify-end">
+                <button
+                  onClick={() => setViewLog(null)}
+                  className="px-4 py-2 text-sm text-gray-600 font-medium rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  닫기
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── 등록 모달 ── */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-br from-indigo-50 via-white to-violet-50 border-b border-gray-200">
               <h2 className="text-base font-bold text-gray-900">일감 등록</h2>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600 p-1">
-                <X size={18} />
-              </button>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600 p-1"><X size={18} /></button>
             </div>
-
             <div className="p-6 space-y-4">
-              {/* Project */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">프로젝트 *</label>
-                <select
-                  value={form.projectId}
-                  onChange={(e) => setForm({ ...form, projectId: e.target.value, taskId: '', userId: currentUser?.id ?? '' })}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">프로젝트 선택</option>
-                  {projects?.map((p: any) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Task */}
+              {!routeProjectId && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">프로젝트 *</label>
+                  <select
+                    value={form.projectId}
+                    onChange={(e) => setForm({ ...form, projectId: e.target.value, taskId: '' })}
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">프로젝트 선택</option>
+                    {projects?.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">태스크 *</label>
                 <select
                   value={form.taskId}
                   onChange={(e) => setForm({ ...form, taskId: e.target.value })}
                   disabled={!form.projectId}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400"
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50"
                 >
                   <option value="">{form.projectId ? '태스크 선택' : '먼저 프로젝트를 선택하세요'}</option>
-                  {formTasks?.map((t: any) => (
-                    <option key={t.id} value={t.id}>{t.title}</option>
-                  ))}
+                  {formTasks?.map((t: any) => <option key={t.id} value={t.id}>{t.title}</option>)}
                 </select>
               </div>
-
-              {/* User */}
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">담당자</label>
                 <select
                   value={form.userId}
                   onChange={(e) => setForm({ ...form, userId: e.target.value })}
-                  disabled={!form.projectId}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400"
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  {formProject?.members?.map((m: any) => (
-                    <option key={m.user.id} value={m.user.id}>{m.user.name}</option>
-                  ))}
+                  {allUsers?.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
               </div>
-
-              {/* Hours + Date row */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">공수 (시간) *</label>
+                <input type="number" min={0.5} step={0.5} value={form.hours}
+                  onChange={(e) => setForm({ ...form, hours: parseFloat(e.target.value) || 0 })}
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">공수 (시간) *</label>
-                  <input
-                    type="number"
-                    min={0.5}
-                    step={0.5}
-                    value={form.hours}
-                    onChange={(e) => setForm({ ...form, hours: parseFloat(e.target.value) || 0 })}
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">시작일</label>
+                  <input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })}
                     className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">작업일</label>
-                  <input
-                    type="date"
-                    value={form.workDate}
-                    onChange={(e) => setForm({ ...form, workDate: e.target.value })}
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">종료일</label>
+                  <input type="date" value={form.endDate} min={form.startDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })}
                     className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               </div>
-
-              {/* Description */}
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">작업 내용</label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="어떤 작업을 했는지 간략히 입력하세요..."
-                  rows={3}
+                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  placeholder="어떤 작업을 했는지 간략히 입력하세요..." rows={3}
                   className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                 />
               </div>
             </div>
-
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-              >
-                취소
-              </button>
+              <button onClick={() => setShowAddModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium rounded-lg hover:bg-gray-100 transition-colors">취소</button>
               <button
                 onClick={() => createWorklog.mutate()}
                 disabled={!form.taskId || form.hours <= 0 || createWorklog.isPending}
-                className="px-4 py-2 text-sm bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-40 transition-colors cursor-pointer"
+                className="px-4 py-2 text-sm bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-40 transition-colors"
               >
                 등록
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 수정 모달 ── */}
+      {editLog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setEditLog(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-br from-indigo-50 via-white to-violet-50 border-b border-gray-200">
+              <h2 className="text-base font-bold text-gray-900">일감 수정</h2>
+              <button onClick={() => setEditLog(null)} className="text-gray-400 hover:text-gray-600 p-1"><X size={18} /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              {/* 태스크 정보 */}
+              <div className="bg-gray-50 rounded-lg px-4 py-3 space-y-1">
+                <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">태스크</p>
+                <p className="text-sm font-medium text-gray-800">{editLog.task?.title ?? editLog.taskTitle ?? '-'}</p>
+                <p className="text-xs text-gray-400">{editLog.task?.project?.name ?? editLog.projectName ?? ''}</p>
+              </div>
+
+              {/* 단계 플래그 버튼 */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-2">진행 단계</label>
+                <div className="flex gap-1.5 flex-wrap">
+                  {STAGE_ORDER.map((s, idx) => {
+                    const cfg = STAGE_CONFIG[s];
+                    const currentStage = editForm.stage || editLog.stage;
+                    const isSelected = currentStage === s;
+                    const isPast = STAGE_ORDER.indexOf(currentStage) > idx;
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, stage: s })}
+                        className={cn(
+                          'flex-1 min-w-0 py-2 px-2 rounded-xl border-2 text-xs font-semibold transition-all',
+                          isSelected
+                            ? `${cfg.bg} ${cfg.color} ${cfg.border} ring-2 ring-offset-1 ring-current shadow-sm scale-105`
+                            : isPast
+                              ? 'bg-gray-50 text-gray-400 border-gray-200'
+                              : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50',
+                        )}
+                      >
+                        <span className="block text-center leading-tight">{cfg.label}</span>
+                        {isSelected && <span className="block text-center text-[9px] mt-0.5 opacity-70">선택됨</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+                {editLog.userConfirmedAt && (
+                  <p className="text-[11px] text-violet-600 mt-1.5">
+                    사용자확인일: {formatDate(editLog.userConfirmedAt)}
+                  </p>
+                )}
+              </div>
+
+              {/* 담당자 */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">담당자</label>
+                <select
+                  value={editForm.userId}
+                  onChange={(e) => setEditForm({ ...editForm, userId: e.target.value })}
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  {allUsers?.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
+              </div>
+
+              {/* 공수 */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">공수 (시간) *</label>
+                <input type="number" min={0.5} step={0.5} value={editForm.hours}
+                  onChange={(e) => setEditForm({ ...editForm, hours: parseFloat(e.target.value) || 0 })}
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              {/* 기간 */}
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">시작일</label>
+                  <input type="date" value={editForm.startDate} onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value })}
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">종료일</label>
+                  <input type="date" value={editForm.endDate} min={editForm.startDate} onChange={(e) => setEditForm({ ...editForm, endDate: e.target.value })}
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              {/* 작업 내용 */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">작업 내용</label>
+                <textarea value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  rows={3} className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                />
+              </div>
+            </div>
+
+            {/* 저장 */}
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
+              <button onClick={() => setEditLog(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium rounded-lg hover:bg-gray-100 transition-colors">닫기</button>
+              <button
+                onClick={() => updateWorklog.mutate({ id: editLog.id, patch: { hours: editForm.hours, description: editForm.description, startDate: editForm.startDate, endDate: editForm.endDate, userId: editForm.userId, ...(editForm.stage && { stage: editForm.stage }) } })}
+                disabled={editForm.hours <= 0 || updateWorklog.isPending}
+                className="px-4 py-2 text-sm bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-40 transition-colors"
+              >
+                저장
               </button>
             </div>
           </div>

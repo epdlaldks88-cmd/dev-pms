@@ -1,5 +1,5 @@
 import api from './axios';
-import type { Task, KanbanColumn } from '../types';
+import type { Task, KanbanColumn, Label } from '../types';
 
 export const tasksApi = {
   getAll: (projectId: string, params?: Record<string, string>) =>
@@ -29,6 +29,17 @@ export const commentsApi = {
     api.patch(`/tasks/${taskId}/comments/${commentId}`, { content }).then((r) => r.data),
   delete: (taskId: string, commentId: string) =>
     api.delete(`/tasks/${taskId}/comments/${commentId}`).then((r) => r.data),
+};
+
+export const labelsApi = {
+  getAll: (projectId: string) =>
+    api.get<Label[]>(`/projects/${projectId}/labels`).then((r) => r.data),
+  create: (projectId: string, name: string, color: string) =>
+    api.post<Label>(`/projects/${projectId}/labels`, { name, color }).then((r) => r.data),
+  update: (projectId: string, labelId: string, data: { name?: string; color?: string }) =>
+    api.patch<Label>(`/projects/${projectId}/labels/${labelId}`, data).then((r) => r.data),
+  delete: (projectId: string, labelId: string) =>
+    api.delete(`/projects/${projectId}/labels/${labelId}`).then((r) => r.data),
 };
 
 export const attachmentsApi = {

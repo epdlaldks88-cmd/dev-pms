@@ -1,20 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { User, Lock, Phone, Briefcase, Building, Save, Eye, EyeOff, CheckCircle } from 'lucide-react';
+import { User, Lock, Phone, Briefcase, Building, Save, Eye, EyeOff, CheckCircle, Smile } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { usersApi } from '../../api/users';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
 
+const EMOJI_LIST = [
+  '😀','😎','🥸','🤓','🥳','😇','🥰','🤩','😜','🤪','😏','🙃','🤔','🤠','🧐','😴','🤗','😈',
+  '👻','🤖','👽','🤡','💀','👹','🧙','🧛','🧟','🧝','🦸','🧚','🧜','🧞',
+  '🐱','🐶','🐸','🐼','🦊','🐨','🐮','🐯','🦁','🐻','🐰','🐭','🐺','🐧','🦉','🦅',
+  '🌈','⭐','🔥','💎','🚀','🌙','🎯','🎮','🌊','🍀',
+];
+
 export function ProfilePage() {
   const { user, updateUser } = useAuthStore();
+  const pickerRef = useRef<HTMLDivElement>(null);
 
   const [profile, setProfile] = useState({
     name: user?.name ?? '',
     position: user?.position ?? '',
     department: user?.department ?? '',
     phone: user?.phone ?? '',
+    avatar: user?.avatar ?? '',
   });
+
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const [pwForm, setPwForm] = useState({
     currentPassword: '',
@@ -31,9 +42,20 @@ export function ProfilePage() {
         position: user.position ?? '',
         department: user.department ?? '',
         phone: user.phone ?? '',
+        avatar: user.avatar ?? '',
       });
     }
   }, [user]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+    }
+    if (showEmojiPicker) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showEmojiPicker]);
 
   const updateProfile = useMutation({
     mutationFn: () => usersApi.updateProfile(profile),
@@ -78,7 +100,51 @@ export function ProfilePage() {
           {/* Avatar + 이메일 */}
           <div className="bg-white rounded-2xl border border-gray-200 p-6">
             <div className="flex items-center gap-4">
-              <Avatar name={user?.name ?? ''} avatar={user?.avatar} size="lg" />
+              {/* 아바타 + 이모지 선택 버튼 */}
+              <div className="relative flex-shrink-0" ref={pickerRef}>
+                <Avatar name={profile.name || user?.name || ''} avatar={profile.avatar || undefined} size="lg" />
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker((v) => !v)}
+                  className="absolute -bottom-1 -right-1 w-5 h-5 bg-white border border-gray-300 rounded-full flex items-center justify-center shadow-sm hover:bg-indigo-50 hover:border-indigo-300 transition-colors"
+                  title="이모지 변경"
+                >
+                  <Smile size={11} className="text-gray-500" />
+                </button>
+
+                {/* 이모지 피커 */}
+                {showEmojiPicker && (
+                  <div className="absolute top-full left-0 mt-2 z-50 bg-white rounded-2xl shadow-2xl border border-gray-200 p-3 w-72">
+                    <div className="flex items-center justify-between mb-2.5">
+                      <p className="text-xs font-semibold text-gray-500">캐릭터 이모지 선택</p>
+                      {profile.avatar && (
+                        <button
+                          type="button"
+                          onClick={() => { setProfile({ ...profile, avatar: '' }); setShowEmojiPicker(false); }}
+                          className="text-[10px] text-gray-400 hover:text-red-500 transition-colors"
+                        >
+                          초기화
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-10 gap-0.5">
+                      {EMOJI_LIST.map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => { setProfile({ ...profile, avatar: emoji }); setShowEmojiPicker(false); }}
+                          className={`w-7 h-7 flex items-center justify-center text-lg rounded-lg transition-all hover:bg-indigo-50 hover:scale-110 ${
+                            profile.avatar === emoji ? 'bg-indigo-100 ring-2 ring-indigo-400' : ''
+                          }`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <p className="text-base font-bold text-gray-900">{user?.name}</p>
                 <p className="text-sm text-gray-500">{user?.email}</p>
@@ -89,6 +155,7 @@ export function ProfilePage() {
                 }`}>
                   {user?.role === 'ADMIN' ? '관리자' : '일반 사용자'}
                 </span>
+                <p className="text-[11px] text-gray-400 mt-1.5">아바타를 클릭해 이모지를 선택하세요</p>
               </div>
             </div>
           </div>
@@ -176,7 +243,6 @@ export function ProfilePage() {
             )}
 
             <div className="space-y-4">
-              {/* 현재 비밀번호 */}
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1.5">현재 비밀번호</label>
                 <div className="relative">
@@ -197,7 +263,6 @@ export function ProfilePage() {
                 </div>
               </div>
 
-              {/* 새 비밀번호 */}
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1.5">새 비밀번호 (6자 이상)</label>
                 <div className="relative">
@@ -218,7 +283,6 @@ export function ProfilePage() {
                 </div>
               </div>
 
-              {/* 비밀번호 확인 */}
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1.5">새 비밀번호 확인</label>
                 <div className="relative">

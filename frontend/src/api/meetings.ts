@@ -1,10 +1,18 @@
 import api from './axios';
 
+export interface MeetingParticipant {
+  user: { id: string; name: string; avatar?: string; email: string };
+}
+
 export interface MeetingCreateData {
   title: string;
   content?: string;
   meetingDate?: string;
+  startTime?: string;
+  endTime?: string;
   attendees?: string;
+  location?: string;
+  participantIds?: string[];
   projectId?: string;
 }
 

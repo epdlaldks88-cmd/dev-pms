@@ -1,22 +1,21 @@
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useMatch } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard, FolderKanban, Bell, ChevronLeft, ChevronRight,
-  LogOut, Zap, Building2, BarChart2, FileText, Settings, Users,
+  LogOut, Zap, Building2, Settings, Users, CalendarDays, ShieldCheck,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
 import { useUiStore } from '../../store/ui.store';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../ui/Avatar';
 import { projectsApi } from '../../api/projects';
 import { authApi } from '../../api/auth';
-import toast from 'react-hot-toast';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: '대시보드' },
   { to: '/projects', icon: FolderKanban, label: '프로젝트' },
-  { to: '/workload', icon: BarChart2, label: '일감등록' },
-  { to: '/meetings', icon: FileText, label: '회의록' },
+  { to: '/meeting-calendar', icon: CalendarDays, label: '회의관리' },
   { to: '/partners', icon: Building2, label: '파트너사 관리' },
   { to: '/notifications', icon: Bell, label: '알림' },
 ];
@@ -27,6 +26,8 @@ export function Sidebar() {
   const { user, logout, refreshToken } = useAuthStore();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'ADMIN';
+  const projectMatch = useMatch('/projects/:projectId/*');
+  const activeProjectId = projectMatch?.params.projectId;
 
   const { data: projects } = useQuery({
     queryKey: ['projects'],
@@ -145,6 +146,24 @@ export function Sidebar() {
           >
             <Users size={18} className="flex-shrink-0" />
             {!collapsed && <span>사용자 관리</span>}
+          </NavLink>
+        )}
+
+        {/* 권한설정 (프로젝트 내에 있을 때만) */}
+        {activeProjectId && (
+          <NavLink
+            to={`/projects/${activeProjectId}/permissions`}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-3 px-2 py-2 rounded-lg text-sm font-medium transition-colors',
+                isActive ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800',
+                collapsed && 'justify-center px-0',
+              )
+            }
+            title={collapsed ? '권한설정' : undefined}
+          >
+            <ShieldCheck size={18} className="flex-shrink-0" />
+            {!collapsed && <span>권한설정</span>}
           </NavLink>
         )}
 

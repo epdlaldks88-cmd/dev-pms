@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, FileText, Calendar, Users, X, Pencil, Trash2, Search } from 'lucide-react';
+import { Plus, FileText, Calendar, Users, X, Pencil, Trash2, Search, Printer, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { meetingsApi } from '../../api/meetings';
 import { projectsApi } from '../../api/projects';
@@ -8,10 +9,144 @@ import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
 import { formatDate, formatRelativeTime } from '../../lib/utils';
 
+function printMeeting(m: any) {
+  const dateStr = m.meetingDate ? formatDate(m.meetingDate) : '미정';
+  const attendeesStr = m.attendees || '-';
+  const contentStr = (m.content || '').replace(/\n/g, '<br/>');
+  const projectStr = m.project?.name ?? '';
+
+  const timeStr = m.startTime
+    ? m.endTime ? `${m.startTime} ~ ${m.endTime}` : m.startTime
+    : m.endTime ? `~ ${m.endTime}` : '';
+
+  const html = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>업무회의록 - ${m.title}</title>
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Pretendard', -apple-system, sans-serif;
+      color: #111;
+      background: #fff;
+      padding: 60px 72px;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    .doc-header {
+      text-align: center;
+      margin-bottom: 40px;
+      border-bottom: 2px solid #111;
+      padding-bottom: 20px;
+    }
+    .doc-title {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 6px;
+      margin-bottom: 6px;
+    }
+    .doc-sub {
+      font-size: 12px;
+      color: #555;
+      letter-spacing: 1px;
+    }
+    .meta-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 32px;
+    }
+    .meta-table td {
+      padding: 10px 14px;
+      border: 1px solid #ccc;
+      vertical-align: top;
+    }
+    .meta-table .label {
+      width: 100px;
+      background: #f5f5f5;
+      font-weight: 600;
+      font-size: 12px;
+      color: #333;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .meta-table .value {
+      font-size: 13px;
+      color: #111;
+    }
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      background: #f5f5f5;
+      padding: 9px 14px;
+      border: 1px solid #ccc;
+      border-bottom: none;
+      letter-spacing: 1px;
+    }
+    .content-box {
+      border: 1px solid #ccc;
+      padding: 16px 14px;
+      min-height: 360px;
+      font-size: 13px;
+      line-height: 1.9;
+      color: #222;
+      white-space: pre-wrap;
+    }
+    .doc-footer {
+      margin-top: 48px;
+      text-align: right;
+      font-size: 12px;
+      color: #777;
+    }
+    @media print {
+      body { padding: 0; }
+      @page { margin: 20mm 24mm; size: A4; }
+    }
+  </style>
+</head>
+<body>
+  <div class="doc-header">
+    <div class="doc-title">업 무 회 의 록</div>
+    ${projectStr ? `<div class="doc-sub">${projectStr}</div>` : ''}
+  </div>
+
+  <table class="meta-table">
+    <tr>
+      <td class="label">회 의 명</td>
+      <td class="value" colspan="3">${m.title}</td>
+    </tr>
+    <tr>
+      <td class="label">회의 일시</td>
+      <td class="value">${dateStr}${timeStr ? `&nbsp;&nbsp;${timeStr}` : ''}</td>
+      <td class="label">작 성 자</td>
+      <td class="value">${m.createdBy?.name ?? '-'}</td>
+    </tr>
+    <tr>
+      <td class="label">참 석 자</td>
+      <td class="value" colspan="3">${attendeesStr}</td>
+    </tr>
+  </table>
+
+  <div class="section-title">회 의 내 용</div>
+  <div class="content-box">${contentStr || '　'}</div>
+
+  <div class="doc-footer">출력일: ${new Date().toLocaleDateString('ko-KR')}</div>
+
+  <script>window.onload = function(){ window.print(); }<\/script>
+</body>
+</html>`;
+
+  const w = window.open('', '_blank', 'width=794,height=1123');
+  if (w) { w.document.write(html); w.document.close(); }
+}
+
 interface MeetingForm {
   title: string;
   content: string;
   meetingDate: string;
+  startTime: string;
+  endTime: string;
   attendees: string;
   projectId: string;
 }
@@ -20,6 +155,8 @@ const emptyForm = (): MeetingForm => ({
   title: '',
   content: '',
   meetingDate: new Date().toISOString().slice(0, 10),
+  startTime: '',
+  endTime: '',
   attendees: '',
   projectId: '',
 });
@@ -27,13 +164,15 @@ const emptyForm = (): MeetingForm => ({
 export function MeetingsPage() {
   const qc = useQueryClient();
   const currentUser = useAuthStore((s) => s.user);
+  const isGlobalAdmin = currentUser?.role === 'ADMIN';
+  const { projectId: routeProjectId } = useParams<{ projectId: string }>();
 
-  const [filterProject, setFilterProject] = useState('');
+  const [filterProject, setFilterProject] = useState(routeProjectId ?? '');
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingMeeting, setViewingMeeting] = useState<any | null>(null);
-  const [form, setForm] = useState<MeetingForm>(emptyForm());
+  const [form, setForm] = useState<MeetingForm>({ ...emptyForm(), projectId: routeProjectId ?? '' });
 
   const { data: projects } = useQuery({
     queryKey: ['projects'],
@@ -50,6 +189,8 @@ export function MeetingsPage() {
       title: form.title,
       content: form.content || undefined,
       meetingDate: form.meetingDate || undefined,
+      startTime: form.startTime || undefined,
+      endTime: form.endTime || undefined,
       attendees: form.attendees || undefined,
       projectId: form.projectId || undefined,
     }),
@@ -67,6 +208,8 @@ export function MeetingsPage() {
       title: form.title,
       content: form.content || undefined,
       meetingDate: form.meetingDate || undefined,
+      startTime: form.startTime || undefined,
+      endTime: form.endTime || undefined,
       attendees: form.attendees || undefined,
       projectId: form.projectId || null,
     }),
@@ -93,7 +236,7 @@ export function MeetingsPage() {
 
   const openCreate = () => {
     setEditingId(null);
-    setForm(emptyForm());
+    setForm({ ...emptyForm(), projectId: routeProjectId ?? '' });
     setShowModal(true);
   };
 
@@ -103,6 +246,8 @@ export function MeetingsPage() {
       title: m.title,
       content: m.content ?? '',
       meetingDate: m.meetingDate ? m.meetingDate.slice(0, 10) : '',
+      startTime: m.startTime ?? '',
+      endTime: m.endTime ?? '',
       attendees: m.attendees ?? '',
       projectId: m.project?.id ?? '',
     });
@@ -140,16 +285,18 @@ export function MeetingsPage() {
             className="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 w-52"
           />
         </div>
-        <select
-          value={filterProject}
-          onChange={(e) => setFilterProject(e.target.value)}
-          className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-        >
-          <option value="">전체 프로젝트</option>
-          {projects?.map((p: any) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
+        {!routeProjectId && (
+          <select
+            value={filterProject}
+            onChange={(e) => setFilterProject(e.target.value)}
+            className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+          >
+            <option value="">전체 프로젝트</option>
+            {projects?.map((p: any) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* List */}
@@ -194,10 +341,16 @@ export function MeetingsPage() {
                     {m.content && (
                       <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">{m.content}</p>
                     )}
-                    <div className="flex items-center gap-3 mt-2">
+                    <div className="flex items-center gap-3 mt-2 flex-wrap">
                       <span className="flex items-center gap-1 text-[11px] text-gray-400">
                         <Calendar size={11} /> {formatDate(m.meetingDate)}
                       </span>
+                      {(m.startTime || m.endTime) && (
+                        <span className="flex items-center gap-1 text-[11px] text-gray-400">
+                          <Clock size={11} />
+                          {m.startTime ?? '?'}{m.endTime ? ` ~ ${m.endTime}` : ''}
+                        </span>
+                      )}
                       {m.attendees && (
                         <span className="flex items-center gap-1 text-[11px] text-gray-400">
                           <Users size={11} /> {m.attendees}
@@ -207,12 +360,21 @@ export function MeetingsPage() {
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
                     <button
-                      onClick={(e) => { e.stopPropagation(); openEdit(m); }}
-                      className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                      onClick={(e) => { e.stopPropagation(); printMeeting(m); }}
+                      className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                      title="인쇄"
                     >
-                      <Pencil size={13} />
+                      <Printer size={13} />
                     </button>
-                    {m.createdBy?.id === currentUser?.id && (
+                    {(isGlobalAdmin || m.createdBy?.id === currentUser?.id) && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openEdit(m); }}
+                        className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    )}
+                    {(isGlobalAdmin || m.createdBy?.id === currentUser?.id) && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -239,8 +401,8 @@ export function MeetingsPage() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-br from-indigo-50 via-white to-violet-50 border-b border-gray-200 flex-shrink-0">
               <h2 className="text-base font-bold text-gray-900">{editingId ? '회의록 수정' : '새 회의록'}</h2>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 p-1">
                 <X size={18} />
@@ -272,18 +434,42 @@ export function MeetingsPage() {
                     className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
+                {!routeProjectId && (
+                  <div className="flex-1">
+                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">연관 프로젝트</label>
+                    <select
+                      value={form.projectId}
+                      onChange={(e) => setForm({ ...form, projectId: e.target.value })}
+                      className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="">없음</option>
+                      {projects?.map((p: any) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Time row */}
+              <div className="flex gap-3">
                 <div className="flex-1">
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">연관 프로젝트</label>
-                  <select
-                    value={form.projectId}
-                    onChange={(e) => setForm({ ...form, projectId: e.target.value })}
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">시작 시간</label>
+                  <input
+                    type="time"
+                    value={form.startTime}
+                    onChange={(e) => setForm({ ...form, startTime: e.target.value })}
                     className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="">없음</option>
-                    {projects?.map((p: any) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">종료 시간</label>
+                  <input
+                    type="time"
+                    value={form.endTime}
+                    onChange={(e) => setForm({ ...form, endTime: e.target.value })}
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
                 </div>
               </div>
 
@@ -335,8 +521,8 @@ export function MeetingsPage() {
       {viewingMeeting && !showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setViewingMeeting(null)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-br from-indigo-50 via-white to-violet-50 border-b border-gray-200 flex-shrink-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-base font-bold text-gray-900">{viewingMeeting.title}</h2>
                 {viewingMeeting.project && (
@@ -347,12 +533,21 @@ export function MeetingsPage() {
               </div>
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() => openEdit(viewingMeeting)}
-                  className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                  onClick={() => printMeeting(viewingMeeting)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
+                  title="인쇄"
                 >
-                  <Pencil size={14} />
+                  <Printer size={13} /> 인쇄
                 </button>
-                {viewingMeeting.createdBy?.id === currentUser?.id && (
+                {(isGlobalAdmin || viewingMeeting.createdBy?.id === currentUser?.id) && (
+                  <button
+                    onClick={() => openEdit(viewingMeeting)}
+                    className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                )}
+                {(isGlobalAdmin || viewingMeeting.createdBy?.id === currentUser?.id) && (
                   <button
                     onClick={() => {
                       if (confirm(`"${viewingMeeting.title}" 회의록을 삭제하시겠습니까?`)) deleteMeeting.mutate(viewingMeeting.id);
@@ -369,11 +564,18 @@ export function MeetingsPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
-              <div className="flex items-center gap-4 mb-5 pb-4 border-b border-gray-100">
+              <div className="flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-gray-100">
                 {viewingMeeting.meetingDate && (
                   <span className="flex items-center gap-1.5 text-sm text-gray-600">
                     <Calendar size={14} className="text-gray-400" />
                     {formatDate(viewingMeeting.meetingDate)}
+                  </span>
+                )}
+                {(viewingMeeting.startTime || viewingMeeting.endTime) && (
+                  <span className="flex items-center gap-1 text-sm text-gray-600">
+                    <Clock size={14} className="text-gray-400" />
+                    {viewingMeeting.startTime ?? '?'}
+                    {viewingMeeting.endTime && <> ~ {viewingMeeting.endTime}</>}
                   </span>
                 )}
                 {viewingMeeting.attendees && (

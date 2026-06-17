@@ -15,6 +15,11 @@ import { WorkloadPage } from './pages/workload/WorkloadPage';
 import { MeetingsPage } from './pages/meetings/MeetingsPage';
 import { ProfilePage } from './pages/settings/ProfilePage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
+import { ProjectLayout } from './components/layout/ProjectLayout';
+import { IssuesPage } from './pages/issues/IssuesPage';
+import { NoticesPage } from './pages/notices/NoticesPage';
+import { PermissionsPage } from './pages/projects/PermissionsPage';
+import { MeetingCalendarPage } from './pages/meetings/MeetingCalendarPage';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)();
@@ -56,14 +61,20 @@ export default function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="projects" element={<ProjectsPage />} />
-          <Route path="projects/:projectId" element={<ProjectDetailPage />} />
-          <Route path="projects/:projectId/kanban" element={<KanbanPage />} />
-          <Route path="projects/:projectId/gantt" element={<GanttPage />} />
+          <Route path="projects/:projectId" element={<ProjectLayout />}>
+            <Route index element={<ProjectDetailPage />} />
+            <Route path="kanban" element={<KanbanPage />} />
+            <Route path="gantt" element={<GanttPage />} />
+            <Route path="workload" element={<WorkloadPage />} />
+            <Route path="meetings" element={<MeetingsPage />} />
+            <Route path="issues" element={<IssuesPage />} />
+            <Route path="notices" element={<NoticesPage />} />
+            <Route path="permissions" element={<PermissionsPage />} />
+          </Route>
+          <Route path="meeting-calendar" element={<MeetingCalendarPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="partners" element={<PartnersPage />} />
           <Route path="partners/:partnerId" element={<PartnerDetailPage />} />
-          <Route path="workload" element={<WorkloadPage />} />
-          <Route path="meetings" element={<MeetingsPage />} />
           <Route path="settings/profile" element={<ProfilePage />} />
           <Route path="admin/users" element={<AdminUsersPage />} />
         </Route>

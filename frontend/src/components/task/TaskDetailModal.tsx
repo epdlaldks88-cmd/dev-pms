@@ -1,30 +1,50 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   X, Calendar, MessageSquare, Paperclip,
-  Send, Trash2, Clock,
+  Send, Trash2, Clock, Check, Pencil, Plus, Tag, ChevronRight,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
-import { tasksApi, commentsApi, attachmentsApi } from '../../api/tasks';
+import { tasksApi, commentsApi, attachmentsApi, labelsApi } from '../../api/tasks';
 import { activityApi, stepsApi } from '../../api/notifications';
+import { partnersApi } from '../../api/partners';
+import { usersApi } from '../../api/users';
 import { projectsApi } from '../../api/projects';
 import { useUiStore } from '../../store/ui.store';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../ui/Avatar';
 import { PriorityBadge } from '../ui/PriorityBadge';
 import { StatusBadge } from '../ui/StatusBadge';
-import { Button } from '../ui/Button';
 import { formatDate, formatRelativeTime, formatFileSize, cn, STATUS_CONFIG, PRIORITY_CONFIG } from '../../lib/utils';
-import type { TaskStatus, Priority, Comment } from '../../types';
+import type { TaskStatus, Priority, Comment, Label } from '../../types';
+
+const LABEL_COLORS = [
+  '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
+  '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6',
+];
 
 export function TaskDetailModal() {
   const qc = useQueryClient();
-  const { taskModalOpen, taskModalId, closeTaskModal } = useUiStore();
+  const { taskModalOpen, taskModalId, closeTaskModal, openTaskModal } = useUiStore();
   const user = useAuthStore((s) => s.user);
+
   const [comment, setComment] = useState('');
-  const [editingStatus, setEditingStatus] = useState(false);
-  const [editingPriority, setEditingPriority] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    title: '', description: '', priority: '', startDate: '', dueDate: '',
+    assigneeIds: [] as string[], personnelIds: [] as string[], labelIds: [] as string[],
+  });
+
+  // Sub-task state
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [showSubtaskInput, setShowSubtaskInput] = useState(false);
+  const subtaskInputRef = useRef<HTMLInputElement>(null);
+
+  // Label creation state
+  const [showLabelCreate, setShowLabelCreate] = useState(false);
+  const [newLabelName, setNewLabelName] = useState('');
+  const [newLabelColor, setNewLabelColor] = useState(LABEL_COLORS[0]);
 
   const { data: task, isLoading } = useQuery({
     queryKey: ['task', taskModalId],
@@ -38,26 +58,125 @@ export function TaskDetailModal() {
     enabled: !!task?.projectId,
   });
 
-  // 상태를 바꾸면 같은 이름의 단계로 카드도 이동시킨다 (칸반 컬럼 동기화)
+  const { data: allUsers } = useQuery({
+    queryKey: ['users'],
+    queryFn: usersApi.getAll,
+    enabled: isEditing,
+  });
+
+  const { data: allPersonnel } = useQuery({
+    queryKey: ['all-personnel'],
+    queryFn: partnersApi.allPersonnel,
+    enabled: isEditing,
+  });
+
+  const { data: projectLabels, refetch: refetchLabels } = useQuery({
+    queryKey: ['labels', task?.projectId],
+    queryFn: () => labelsApi.getAll(task!.projectId),
+    enabled: !!task?.projectId,
+  });
+
+  const { data: project } = useQuery({
+    queryKey: ['project', task?.projectId],
+    queryFn: () => projectsApi.getOne(task!.projectId),
+    enabled: !!task?.projectId,
+  });
+
+  const startEdit = () => {
+    if (!task) return;
+    setEditForm({
+      title: task.title,
+      description: task.description ?? '',
+      priority: task.priority,
+      startDate: task.startDate ? task.startDate.slice(0, 10) : '',
+      dueDate: task.dueDate ? task.dueDate.slice(0, 10) : '',
+      assigneeIds: task.assignees.map((a: any) => a.user.id),
+      personnelIds: task.personnel?.map((p: any) => p.personnel.id) ?? [],
+      labelIds: task.labels.map((l: any) => l.label.id),
+    });
+    setShowLabelCreate(false);
+    setIsEditing(true);
+  };
+
+  const saveEdit = () => {
+    updateTask.mutate({
+      title: editForm.title,
+      description: editForm.description,
+      priority: editForm.priority,
+      startDate: editForm.startDate ? new Date(editForm.startDate).toISOString() : null,
+      dueDate: editForm.dueDate ? new Date(editForm.dueDate).toISOString() : null,
+      assigneeIds: editForm.assigneeIds,
+      personnelIds: editForm.personnelIds,
+      labelIds: editForm.labelIds,
+    });
+  };
+
   const handleStatusChange = (status: string) => {
     const label = STATUS_CONFIG[status as TaskStatus]?.label;
     const matchedStep = steps?.find((s: any) => s.name === label);
     updateTask.mutate(matchedStep ? { status, stepId: matchedStep.id } : { status });
   };
 
+  const invalidateTask = () => {
+    qc.invalidateQueries({ queryKey: ['task', taskModalId] });
+    qc.invalidateQueries({ queryKey: ['kanban', task!.projectId] });
+    qc.invalidateQueries({ queryKey: ['gantt', task!.projectId] });
+    qc.invalidateQueries({ queryKey: ['tasks', task!.projectId] });
+    qc.invalidateQueries({ queryKey: ['project-stats', task!.projectId] });
+  };
+
   const updateTask = useMutation({
     mutationFn: (data: any) => tasksApi.update(task!.projectId, taskModalId!, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['task', taskModalId] });
-      qc.invalidateQueries({ queryKey: ['kanban', task!.projectId] });
-      qc.invalidateQueries({ queryKey: ['gantt', task!.projectId] });
-      qc.invalidateQueries({ queryKey: ['tasks', task!.projectId] });
-      qc.invalidateQueries({ queryKey: ['project-stats', task!.projectId] });
-      setEditingStatus(false);
-      setEditingPriority(false);
+      invalidateTask();
+      setIsEditing(false);
       toast.success('변경사항이 저장되었습니다.');
     },
     onError: () => toast.error('저장에 실패했습니다.'),
+  });
+
+  // Sub-task mutations
+  const createSubtask = useMutation({
+    mutationFn: (title: string) =>
+      tasksApi.create(task!.projectId, { title, parentId: task!.id, status: 'TODO' as any }),
+    onSuccess: () => {
+      invalidateTask();
+      setNewSubtaskTitle('');
+      setShowSubtaskInput(false);
+    },
+    onError: () => toast.error('서브태스크 생성에 실패했습니다.'),
+  });
+
+  const toggleSubtask = useMutation({
+    mutationFn: ({ subId, status }: { subId: string; status: string }) =>
+      tasksApi.update(task!.projectId, subId, { status }),
+    onSuccess: () => invalidateTask(),
+  });
+
+  const deleteSubtask = useMutation({
+    mutationFn: (subId: string) => tasksApi.delete(task!.projectId, subId),
+    onSuccess: () => invalidateTask(),
+  });
+
+  // Label mutations
+  const createLabel = useMutation({
+    mutationFn: () => labelsApi.create(task!.projectId, newLabelName.trim(), newLabelColor),
+    onSuccess: (label: Label) => {
+      refetchLabels();
+      setEditForm((f) => ({ ...f, labelIds: [...f.labelIds, label.id] }));
+      setNewLabelName('');
+      setNewLabelColor(LABEL_COLORS[0]);
+      setShowLabelCreate(false);
+    },
+    onError: () => toast.error('레이블 생성에 실패했습니다.'),
+  });
+
+  const deleteLabel = useMutation({
+    mutationFn: (labelId: string) => labelsApi.delete(task!.projectId, labelId),
+    onSuccess: () => {
+      refetchLabels();
+      qc.invalidateQueries({ queryKey: ['task', taskModalId] });
+    },
   });
 
   const addComment = useMutation({
@@ -87,16 +206,11 @@ export function TaskDetailModal() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['task', taskModalId] }),
   });
 
-  const { data: project } = useQuery({
-    queryKey: ['project', task?.projectId],
-    queryFn: () => projectsApi.getOne(task!.projectId),
-    enabled: !!task?.projectId,
-  });
-
-  const canDeleteTask = task && (
-    task.createdBy.id === user?.id ||
-    project?.members.find((m) => m.user.id === user?.id)?.role === 'OWNER'
-  );
+  const isGlobalAdmin = user?.role === 'ADMIN';
+  const myProjectRole = project?.members.find((m) => m.user.id === user?.id)?.role;
+  const isProjectAdmin = myProjectRole === 'OWNER' || myProjectRole === 'ADMIN';
+  const canEditTask = task && (isGlobalAdmin || isProjectAdmin || task.createdBy.id === user?.id);
+  const canDeleteTask = canEditTask;
 
   const deleteTask = useMutation({
     mutationFn: () => tasksApi.delete(task!.projectId, taskModalId!),
@@ -111,6 +225,9 @@ export function TaskDetailModal() {
 
   if (!taskModalOpen) return null;
 
+  const doneCount = task?.subTasks?.filter((s: any) => s.status === 'DONE').length ?? 0;
+  const totalCount = task?.subTasks?.length ?? 0;
+
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeTaskModal} />
@@ -118,14 +235,30 @@ export function TaskDetailModal() {
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+          <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-br from-indigo-50 via-white to-violet-50 border-b border-gray-200 flex-shrink-0">
             <div className="flex items-center gap-2 flex-wrap">
               {task && <StatusBadge status={task.status} />}
               {task && <PriorityBadge priority={task.priority} />}
+              {task?.labels.map(({ label }: any) => (
+                <span
+                  key={label.id}
+                  className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                  style={{ backgroundColor: label.color + '20', color: label.color }}
+                >
+                  {label.name}
+                </span>
+              ))}
             </div>
-            <button onClick={closeTaskModal} className="text-gray-400 hover:text-gray-600 p-1">
-              <X size={18} />
-            </button>
+            <div className="flex items-center gap-2">
+              {task && !isEditing && canEditTask && (
+                <button onClick={startEdit} className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 border border-indigo-200 hover:border-indigo-400 px-2.5 py-1 rounded-lg transition-colors">
+                  <Pencil size={12} /> 편집
+                </button>
+              )}
+              <button onClick={closeTaskModal} className="text-gray-400 hover:text-gray-600 p-1">
+                <X size={18} />
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto">
@@ -135,26 +268,358 @@ export function TaskDetailModal() {
               </div>
             ) : (
               <div className="p-6">
-                <h1 className="text-xl font-bold text-gray-900 mb-3 leading-snug">{task.title}</h1>
+                {isEditing ? (
+                  /* ─── 편집 모드 ─── */
+                  <div className="space-y-4 mb-5">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">제목 *</label>
+                      <input
+                        autoFocus
+                        className="w-full text-base font-semibold text-gray-900 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        value={editForm.title}
+                        onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">설명</label>
+                      <textarea
+                        className="w-full text-sm text-gray-700 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                        rows={4}
+                        placeholder="태스크 설명을 입력하세요..."
+                        value={editForm.description}
+                        onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">우선순위</label>
+                        <select
+                          className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          value={editForm.priority}
+                          onChange={(e) => setEditForm((f) => ({ ...f, priority: e.target.value }))}
+                        >
+                          {Object.entries(PRIORITY_CONFIG).map(([k, v]) => (
+                            <option key={k} value={k}>{v.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">시작일</label>
+                        <input
+                          type="date"
+                          className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          value={editForm.startDate}
+                          onChange={(e) => setEditForm((f) => ({ ...f, startDate: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">마감일</label>
+                      <input
+                        type="date"
+                        className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        value={editForm.dueDate}
+                        min={editForm.startDate || undefined}
+                        onChange={(e) => setEditForm((f) => ({ ...f, dueDate: e.target.value }))}
+                      />
+                    </div>
 
-                {task.description && (
-                  <p className="text-sm text-gray-600 mb-5 whitespace-pre-wrap leading-relaxed">{task.description}</p>
+                    {/* 레이블 */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                          <Tag size={11} /> 레이블
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setShowLabelCreate((v) => !v)}
+                          className="text-[11px] text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"
+                        >
+                          <Plus size={11} /> 새 레이블
+                        </button>
+                      </div>
+
+                      {showLabelCreate && (
+                        <div className="mb-2 p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+                          <div className="flex gap-2">
+                            <input
+                              className="flex-1 text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              placeholder="레이블 이름"
+                              value={newLabelName}
+                              onChange={(e) => setNewLabelName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && newLabelName.trim()) createLabel.mutate();
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => newLabelName.trim() && createLabel.mutate()}
+                              disabled={!newLabelName.trim() || createLabel.isPending}
+                              className="px-2.5 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-40"
+                            >
+                              추가
+                            </button>
+                          </div>
+                          <div className="flex gap-1.5 flex-wrap">
+                            {LABEL_COLORS.map((c) => (
+                              <button
+                                key={c}
+                                type="button"
+                                onClick={() => setNewLabelColor(c)}
+                                className={cn(
+                                  'w-5 h-5 rounded-full transition-transform',
+                                  newLabelColor === c && 'ring-2 ring-offset-1 ring-gray-400 scale-110',
+                                )}
+                                style={{ backgroundColor: c }}
+                              />
+                            ))}
+                          </div>
+                          <div>
+                            <span className="text-[11px] px-2 py-0.5 rounded-full font-medium"
+                              style={{ backgroundColor: newLabelColor + '25', color: newLabelColor }}>
+                              {newLabelName || '미리보기'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap gap-1.5">
+                        {projectLabels?.map((label) => {
+                          const selected = editForm.labelIds.includes(label.id);
+                          return (
+                            <button
+                              key={label.id}
+                              type="button"
+                              onClick={() => setEditForm((f) => ({
+                                ...f,
+                                labelIds: selected
+                                  ? f.labelIds.filter((id) => id !== label.id)
+                                  : [...f.labelIds, label.id],
+                              }))}
+                              className={cn(
+                                'group flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border transition-all',
+                                selected ? 'ring-2 ring-offset-1' : 'opacity-60 hover:opacity-100',
+                              )}
+                              style={{
+                                backgroundColor: label.color + '20',
+                                color: label.color,
+                                borderColor: label.color + '60',
+                                ringColor: label.color,
+                              }}
+                            >
+                              {selected && <Check size={10} />}
+                              {label.name}
+                            </button>
+                          );
+                        })}
+                        {!projectLabels?.length && (
+                          <p className="text-xs text-gray-400">레이블이 없습니다. 새 레이블을 만들어보세요.</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 담당자 */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">담당자</label>
+                      <div className="flex flex-wrap gap-2">
+                        {allUsers?.map((u) => {
+                          const selected = editForm.assigneeIds.includes(u.id);
+                          return (
+                            <button
+                              key={u.id}
+                              type="button"
+                              onClick={() => setEditForm((f) => ({
+                                ...f,
+                                assigneeIds: selected
+                                  ? f.assigneeIds.filter((id) => id !== u.id)
+                                  : [...f.assigneeIds, u.id],
+                              }))}
+                              className={cn(
+                                'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-colors',
+                                selected
+                                  ? 'bg-indigo-600 text-white border-indigo-600'
+                                  : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400'
+                              )}
+                            >
+                              <Avatar name={u.name} avatar={u.avatar} size="xs" />
+                              {u.name}
+                              {selected && <Check size={11} />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* 파트너사 인력 */}
+                    {allPersonnel && allPersonnel.length > 0 && (
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">파트너사 인력</label>
+                        <div className="flex flex-wrap gap-2">
+                          {allPersonnel.map((p: any) => {
+                            const selected = editForm.personnelIds.includes(p.id);
+                            return (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => setEditForm((f) => ({
+                                  ...f,
+                                  personnelIds: selected
+                                    ? f.personnelIds.filter((id) => id !== p.id)
+                                    : [...f.personnelIds, p.id],
+                                }))}
+                                className={cn(
+                                  'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-colors',
+                                  selected
+                                    ? 'bg-emerald-600 text-white border-emerald-600'
+                                    : 'bg-white text-gray-600 border-gray-300 hover:border-emerald-400'
+                                )}
+                              >
+                                {p.name}
+                                <span className="text-[10px] opacity-70">{p.partner?.name}</span>
+                                {selected && <Check size={11} />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        onClick={saveEdit}
+                        disabled={!editForm.title.trim() || updateTask.isPending}
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-sm font-medium py-2 rounded-lg transition-colors"
+                      >
+                        <Check size={15} /> 저장
+                      </button>
+                      <button
+                        onClick={() => setIsEditing(false)}
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium py-2 rounded-lg transition-colors"
+                      >
+                        <X size={15} /> 취소
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <h1 className="text-xl font-bold text-gray-900 mb-3 leading-snug">{task.title}</h1>
+                    {task.description && (
+                      <p className="text-sm text-gray-600 mb-5 whitespace-pre-wrap leading-relaxed">{task.description}</p>
+                    )}
+                  </>
                 )}
 
-                {/* Sub-tasks */}
-                {task.subTasks && task.subTasks.length > 0 && (
-                  <div className="mb-5">
-                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">하위 태스크</h3>
-                    <div className="space-y-1.5">
+                {/* ─── 서브태스크 ─── */}
+                <div className="mb-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                      서브태스크
+                      {totalCount > 0 && (
+                        <span className="text-[10px] font-normal bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full">
+                          {doneCount}/{totalCount}
+                        </span>
+                      )}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSubtaskInput(true);
+                        setTimeout(() => subtaskInputRef.current?.focus(), 50);
+                      }}
+                      className="text-[11px] text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"
+                    >
+                      <Plus size={11} /> 추가
+                    </button>
+                  </div>
+
+                  {/* 진행바 */}
+                  {totalCount > 0 && (
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-2">
+                      <div
+                        className="h-full bg-emerald-500 rounded-full transition-all"
+                        style={{ width: `${Math.round((doneCount / totalCount) * 100)}%` }}
+                      />
+                    </div>
+                  )}
+
+                  {task.subTasks && task.subTasks.length > 0 && (
+                    <div className="space-y-1">
                       {task.subTasks.map((sub: any) => (
-                        <div key={sub.id} className="flex items-center gap-2 py-1.5 px-3 bg-gray-50 rounded-lg">
-                          <div className={cn('w-3 h-3 rounded-full border-2', sub.status === 'DONE' ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300')} />
-                          <span className={cn('text-sm', sub.status === 'DONE' && 'line-through text-gray-400')}>{sub.title}</span>
+                        <div key={sub.id} className="flex items-center gap-2 py-1.5 px-3 bg-gray-50 rounded-lg group hover:bg-gray-100 transition-colors">
+                          <button
+                            type="button"
+                            onClick={() => toggleSubtask.mutate({
+                              subId: sub.id,
+                              status: sub.status === 'DONE' ? 'TODO' : 'DONE',
+                            })}
+                            className={cn(
+                              'w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors',
+                              sub.status === 'DONE'
+                                ? 'bg-emerald-500 border-emerald-500'
+                                : 'border-gray-300 hover:border-emerald-400',
+                            )}
+                          >
+                            {sub.status === 'DONE' && <Check size={10} className="text-white" />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openTaskModal(sub.id)}
+                            className={cn(
+                              'flex-1 text-sm text-left hover:text-indigo-600 transition-colors',
+                              sub.status === 'DONE' && 'line-through text-gray-400',
+                            )}
+                          >
+                            {sub.title}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteSubtask.mutate(sub.id)}
+                            className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-all"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                          <ChevronRight size={12} className="text-gray-300 opacity-0 group-hover:opacity-100" />
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
+
+                  {showSubtaskInput && (
+                    <div className="flex gap-2 mt-2">
+                      <input
+                        ref={subtaskInputRef}
+                        className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="서브태스크 제목..."
+                        value={newSubtaskTitle}
+                        onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && newSubtaskTitle.trim()) {
+                            createSubtask.mutate(newSubtaskTitle.trim());
+                          }
+                          if (e.key === 'Escape') {
+                            setShowSubtaskInput(false);
+                            setNewSubtaskTitle('');
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => newSubtaskTitle.trim() && createSubtask.mutate(newSubtaskTitle.trim())}
+                        disabled={!newSubtaskTitle.trim() || createSubtask.isPending}
+                        className="px-2.5 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 disabled:opacity-40"
+                      >
+                        추가
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setShowSubtaskInput(false); setNewSubtaskTitle(''); }}
+                        className="px-2 py-1.5 text-gray-500 hover:text-gray-700 text-xs"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 {/* Attachments */}
                 {task.attachments && task.attachments.length > 0 && (
@@ -229,7 +694,7 @@ export function TaskDetailModal() {
             )}
           </div>
 
-          {/* Comment Input (하단 고정) */}
+          {/* Comment Input */}
           {task && (
             <div className="flex-shrink-0 border-t border-gray-200 p-4 bg-white">
               <div className="flex gap-3 items-start">
@@ -264,11 +729,11 @@ export function TaskDetailModal() {
           )}
         </div>
 
-        {/* Sidebar */}
+        {/* ─── 우측 사이드바 ─── */}
         {task && (
           <div className="w-56 border-l border-gray-200 bg-gray-50/50 flex flex-col overflow-y-auto flex-shrink-0">
             <div className="p-4 space-y-4">
-              {/* Step (칸반 컬럼) */}
+              {/* Step */}
               {steps && steps.length > 0 && (
                 <div>
                   <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">단계 (칸반 컬럼)</p>
@@ -312,6 +777,26 @@ export function TaskDetailModal() {
                 </select>
               </div>
 
+              {/* Labels (read) */}
+              <div>
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">레이블</p>
+                {task.labels.length === 0 ? (
+                  <p className="text-xs text-gray-400">없음</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {task.labels.map(({ label }: any) => (
+                      <span
+                        key={label.id}
+                        className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                        style={{ backgroundColor: label.color + '20', color: label.color }}
+                      >
+                        {label.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Assignees */}
               <div>
                 <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">담당자</p>
@@ -330,11 +815,9 @@ export function TaskDetailModal() {
               </div>
 
               {/* Partner Personnel */}
-              <div>
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">파트너사 인력</p>
-                {!task.personnel?.length ? (
-                  <p className="text-xs text-gray-400">없음</p>
-                ) : (
+              {task.personnel && task.personnel.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">파트너사 인력</p>
                   <div className="space-y-1.5">
                     {task.personnel.map(({ personnel: p }: any) => (
                       <div key={p.id} className="flex items-center gap-1.5">
@@ -348,8 +831,8 @@ export function TaskDetailModal() {
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* Dates */}
               {(task.startDate || task.dueDate) && (
@@ -368,24 +851,6 @@ export function TaskDetailModal() {
                         마감: {formatDate(task.dueDate)}
                       </div>
                     )}
-                  </div>
-                </div>
-              )}
-
-              {/* Labels */}
-              {task.labels.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">레이블</p>
-                  <div className="flex flex-wrap gap-1">
-                    {task.labels.map(({ label }: any) => (
-                      <span
-                        key={label.id}
-                        className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
-                        style={{ backgroundColor: label.color + '20', color: label.color }}
-                      >
-                        {label.name}
-                      </span>
-                    ))}
                   </div>
                 </div>
               )}
