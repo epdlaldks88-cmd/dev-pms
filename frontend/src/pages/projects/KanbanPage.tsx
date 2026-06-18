@@ -20,6 +20,8 @@ import { TaskDetailModal } from '../../components/task/TaskDetailModal';
 import { useUiStore } from '../../store/ui.store';
 import { useAuthStore } from '../../store/auth.store';
 import { Button } from '../../components/ui/Button';
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { ErrorState } from '../../components/ui/ErrorState';
 import { STATUS_CONFIG } from '../../lib/utils';
 import type { KanbanColumn as KanbanColumnType, Task, TaskStatus } from '../../types';
 
@@ -27,6 +29,7 @@ export function KanbanPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const qc = useQueryClient();
   const openCreateTask = useUiStore((s) => s.openCreateTask);
+  const taskModalId = useUiStore((s) => s.taskModalId);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
 
   const currentUser = useAuthStore((s) => s.user);
@@ -40,7 +43,7 @@ export function KanbanPage() {
   const myRole = project?.members.find((m) => m.user.id === currentUser?.id)?.role;
   const canManage = myRole === 'OWNER' || myRole === 'ADMIN';
 
-  const { data: kanban, isLoading } = useQuery({
+  const { data: kanban, isLoading, isError, refetch } = useQuery({
     queryKey: ['kanban', projectId],
     queryFn: () => tasksApi.getKanban(projectId!),
     enabled: !!projectId,
@@ -63,6 +66,11 @@ export function KanbanPage() {
   const moveTask = useMutation({
     mutationFn: ({ taskId, stepId, order }: { taskId: string; stepId: string | null; order: number }) =>
       tasksApi.move(projectId!, taskId, stepId, order),
+    onSuccess: (data, { taskId }) => {
+      qc.setQueryData(['task', taskId], data);
+      qc.refetchQueries({ queryKey: ['kanban', projectId] });
+      qc.invalidateQueries({ queryKey: ['project-stats', projectId] });
+    },
   });
 
   const [addingColumn, setAddingColumn] = useState(false);
@@ -147,6 +155,7 @@ export function KanbanPage() {
     const movedTask = kanban.flatMap((c) => c.tasks).find((t) => t.id === taskId);
     if (matchedStatus && movedTask && movedTask.status !== matchedStatus) {
       tasksApi.update(projectId!, taskId, { status: matchedStatus }).then(() => {
+        qc.invalidateQueries({ queryKey: ['task', taskId] });
         qc.invalidateQueries({ queryKey: ['gantt', projectId] });
         qc.invalidateQueries({ queryKey: ['project-stats', projectId] });
       });
@@ -174,6 +183,10 @@ export function KanbanPage() {
             [...Array(4)].map((_, i) => (
               <div key={i} className="w-72 h-64 bg-gray-100 rounded-xl animate-pulse flex-shrink-0" />
             ))
+          ) : isError ? (
+            <div className="flex-1 flex items-center justify-center">
+              <ErrorState onRetry={refetch} />
+            </div>
           ) : (
             <DndContext
               sensors={sensors}

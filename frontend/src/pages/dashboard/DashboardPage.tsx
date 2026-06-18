@@ -9,6 +9,7 @@ import { worklogsApi } from '../../api/worklogs';
 import { meetingsApi } from '../../api/meetings';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
+import { ErrorState } from '../../components/ui/ErrorState';
 import { PROJECT_STATUS_CONFIG, STATUS_CONFIG, formatDate } from '../../lib/utils';
 import { cn } from '../../lib/utils';
 import type { Project, TaskStatus, ProjectStats } from '../../types';
@@ -165,7 +166,7 @@ function StatusDonut({ counts, total }: { counts: Record<TaskStatus, number>; to
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
 
-  const { data: projects, isLoading } = useQuery({
+  const { data: projects, isLoading, isError, refetch } = useQuery({
     queryKey: ['projects'],
     queryFn: projectsApi.getAll,
   });
@@ -221,7 +222,7 @@ export function DashboardPage() {
   });
   const weekHours = weekLogs.reduce((s: number, l: any) => s + (l.hours ?? 0), 0);
 
-  // ⑥ 다가오는 회의 (오늘 이후, 가까운 순 5개)
+  // ⑥ 다가오는 일정 (오늘 이후, 가까운 순 5개)
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const upcomingMeetings = (meetings ?? [])
@@ -249,7 +250,7 @@ export function DashboardPage() {
         <StatCard icon={Clock} label="내 이번 주 공수" value={`${weekHours}h`} color="bg-violet-500" />
       </div>
 
-      {/* Widgets: 워크로드 / 상태분포 / 다가오는 회의 */}
+      {/* Widgets: 워크로드 / 상태분포 / 다가오는 일정 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
         {/* ④ 이번 주 워크로드 */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
@@ -295,16 +296,16 @@ export function DashboardPage() {
           )}
         </div>
 
-        {/* ⑥ 다가오는 회의 */}
+        {/* ⑥ 다가오는 일정 */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-gray-900 text-sm flex items-center gap-1.5">
-              <CalendarDays size={15} className="text-indigo-500" /> 다가오는 회의
+              <CalendarDays size={15} className="text-indigo-500" /> 다가오는 일정
             </h2>
             <Link to="/meeting-calendar" className="text-xs text-indigo-600 hover:underline">달력</Link>
           </div>
           {upcomingMeetings.length === 0 ? (
-            <p className="text-xs text-gray-400 py-10 text-center">예정된 회의가 없습니다.</p>
+            <p className="text-xs text-gray-400 py-10 text-center">예정된 일정이 없습니다.</p>
           ) : (
             <div className="space-y-2.5">
               {upcomingMeetings.map((m: any) => (
@@ -345,6 +346,8 @@ export function DashboardPage() {
               <div key={i} className="h-40 bg-gray-100 rounded-xl animate-pulse" />
             ))}
           </div>
+        ) : isError ? (
+          <ErrorState onRetry={refetch} />
         ) : projects?.length ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {projects.slice(0, 6).map((p) => (

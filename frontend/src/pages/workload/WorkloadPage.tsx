@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Clock, Briefcase, Trash2, X, Pencil, CheckCircle2, Check, Filter } from 'lucide-react';
@@ -11,6 +11,7 @@ import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { ErrorState } from '../../components/ui/ErrorState';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { formatDate, cn } from '../../lib/utils';
 
@@ -29,6 +30,20 @@ export function WorkloadPage() {
   const currentUser = useAuthStore((s) => s.user);
   const isGlobalAdmin = currentUser?.role === 'ADMIN';
   const { projectId: routeProjectId } = useParams<{ projectId: string }>();
+
+  useEffect(() => {
+    if (!routeProjectId) return;
+    const token = localStorage.getItem('accessToken');
+    const url = `/api/projects/${routeProjectId}/tasks/events${token ? `?token=${token}` : ''}`;
+    const es = new EventSource(url);
+    es.onmessage = () => {
+      qc.invalidateQueries({ queryKey: ['worklogs'] });
+      qc.invalidateQueries({ queryKey: ['worklogs-summary'] });
+      qc.invalidateQueries({ queryKey: ['project-stats', routeProjectId] });
+    };
+    es.onerror = () => es.close();
+    return () => es.close();
+  }, [routeProjectId, qc]);
 
   // ── 조회 필터 ──────────────────────────────────────────
   const [filterProject, setFilterProject] = useState(routeProjectId ?? '');
@@ -82,7 +97,7 @@ export function WorkloadPage() {
   };
   const queryKey = ['worklogs', filterProject, filterUser, filterStage, filterStart, filterEnd];
 
-  const { data: worklogs, isLoading } = useQuery({
+  const { data: worklogs, isLoading, isError, refetch } = useQuery({
     queryKey,
     queryFn: () => worklogsApi.getAll(queryParams),
   });
@@ -396,6 +411,8 @@ export function WorkloadPage() {
                     ))}
                   </tr>
                 ))
+              ) : isError ? (
+                <tr><td colSpan={10}><ErrorState onRetry={refetch} /></td></tr>
               ) : !filteredLogs.length ? (
                 <tr>
                   <td colSpan={10}>

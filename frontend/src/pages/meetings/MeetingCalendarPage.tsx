@@ -97,19 +97,19 @@ export function MeetingCalendarPage() {
 
   const createMeeting = useMutation({
     mutationFn: () => meetingsApi.create({ ...form, participantIds: form.participantIds }),
-    onSuccess: () => { invalidate(); setShowForm(false); setForm(emptyForm()); toast.success('회의가 등록되었습니다.'); },
+    onSuccess: () => { invalidate(); setShowForm(false); setForm(emptyForm()); toast.success('일정이 등록되었습니다.'); },
     onError: (e: any) => toast.error(e.response?.data?.message ?? '등록에 실패했습니다.'),
   });
 
   const updateMeeting = useMutation({
     mutationFn: () => meetingsApi.update(editMeeting.id, { ...form }),
-    onSuccess: () => { invalidate(); setEditMeeting(null); setViewMeeting(null); toast.success('회의가 수정되었습니다.'); },
+    onSuccess: () => { invalidate(); setEditMeeting(null); setViewMeeting(null); toast.success('일정이 수정되었습니다.'); },
     onError: (e: any) => toast.error(e.response?.data?.message ?? '수정에 실패했습니다.'),
   });
 
   const deleteMeeting = useMutation({
     mutationFn: (id: string) => meetingsApi.delete(id),
-    onSuccess: () => { invalidate(); setViewMeeting(null); toast.success('회의가 삭제되었습니다.'); },
+    onSuccess: () => { invalidate(); setViewMeeting(null); toast.success('일정이 삭제되었습니다.'); },
     onError: (e: any) => toast.error(e.response?.data?.message ?? '삭제에 실패했습니다.'),
   });
 
@@ -242,7 +242,7 @@ export function MeetingCalendarPage() {
             </button>
           </div>
           <Button variant="primary" onClick={() => openCreate()}>
-            <Plus size={15} /> 회의 추가하기
+            <Plus size={15} /> 일정 추가
           </Button>
         </div>
 
@@ -350,7 +350,7 @@ export function MeetingCalendarPage() {
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                 {new Date(selectedDay + 'T12:00:00').toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
               </p>
-              <p className="text-sm font-bold text-gray-900 mt-0.5">{selectedMeetings.length}개의 회의</p>
+              <p className="text-sm font-bold text-gray-900 mt-0.5">{selectedMeetings.length}개의 일정</p>
               {selectedDay && holidayMap[selectedDay] && (
                 <p className={cn(
                   'text-[10px] font-semibold mt-0.5',
@@ -364,7 +364,7 @@ export function MeetingCalendarPage() {
               <button
                 onClick={() => openCreate(selectedDay)}
                 className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                title="회의 추가"
+                title="일정 추가"
               >
                 <Plus size={15} />
               </button>
@@ -378,9 +378,9 @@ export function MeetingCalendarPage() {
             {selectedMeetings.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-gray-400">
                 <Calendar size={28} className="mb-2 opacity-30" />
-                <p className="text-xs">등록된 회의가 없습니다</p>
+                <p className="text-xs">등록된 일정이 없습니다</p>
                 <button onClick={() => openCreate(selectedDay)} className="mt-2 text-xs text-indigo-600 font-medium hover:text-indigo-800">
-                  회의 추가하기
+                  일정 추가
                 </button>
               </div>
             ) : (
@@ -440,7 +440,7 @@ export function MeetingCalendarPage() {
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setShowForm(false); setEditMeeting(null); }} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-br from-indigo-50 via-white to-violet-50 border-b border-gray-200 flex-shrink-0">
-              <h2 className="text-base font-bold text-gray-900">{editMeeting ? '회의 수정' : '회의 추가'}</h2>
+              <h2 className="text-base font-bold text-gray-900">{editMeeting ? '일정 수정' : '일정 추가'}</h2>
               <button onClick={() => { setShowForm(false); setEditMeeting(null); }} className="text-gray-400 hover:text-gray-600 p-1">
                 <X size={18} />
               </button>
@@ -449,13 +449,13 @@ export function MeetingCalendarPage() {
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {/* 제목 */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">회의 제목 *</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">일정 제목 *</label>
                 <input
                   autoFocus
                   type="text"
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  placeholder="회의 제목을 입력하세요"
+                  placeholder="일정 제목을 입력하세요"
                   className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
@@ -463,7 +463,7 @@ export function MeetingCalendarPage() {
               {/* 날짜 + 시간 */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">회의 일자 *</label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">일정 일자 *</label>
                   <input
                     type="date"
                     value={form.meetingDate}
@@ -576,7 +576,7 @@ export function MeetingCalendarPage() {
 
               {/* 내용 */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">회의 내용</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">일정 내용</label>
                 <textarea
                   value={form.content}
                   onChange={(e) => setForm({ ...form, content: e.target.value })}
@@ -671,7 +671,7 @@ export function MeetingCalendarPage() {
                 <textarea
                   value={minutesForm.content}
                   onChange={(e) => setMinutesForm({ ...minutesForm, content: e.target.value })}
-                  placeholder="회의 내용, 결정 사항, 액션 아이템 등을 기록하세요..."
+                  placeholder="일정 내용, 결정 사항, 액션 아이템 등을 기록하세요..."
                   rows={8}
                   className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                 />
@@ -722,7 +722,7 @@ export function MeetingCalendarPage() {
                         <Pencil size={14} />
                       </button>
                       <button
-                        onClick={() => { if (confirm('회의를 삭제하시겠습니까?')) deleteMeeting.mutate(viewMeeting.id); }}
+                        onClick={() => { if (confirm('일정을 삭제하시겠습니까?')) deleteMeeting.mutate(viewMeeting.id); }}
                         className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                       >
                         <Trash2 size={14} />

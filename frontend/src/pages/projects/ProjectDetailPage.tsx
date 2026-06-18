@@ -14,6 +14,7 @@ import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
+import { ErrorState } from '../../components/ui/ErrorState';
 import { MessagePanel } from '../../components/layout/MessagePanel';
 import { PROJECT_STATUS_CONFIG, formatDate, formatRelativeTime, cn } from '../../lib/utils';
 import type { ActivityLog, ProjectRole, ProjectStatus } from '../../types';
@@ -54,7 +55,7 @@ export function ProjectDetailPage() {
     color: '#6366f1', icon: '📁', startDate: '', endDate: '',
   });
 
-  const { data: project, isLoading } = useQuery({
+  const { data: project, isLoading, isError, refetch } = useQuery({
     queryKey: ['project', projectId],
     queryFn: () => projectsApi.getOne(projectId!),
     enabled: !!projectId,
@@ -201,6 +202,7 @@ export function ProjectDetailPage() {
     );
   }
 
+  if (isError) return <ErrorState className="p-12" onRetry={refetch} />;
   if (!project) return null;
 
   const cfg = PROJECT_STATUS_CONFIG[project.status];

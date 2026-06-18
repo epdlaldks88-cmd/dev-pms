@@ -1,8 +1,11 @@
+import { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, Calendar } from 'lucide-react';
 import { tasksApi } from '../../api/tasks';
 import { projectsApi } from '../../api/projects';
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { ErrorState } from '../../components/ui/ErrorState';
 import { PriorityBadge } from '../../components/ui/PriorityBadge';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Avatar } from '../../components/ui/Avatar';
@@ -48,6 +51,20 @@ function GanttBar({ task, startDate, totalDays }: { task: Task; startDate: Date;
 
 export function GanttPage() {
   const { projectId } = useParams<{ projectId: string }>();
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    if (!projectId) return;
+    const token = localStorage.getItem('accessToken');
+    const url = `/api/projects/${projectId}/tasks/events${token ? `?token=${token}` : ''}`;
+    const es = new EventSource(url);
+    es.onmessage = () => {
+      qc.invalidateQueries({ queryKey: ['gantt', projectId] });
+      qc.invalidateQueries({ queryKey: ['project-stats', projectId] });
+    };
+    es.onerror = () => es.close();
+    return () => es.close();
+  }, [projectId, qc]);
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -55,7 +72,7 @@ export function GanttPage() {
     enabled: !!projectId,
   });
 
-  const { data: tasks, isLoading } = useQuery({
+  const { data: tasks, isLoading, isError, refetch } = useQuery({
     queryKey: ['gantt', projectId],
     queryFn: () => tasksApi.getGantt(projectId!),
     enabled: !!projectId,
@@ -107,9 +124,9 @@ export function GanttPage() {
 
       <div className="flex-1 overflow-auto">
         {isLoading ? (
-          <div className="p-6 space-y-3">
-            {[...Array(6)].map((_, i) => <div key={i} className="h-10 bg-gray-100 rounded-lg animate-pulse" />)}
-          </div>
+          <LoadingSpinner className="py-24" text="간트차트 불러오는 중..." />
+        ) : isError ? (
+          <ErrorState onRetry={refetch} />
         ) : (
           <div className="flex min-h-full">
             {/* Task list */}

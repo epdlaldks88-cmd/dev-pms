@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Search, Mail } from 'lucide-react';
+import { Bell, Search, Mail, Settings, LogOut, ChevronDown } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notificationsApi } from '../../api/notifications';
 import { messagesApi } from '../../api/messages';
 import { searchApi } from '../../api/search';
 import { Avatar } from '../ui/Avatar';
 import { useAuthStore } from '../../store/auth.store';
+import { authApi } from '../../api/auth';
 import { useUiStore } from '../../store/ui.store';
 import { formatRelativeTime, cn } from '../../lib/utils';
 import { STATUS_CONFIG, PRIORITY_CONFIG } from '../../lib/utils';
@@ -19,8 +20,30 @@ export function Header() {
   const qc = useQueryClient();
   const openTaskModal = useUiStore((s) => s.openTaskModal);
 
+  const { logout, refreshToken } = useAuthStore();
   const [notifOpen, setNotifOpen] = useState(false);
   const [msgOpen, setMsgOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      if (refreshToken) await authApi.logout(refreshToken);
+    } finally {
+      logout();
+      navigate('/login');
+    }
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -295,7 +318,49 @@ export function Header() {
           )}
         </div>
 
-        <Avatar name={user?.name ?? ''} avatar={user?.avatar} size="sm" />
+        {/* 프로필 드롭다운 */}
+        <div className="relative" ref={profileRef}>
+          <button
+            onClick={() => { setProfileOpen((v) => !v); setNotifOpen(false); setMsgOpen(false); }}
+            className="flex items-center gap-1.5 rounded-lg px-1.5 py-1 hover:bg-gray-100 transition-colors"
+          >
+            <Avatar name={user?.name ?? ''} avatar={user?.avatar} size="sm" />
+            <ChevronDown size={13} className={cn('text-gray-400 transition-transform', profileOpen && 'rotate-180')} />
+          </button>
+
+          {profileOpen && (
+            <>
+              <div className="fixed inset-0 z-30" onClick={() => setProfileOpen(false)} />
+              <div className="absolute right-0 top-11 z-40 w-56 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+                {/* 유저 정보 */}
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
+                  <p className="text-xs text-gray-400 truncate mt-0.5">
+                    {user?.position ? `${user.position}${user.department ? ' · ' + user.department : ''}` : user?.email}
+                  </p>
+                </div>
+                {/* 메뉴 */}
+                <div className="py-1">
+                  <button
+                    onClick={() => { navigate('/settings/profile'); setProfileOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <Settings size={15} className="text-gray-400" />
+                    프로필 설정
+                  </button>
+                  <div className="border-t border-gray-100 my-1" />
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                  >
+                    <LogOut size={15} />
+                    로그아웃
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </header>
   );

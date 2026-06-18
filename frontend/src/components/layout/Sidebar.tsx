@@ -3,20 +3,17 @@ import { NavLink, useNavigate, useMatch } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard, FolderKanban, Bell, ChevronLeft, ChevronRight,
-  LogOut, Zap, Building2, Settings, Users, CalendarDays, ShieldCheck, PenTool,
+  Zap, Building2, Settings, Users, CalendarDays, ShieldCheck, PenTool,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
 import { useUiStore } from '../../store/ui.store';
 import { useAuthStore } from '../../store/auth.store';
-import { Avatar } from '../ui/Avatar';
 import { projectsApi } from '../../api/projects';
-import { authApi } from '../../api/auth';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: '대시보드' },
   { to: '/projects', icon: FolderKanban, label: '프로젝트' },
-  { to: '/meeting-calendar', icon: CalendarDays, label: '회의관리' },
+  { to: '/meeting-calendar', icon: CalendarDays, label: '일정관리' },
   { to: '/canvas', icon: PenTool, label: '캔버스' },
   { to: '/partners', icon: Building2, label: '파트너사 관리' },
   { to: '/notifications', icon: Bell, label: '알림' },
@@ -25,7 +22,7 @@ const navItems = [
 export function Sidebar() {
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const toggle = useUiStore((s) => s.toggleSidebar);
-  const { user, logout, refreshToken } = useAuthStore();
+  const { user } = useAuthStore();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'ADMIN';
   const projectMatch = useMatch('/projects/:projectId/*');
@@ -45,16 +42,6 @@ export function Sidebar() {
   const storedLast = localStorage.getItem('lastProjectId') ?? undefined;
   const validLast = projects?.some((p) => p.id === storedLast) ? storedLast : undefined;
   const permissionsTargetId = activeProjectId ?? validLast ?? projects?.[0]?.id;
-
-  const handleLogout = async () => {
-    try {
-      if (refreshToken) await authApi.logout(refreshToken);
-    } finally {
-      logout();
-      navigate('/login');
-      toast.success('로그아웃 되었습니다.');
-    }
-  };
 
   return (
     <aside
@@ -209,28 +196,6 @@ export function Sidebar() {
           <Settings size={18} className="flex-shrink-0" />
           {!collapsed && <span>프로필 설정</span>}
         </NavLink>
-
-        {/* User info + logout */}
-        <div className={cn('flex items-center gap-2 px-2 py-1.5 mt-1', collapsed && 'justify-center')}>
-          {collapsed ? (
-            <button onClick={handleLogout} title="로그아웃">
-              <Avatar name={user?.name ?? ''} avatar={user?.avatar} size="sm" />
-            </button>
-          ) : (
-            <>
-              <Avatar name={user?.name ?? ''} avatar={user?.avatar} size="sm" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-white truncate">{user?.name}</p>
-                <p className="text-[10px] text-gray-500 truncate">
-                  {user?.position ? `${user.position}${user.department ? ' · ' + user.department : ''}` : user?.email}
-                </p>
-              </div>
-              <button onClick={handleLogout} className="text-gray-400 hover:text-red-400 transition-colors p-1" title="로그아웃">
-                <LogOut size={14} />
-              </button>
-            </>
-          )}
-        </div>
       </div>
     </aside>
   );

@@ -248,17 +248,31 @@ const nodeTypes: NodeTypes = {
 };
 
 // ── 초기 샘플 ─────────────────────────────────────
-const initNodes: Node[] = [
+const STORAGE_KEY = 'canvas_data';
+
+const defaultNodes: Node[] = [
   { id: '1', type: 'rect', position: { x: 100, y: 120 }, data: { label: '시작' }, style: { width: 180, height: 90 } },
   { id: '2', type: 'circle', position: { x: 360, y: 100 }, data: { label: '처리' }, style: { width: 130, height: 130 } },
   { id: '3', type: 'rect', position: { x: 580, y: 120 }, data: { label: '완료', bg: '#dcfce7', border: '#16a34a', color: '#15803d' }, style: { width: 180, height: 90 } },
-  { id: '4', type: 'emoji', position: { x: 410, y: 290 }, data: { label: '🎉', fontSize: 48 } },
+  { id: '4', type: 'emoji', position: { x: 410, y: 290 }, data: { label: '🎉', fontSize: 48 }, style: { width: 56, height: 56 } },
   { id: '5', type: 'sticky', position: { x: 100, y: 290 }, data: { label: '여기에 메모를\n자유롭게 작성하세요' }, style: { width: 200, height: 140 } },
 ];
-const initEdges = [
+const defaultEdges = [
   { id: 'e1-2', source: '1', target: '2', markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#6366f1' } },
   { id: 'e2-3', source: '2', target: '3', markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#6366f1' } },
 ];
+
+function loadCanvas() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return null;
+}
+
+const saved = loadCanvas();
+const initNodes: Node[] = saved?.nodes ?? defaultNodes;
+const initEdges = saved?.edges ?? defaultEdges;
 
 // ── 이모지 팔레트 ─────────────────────────────────
 const EMOJIS = ['😀','😎','🎉','🔥','✅','❌','⚠️','💡','🚀','❤️','⭐','🎯','📌','🔑','💬','🏆','👍','🤔','📊','🛠️'];
@@ -296,6 +310,13 @@ export function CanvasPage() {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId?: string; edgeId?: string; nodeType?: string } | null>(null);
   const [clipboard, setClipboard] = useState<Node[]>([]);
   const selectedCount = nodes.filter((n) => n.selected).length + edges.filter((e) => e.selected).length;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes, edges }));
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [nodes, edges]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
