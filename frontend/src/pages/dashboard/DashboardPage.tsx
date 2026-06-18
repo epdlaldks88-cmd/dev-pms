@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useQuery, useQueries } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
   FolderKanban, CheckCircle2, AlertCircle,
   TrendingUp, ArrowRight, Clock, CalendarDays, MapPin, Users as UsersIcon,
+  X, Calendar, Users,
 } from 'lucide-react';
 import { projectsApi } from '../../api/projects';
 import { worklogsApi } from '../../api/worklogs';
@@ -165,6 +167,7 @@ function StatusDonut({ counts, total }: { counts: Record<TaskStatus, number>; to
 
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
+  const [viewingMeeting, setViewingMeeting] = useState<any>(null);
 
   const { data: projects, isLoading, isError, refetch } = useQuery({
     queryKey: ['projects'],
@@ -309,7 +312,11 @@ export function DashboardPage() {
           ) : (
             <div className="space-y-2.5">
               {upcomingMeetings.map((m: any) => (
-                <div key={m.id} className="flex gap-2.5">
+                <button
+                  key={m.id}
+                  onClick={() => setViewingMeeting(m)}
+                  className="w-full flex gap-2.5 hover:bg-gray-50 rounded-lg p-1 -mx-1 transition-colors text-left"
+                >
                   <div className="flex flex-col items-center justify-center w-11 flex-shrink-0 bg-indigo-50 rounded-lg py-1">
                     <span className="text-[10px] text-indigo-400 font-medium leading-none">{formatDate(m.meetingDate, 'MM월')}</span>
                     <span className="text-base font-bold text-indigo-600 leading-tight">{formatDate(m.meetingDate, 'dd')}</span>
@@ -324,7 +331,7 @@ export function DashboardPage() {
                       )}
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -364,6 +371,74 @@ export function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* 일정 상세 모달 */}
+      {viewingMeeting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setViewingMeeting(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-br from-indigo-50 via-white to-violet-50 border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base font-bold text-gray-900">{viewingMeeting.title}</h2>
+                {viewingMeeting.project && (
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">
+                    {viewingMeeting.project.name}
+                  </span>
+                )}
+              </div>
+              <button onClick={() => setViewingMeeting(null)} className="text-gray-400 hover:text-gray-600 p-1.5">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-gray-100">
+                {viewingMeeting.meetingDate && (
+                  <span className="flex items-center gap-1.5 text-sm text-gray-600">
+                    <Calendar size={14} className="text-gray-400" />
+                    {formatDate(viewingMeeting.meetingDate)}
+                  </span>
+                )}
+                {(viewingMeeting.startTime || viewingMeeting.endTime) && (
+                  <span className="flex items-center gap-1 text-sm text-gray-600">
+                    <Clock size={14} className="text-gray-400" />
+                    {viewingMeeting.startTime ?? '?'}
+                    {viewingMeeting.endTime && <> ~ {viewingMeeting.endTime}</>}
+                  </span>
+                )}
+                {viewingMeeting.location && (
+                  <span className="flex items-center gap-1.5 text-sm text-gray-600">
+                    <MapPin size={14} className="text-gray-400" />
+                    {viewingMeeting.location}
+                  </span>
+                )}
+                {viewingMeeting.attendees && (
+                  <span className="flex items-center gap-1.5 text-sm text-gray-600">
+                    <Users size={14} className="text-gray-400" />
+                    {viewingMeeting.attendees}
+                  </span>
+                )}
+              </div>
+
+              {viewingMeeting.content ? (
+                <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                  {viewingMeeting.content}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400">내용이 없습니다.</p>
+              )}
+            </div>
+
+            {viewingMeeting.createdBy && (
+              <div className="px-6 py-3 border-t border-gray-100 flex items-center gap-2 flex-shrink-0">
+                <Avatar name={viewingMeeting.createdBy.name ?? '?'} avatar={viewingMeeting.createdBy.avatar} size="xs" />
+                <span className="text-xs text-gray-400">{viewingMeeting.createdBy.name}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

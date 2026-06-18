@@ -3,7 +3,7 @@ import { NavLink, useNavigate, useMatch } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard, FolderKanban, Bell, ChevronLeft, ChevronRight,
-  Zap, Building2, Settings, Users, CalendarDays, ShieldCheck, PenTool,
+  Zap, Building2, Users, CalendarDays, ShieldCheck, PenTool,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useUiStore } from '../../store/ui.store';
@@ -27,18 +27,17 @@ export function Sidebar() {
   const isAdmin = user?.role === 'ADMIN';
   const projectMatch = useMatch('/projects/:projectId/*');
   const activeProjectId = projectMatch?.params.projectId;
+  const canvasDrawMatch = useMatch('/projects/:projectId/canvas/:canvasId');
 
   const { data: projects } = useQuery({
     queryKey: ['projects'],
     queryFn: projectsApi.getAll,
   });
 
-  // 현재 프로젝트 안에 있으면 마지막 본 프로젝트로 기억해 둔다
   useEffect(() => {
     if (activeProjectId) localStorage.setItem('lastProjectId', activeProjectId);
   }, [activeProjectId]);
 
-  // 권한설정이 연결될 프로젝트: 현재 → 마지막 본 (유효한 경우) → 첫 프로젝트
   const storedLast = localStorage.getItem('lastProjectId') ?? undefined;
   const validLast = projects?.some((p) => p.id === storedLast) ? storedLast : undefined;
   const permissionsTargetId = activeProjectId ?? validLast ?? projects?.[0]?.id;
@@ -78,13 +77,16 @@ export function Sidebar() {
           <NavLink
             key={to}
             to={to}
-            className={({ isActive }) =>
-              cn(
+            end={to === '/projects'}
+            className={({ isActive }) => {
+              // 캔버스 그리기 화면(/projects/:id/canvas/:id)에서는 캔버스 메뉴를 활성화
+              const active = to === '/canvas' ? (isActive || !!canvasDrawMatch) : isActive;
+              return cn(
                 'flex items-center gap-3 px-2 py-2 rounded-lg text-sm font-medium transition-colors',
-                isActive ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800',
+                active ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800',
                 collapsed && 'justify-center px-0',
-              )
-            }
+              );
+            }}
             title={collapsed ? label : undefined}
           >
             <Icon size={18} className="flex-shrink-0" />
@@ -130,7 +132,6 @@ export function Sidebar() {
 
       {/* Bottom: Admin + Profile + Logout */}
       <div className="border-t border-gray-800 px-2 py-2 space-y-0.5">
-        {/* 사용자 관리 (관리자만) */}
         {isAdmin && (
           <NavLink
             to="/admin/users"
@@ -148,7 +149,6 @@ export function Sidebar() {
           </NavLink>
         )}
 
-        {/* 권한설정 (항상 표시, 프로젝트가 있으면 해당 프로젝트로 연결) */}
         {permissionsTargetId ? (
           <NavLink
             to={`/projects/${permissionsTargetId}/permissions`}
@@ -166,10 +166,7 @@ export function Sidebar() {
           </NavLink>
         ) : (
           <button
-            onClick={() => {
-              toast('먼저 프로젝트를 선택하세요.');
-              navigate('/projects');
-            }}
+            onClick={() => navigate('/projects')}
             className={cn(
               'w-full flex items-center gap-3 px-2 py-2 rounded-lg text-sm font-medium transition-colors text-gray-400 hover:text-white hover:bg-gray-800',
               collapsed && 'justify-center px-0',
@@ -181,21 +178,6 @@ export function Sidebar() {
           </button>
         )}
 
-        {/* 프로필 설정 */}
-        <NavLink
-          to="/settings/profile"
-          className={({ isActive }) =>
-            cn(
-              'flex items-center gap-3 px-2 py-2 rounded-lg text-sm font-medium transition-colors',
-              isActive ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800',
-              collapsed && 'justify-center px-0',
-            )
-          }
-          title={collapsed ? '프로필 설정' : undefined}
-        >
-          <Settings size={18} className="flex-shrink-0" />
-          {!collapsed && <span>프로필 설정</span>}
-        </NavLink>
       </div>
     </aside>
   );

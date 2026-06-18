@@ -13,16 +13,27 @@ import { formatRelativeTime, cn } from '../../lib/utils';
 import { STATUS_CONFIG, PRIORITY_CONFIG } from '../../lib/utils';
 import { MessagePanel } from './MessagePanel';
 import type { TaskStatus, Priority } from '../../types';
+import type { Notification } from '../../types';
 
 export function Header() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const openTaskModal = useUiStore((s) => s.openTaskModal);
+  const messagePanelUserId = useUiStore((s) => s.messagePanelUserId);
+  const closeMessagePanel = useUiStore((s) => s.closeMessagePanel);
 
   const { logout, refreshToken } = useAuthStore();
   const [notifOpen, setNotifOpen] = useState(false);
   const [msgOpen, setMsgOpen] = useState(false);
+
+  // 스토어에서 패널 오픈 요청 감지
+  useEffect(() => {
+    if (messagePanelUserId) {
+      setMsgOpen(true);
+      setNotifOpen(false);
+    }
+  }, [messagePanelUserId]);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
@@ -78,11 +89,40 @@ export function Header() {
     return () => document.removeEventListener('mousedown', handle);
   }, []);
 
+  const mentionAlarm = useUiStore((s) => s.mentionAlarm);
+  const showMentionPopup = useUiStore((s) => s.showMentionPopup);
+  const seenMentionIds = useRef<Set<string>>(new Set());
+  const initialized = useRef(false);
+
   const { data: unread } = useQuery({
     queryKey: ['notifications', 'count'],
     queryFn: notificationsApi.getUnreadCount,
-    refetchInterval: 30_000,
+    refetchInterval: 15_000,
   });
+
+  // 멘션 감지: 알림 목록을 주기적으로 폴링해서 새 MENTION 감지
+  const { data: allNotifs } = useQuery<Notification[]>({
+    queryKey: ['notifications', 'mention-watch'],
+    queryFn: notificationsApi.getAll,
+    refetchInterval: mentionAlarm ? 15_000 : false,
+    enabled: !!user && mentionAlarm,
+  });
+
+  useEffect(() => {
+    if (!allNotifs) return;
+    if (!initialized.current) {
+      // 첫 로드 시 기존 알림 ID를 모두 seen 처리 (팝업 없이)
+      allNotifs.forEach((n) => seenMentionIds.current.add(n.id));
+      initialized.current = true;
+      return;
+    }
+    allNotifs.forEach((n) => {
+      if (n.type === 'MENTION' && !seenMentionIds.current.has(n.id)) {
+        seenMentionIds.current.add(n.id);
+        showMentionPopup({ id: n.id, title: n.title, message: n.message, link: n.link });
+      }
+    });
+  }, [allNotifs, showMentionPopup]);
 
   const { data: msgUnread } = useQuery({
     queryKey: ['messages', 'unread'],
@@ -96,9 +136,15 @@ export function Header() {
     const token = localStorage.getItem('accessToken');
     const url = `/api/messages/events${token ? `?token=${token}` : ''}`;
     const es = new EventSource(url);
-    es.onmessage = () => {
+    es.onmessage = (e) => {
+      const data = e.data ? JSON.parse(e.data) : {};
       qc.invalidateQueries({ queryKey: ['messages', 'unread'] });
       qc.invalidateQueries({ queryKey: ['conversations'] });
+      if (data.senderId) {
+        qc.invalidateQueries({ queryKey: ['thread', data.senderId] });
+      }
+      // 메시지 도착 시 멘션 알림도 즉시 체크
+      qc.invalidateQueries({ queryKey: ['notifications', 'mention-watch'] });
     };
     es.onerror = () => es.close();
     return () => es.close();
@@ -254,7 +300,11 @@ export function Header() {
             </span>
           )}
         </button>
-        <MessagePanel open={msgOpen} onClose={() => setMsgOpen(false)} />
+        <MessagePanel
+          open={msgOpen}
+          onClose={() => { setMsgOpen(false); closeMessagePanel(); }}
+          initialUserId={messagePanelUserId ?? undefined}
+        />
 
         {/* Notifications */}
         <div className="relative">
@@ -325,6 +375,7 @@ export function Header() {
             className="flex items-center gap-1.5 rounded-lg px-1.5 py-1 hover:bg-gray-100 transition-colors"
           >
             <Avatar name={user?.name ?? ''} avatar={user?.avatar} size="sm" />
+            <span className="text-sm font-medium text-gray-700 max-w-[80px] truncate">{user?.name}님</span>
             <ChevronDown size={13} className={cn('text-gray-400 transition-transform', profileOpen && 'rotate-180')} />
           </button>
 

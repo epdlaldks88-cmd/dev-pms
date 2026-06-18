@@ -121,7 +121,7 @@ export function WorkloadPage() {
     onSuccess: () => {
       invalidate();
       setShowAddModal(false);
-      setForm({ projectId: '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', startDate: today, endDate: today });
+      setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', startDate: today, endDate: today });
       toast.success('일감이 등록되었습니다.');
     },
     onError: () => toast.error('등록에 실패했습니다.'),
@@ -172,7 +172,7 @@ export function WorkloadPage() {
         title="워크로드"
         description="담당자별 일감 등록 및 공수 현황"
         actions={
-          <Button variant="primary" onClick={() => setShowAddModal(true)}>
+          <Button variant="primary" onClick={() => { setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', startDate: today, endDate: today }); setShowAddModal(true); }}>
             <Plus size={15} /> 일감 등록
           </Button>
         }
@@ -333,6 +333,17 @@ export function WorkloadPage() {
           <div>
             <div className="flex items-center gap-2 mb-3">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">담당자별 공수 요약</h2>
+              <button
+                onClick={() => toggleUser(currentUser?.id ?? '')}
+                className={cn(
+                  'text-[11px] font-medium px-2.5 py-0.5 rounded-full border transition-colors',
+                  selectedUserId === currentUser?.id
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-gray-500 border-gray-200 hover:border-indigo-400 hover:text-indigo-600',
+                )}
+              >
+                내 일감만
+              </button>
               {selectedUserId && (
                 <button
                   onClick={() => setSelectedUserId(null)}
@@ -421,7 +432,7 @@ export function WorkloadPage() {
                       title={selectedUserId ? '해당 담당자의 일감이 없습니다' : '등록된 일감이 없습니다'}
                       description={selectedUserId ? undefined : '작업한 일감을 등록해 공수를 기록하세요.'}
                       action={!selectedUserId ? (
-                        <Button variant="primary" onClick={() => setShowAddModal(true)}>
+                        <Button variant="primary" onClick={() => { setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', startDate: today, endDate: today }); setShowAddModal(true); }}>
                           <Plus size={15} /> 일감 등록
                         </Button>
                       ) : undefined}

@@ -40,6 +40,10 @@ export function MessagesPage() {
     refetchInterval: false,
   });
 
+  // activeUserId를 ref로 유지해서 SSE를 한 번만 연결
+  const activeUserIdRef = useRef(activeUserId);
+  useEffect(() => { activeUserIdRef.current = activeUserId; }, [activeUserId]);
+
   // SSE: 새 메시지 도착 시 실시간 갱신
   useEffect(() => {
     if (!me) return;
@@ -50,13 +54,15 @@ export function MessagesPage() {
       const data = JSON.parse(e.data ?? '{}');
       qc.invalidateQueries({ queryKey: ['conversations'] });
       qc.invalidateQueries({ queryKey: ['messages', 'unread'] });
-      if (activeUserId && data.senderId === activeUserId) {
-        qc.invalidateQueries({ queryKey: ['thread', activeUserId] });
+      // 현재 열려있는 대화 상대의 메시지면 thread도 즉시 갱신
+      const currentId = activeUserIdRef.current;
+      if (currentId && data.senderId === currentId) {
+        qc.invalidateQueries({ queryKey: ['thread', currentId] });
       }
     };
     es.onerror = () => es.close();
     return () => es.close();
-  }, [me, qc, activeUserId]);
+  }, [me, qc]); // activeUserId 제거 → SSE 연결 재맺기 없음
 
   const { data: allUsers } = useQuery({
     queryKey: ['users'],

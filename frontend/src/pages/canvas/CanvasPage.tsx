@@ -1,4 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { canvasApi } from '../../api/canvas';
 import {
   ReactFlow, Background, Controls, MiniMap,
   addEdge, useNodesState, useEdgesState,
@@ -8,9 +11,12 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
-  Square, Circle, Type, Smile, Minus,
-  Trash2, MousePointer2, Hand, ZoomIn, ZoomOut,
+  Square, Circle, Diamond, Type, Smile, Minus,
+  Trash2, MousePointer2, Hand, ZoomIn, ZoomOut, ChevronLeft, Save,
+  MessageSquare, Send, X,
 } from 'lucide-react';
+import { useAuthStore } from '../../store/auth.store';
+import { Avatar } from '../../components/ui/Avatar';
 import { cn } from '../../lib/utils';
 
 const RESIZER_STYLE = { borderColor: '#6366f1', borderWidth: 1 };
@@ -106,6 +112,58 @@ function CircleNode({ id, data, selected }: any) {
           />
         ) : (
           <span style={{ color: data.color ?? '#065f46', fontSize: data.fontSize ?? 12 }} className="font-medium text-center px-2 break-words w-full text-center leading-tight cursor-default select-none">
+            {data.label}
+          </span>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ── 커스텀 노드: 마름모 ───────────────────────────
+function DiamondNode({ id, data, selected }: any) {
+  const { setNodes } = useReactFlow();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(data.label ?? '');
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => { if (editing && taRef.current) { taRef.current.focus(); taRef.current.select(); } }, [editing]);
+  const commit = () => {
+    setNodes((ns) => ns.map((n) => n.id === id ? { ...n, data: { ...n.data, label: draft } } : n));
+    setEditing(false);
+  };
+  return (
+    <>
+      <NodeResizer isVisible={selected && !editing} minWidth={80} minHeight={80} handleStyle={{ width: 8, height: 8, borderRadius: 2 }} lineStyle={RESIZER_STYLE} />
+      {!editing && <NodeHandles />}
+      <div
+        className="w-full h-full flex items-center justify-center"
+        onDoubleClick={(e) => { e.stopPropagation(); setDraft(data.label ?? ''); setEditing(true); }}
+      >
+        <svg
+          className="absolute inset-0 w-full h-full"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          style={{ filter: selected && !editing ? 'drop-shadow(0 0 0 2px #a5b4fc)' : undefined }}
+        >
+          <polygon
+            points="50,2 98,50 50,98 2,50"
+            fill={data.bg ?? '#fef3c7'}
+            stroke={data.border ?? '#f59e0b'}
+            strokeWidth="3"
+          />
+        </svg>
+        {editing ? (
+          <textarea
+            ref={taRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Escape') setEditing(false); if (e.key === 'Enter' && e.metaKey) commit(); }}
+            className="nodrag nopan relative z-10 w-1/2 h-1/2 bg-transparent resize-none outline-none text-center text-sm font-medium"
+            style={{ color: data.color ?? '#92400e', fontSize: data.fontSize ?? 12 }}
+          />
+        ) : (
+          <span className="relative z-10 font-medium text-center px-2 break-words leading-tight cursor-default select-none" style={{ color: data.color ?? '#92400e', fontSize: data.fontSize ?? 12 }}>
             {data.label}
           </span>
         )}
@@ -242,37 +300,14 @@ function StickyNode({ id, data, selected }: any) {
 const nodeTypes: NodeTypes = {
   rect: RectNode,
   circle: CircleNode,
+  diamond: DiamondNode,
   text: TextNode,
   emoji: EmojiNode,
   sticky: StickyNode,
 };
 
-// ── 초기 샘플 ─────────────────────────────────────
-const STORAGE_KEY = 'canvas_data';
-
-const defaultNodes: Node[] = [
-  { id: '1', type: 'rect', position: { x: 100, y: 120 }, data: { label: '시작' }, style: { width: 180, height: 90 } },
-  { id: '2', type: 'circle', position: { x: 360, y: 100 }, data: { label: '처리' }, style: { width: 130, height: 130 } },
-  { id: '3', type: 'rect', position: { x: 580, y: 120 }, data: { label: '완료', bg: '#dcfce7', border: '#16a34a', color: '#15803d' }, style: { width: 180, height: 90 } },
-  { id: '4', type: 'emoji', position: { x: 410, y: 290 }, data: { label: '🎉', fontSize: 48 }, style: { width: 56, height: 56 } },
-  { id: '5', type: 'sticky', position: { x: 100, y: 290 }, data: { label: '여기에 메모를\n자유롭게 작성하세요' }, style: { width: 200, height: 140 } },
-];
-const defaultEdges = [
-  { id: 'e1-2', source: '1', target: '2', markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#6366f1' } },
-  { id: 'e2-3', source: '2', target: '3', markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#6366f1' } },
-];
-
-function loadCanvas() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
-  } catch {}
-  return null;
-}
-
-const saved = loadCanvas();
-const initNodes: Node[] = saved?.nodes ?? defaultNodes;
-const initEdges = saved?.edges ?? defaultEdges;
+const EMPTY_NODES: Node[] = [];
+const EMPTY_EDGES: any[] = [];
 
 // ── 이모지 팔레트 ─────────────────────────────────
 const EMOJIS = ['😀','😎','🎉','🔥','✅','❌','⚠️','💡','🚀','❤️','⭐','🎯','📌','🔑','💬','🏆','👍','🤔','📊','🛠️'];
@@ -290,14 +325,78 @@ const BG_COLORS = [
 ];
 const STICKY_COLORS = ['#fef08a','#bbf7d0','#fde68a','#bfdbfe','#f5d0fe','#fed7aa'];
 
-type Tool = 'pan' | 'select' | 'rect' | 'circle' | 'text' | 'emoji' | 'sticky';
+type Tool = 'pan' | 'select' | 'rect' | 'circle' | 'diamond' | 'text' | 'emoji' | 'sticky';
 
 let idCounter = 100;
 const uid = () => `node-${++idCounter}`;
 
 export function CanvasPage() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initEdges);
+  const { projectId, canvasId } = useParams<{ projectId: string; canvasId: string }>();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const { user } = useAuthStore();
+  const [commentOpen, setCommentOpen] = useState(false);
+  const [commentInput, setCommentInput] = useState('');
+  const commentBottomRef = useRef<HTMLDivElement>(null);
+
+  const { data: canvasData, isLoading: dataLoading } = useQuery({
+    queryKey: ['canvas', projectId, canvasId],
+    queryFn: () => canvasApi.get(projectId!, canvasId!),
+    enabled: !!projectId && !!canvasId,
+  });
+
+  const saveCanvas = useMutation({
+    mutationFn: (data: any) => canvasApi.save(projectId!, canvasId!, data),
+  });
+
+  const { data: comments = [] } = useQuery({
+    queryKey: ['canvas-comments', projectId, canvasId],
+    queryFn: () => canvasApi.listComments(projectId!, canvasId!),
+    enabled: !!projectId && !!canvasId,
+  });
+
+  const addComment = useMutation({
+    mutationFn: (content: string) => canvasApi.addComment(projectId!, canvasId!, content),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['canvas-comments', projectId, canvasId] });
+      setCommentInput('');
+      setTimeout(() => commentBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    },
+  });
+
+  const deleteComment = useMutation({
+    mutationFn: (commentId: string) => canvasApi.deleteComment(projectId!, canvasId!, commentId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['canvas-comments', projectId, canvasId] }),
+  });
+
+  const [nodes, setNodes, onNodesChangeBase] = useNodesState(EMPTY_NODES);
+  const [edges, setEdges, onEdgesChangeBase] = useEdgesState(EMPTY_EDGES);
+  const [initialized, setInitialized] = useState(false);
+  const isDirty = useRef(false); // 유저가 직접 조작했을 때만 true
+
+  // 유저 상호작용 시에만 dirty 표시 (select 변경 제외)
+  const onNodesChange = useCallback((changes: any[]) => {
+    const meaningful = changes.some((c: any) => c.type !== 'select');
+    if (meaningful) isDirty.current = true;
+    onNodesChangeBase(changes);
+  }, [onNodesChangeBase]);
+
+  const onEdgesChange = useCallback((changes: any[]) => {
+    isDirty.current = true;
+    onEdgesChangeBase(changes);
+  }, [onEdgesChangeBase]);
+
+  // 서버에서 데이터 로드되면 노드/엣지 초기화 (dirty 건드리지 않음)
+  useEffect(() => {
+    if (!canvasData || initialized) return;
+    try {
+      const saved = typeof canvasData.data === 'string' ? JSON.parse(canvasData.data) : canvasData.data;
+      if (saved?.nodes) setNodes(saved.nodes);
+      if (saved?.edges) setEdges(saved.edges);
+    } catch {}
+    isDirty.current = false; // 서버 데이터 로드 후 초기화
+    setInitialized(true);
+  }, [canvasData, initialized, setNodes, setEdges]);
   const [tool, setTool] = useState<Tool>('pan');
   const [showEmoji, setShowEmoji] = useState(false);
   const [selectedColor, setSelectedColor] = useState(0);
@@ -311,42 +410,78 @@ export function CanvasPage() {
   const [clipboard, setClipboard] = useState<Node[]>([]);
   const selectedCount = nodes.filter((n) => n.selected).length + edges.filter((e) => e.selected).length;
 
+  // 자동 저장 - 유저가 직접 조작했을 때만 (isDirty)
   useEffect(() => {
+    if (!initialized || !projectId || !canvasId) return;
+    if (!isDirty.current) return;
     const timer = setTimeout(() => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes, edges }));
+      if (!isDirty.current) return;
+      const cleanNodes = nodes.map(({ selected: _, ...n }) => n);
+      const cleanEdges = edges.map(({ selected: _, ...e }) => e);
+      saveCanvas.mutate({ nodes: cleanNodes, edges: cleanEdges });
+      isDirty.current = false;
     }, 500);
     return () => clearTimeout(timer);
-  }, [nodes, edges]);
+  }, [nodes, edges, initialized, projectId, canvasId]);
+
+  // SSE: 다른 사람 변경 시 refetch
+  useEffect(() => {
+    if (!projectId || !canvasId) return;
+    const token = localStorage.getItem('accessToken');
+    const url = `/api/projects/${projectId}/canvases/${canvasId}/events${token ? `?token=${token}` : ''}`;
+    const es = new EventSource(url);
+    es.onmessage = (e) => {
+      const payload = e.data ? JSON.parse(e.data) : {};
+      if (payload.type === 'comment') {
+        qc.invalidateQueries({ queryKey: ['canvas-comments', projectId, canvasId] });
+      } else {
+        isDirty.current = false; // 원격 업데이트 수신 시 dirty 초기화
+        qc.invalidateQueries({ queryKey: ['canvas', projectId, canvasId] });
+        setInitialized(false);
+      }
+    };
+    es.onerror = () => es.close();
+    return () => es.close();
+  }, [projectId, canvasId, qc]);
+
+  const nodesRef = useRef(nodes);
+  const clipboardRef = useRef(clipboard);
+  useEffect(() => { nodesRef.current = nodes; }, [nodes]);
+  useEffect(() => { clipboardRef.current = clipboard; }, [clipboard]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
       if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-        const selected = nodes.filter((n) => n.selected);
+        const selected = nodesRef.current.filter((n) => n.selected);
         if (selected.length > 0) setClipboard(selected);
+        return;
       }
       if (!e.ctrlKey && !e.metaKey && e.key === 'h') { setTool('pan'); return; }
       if (!e.ctrlKey && !e.metaKey && e.key === 'v') { setTool('select'); return; }
       if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-        if (clipboard.length === 0) return;
+        const cb = clipboardRef.current;
+        if (cb.length === 0) return;
         const offset = 24;
-        const pasted = clipboard.map((n) => ({
+        const pasted = cb.map((n) => ({
           ...n,
           id: uid(),
           position: { x: n.position.x + offset, y: n.position.y + offset },
           selected: true,
           data: { ...n.data },
         }));
+        isDirty.current = true;
         setNodes((ns) => ns.map((n) => ({ ...n, selected: false })).concat(pasted));
         setClipboard(pasted);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [nodes, clipboard, setNodes]);
+  }, [setNodes]);
 
   const onConnect = useCallback((params: Connection) => {
+    isDirty.current = true;
     setEdges((eds) => addEdge({
       ...params,
       markerEnd: { type: MarkerType.ArrowClosed },
@@ -369,6 +504,8 @@ export function CanvasPage() {
       newNode = { id: uid(), type: 'rect', position: pos, data: { label, ...color }, style: { width: 180, height: 90 } };
     } else if (tool === 'circle') {
       newNode = { id: uid(), type: 'circle', position: pos, data: { label, ...color }, style: { width: 130, height: 130 } };
+    } else if (tool === 'diamond') {
+      newNode = { id: uid(), type: 'diamond', position: pos, data: { label, bg: '#fef3c7', border: '#f59e0b', color: '#92400e' }, style: { width: 140, height: 140 } };
     } else if (tool === 'text') {
       newNode = { id: uid(), type: 'text', position: pos, data: { label, color: '#111827', fontSize: 16 }, style: { width: 160, height: 40 } };
     } else if (tool === 'sticky') {
@@ -376,6 +513,7 @@ export function CanvasPage() {
     } else {
       return;
     }
+    isDirty.current = true;
     setNodes((ns) => [...ns, newNode]);
     setTool('pan');
   }, [tool, selectedColor, selectedSticky, setNodes]);
@@ -383,7 +521,7 @@ export function CanvasPage() {
   const onCanvasClick = useCallback((e: React.MouseEvent) => {
     if (tool === 'pan' || tool === 'select') return;
     const pos = getCanvasPosition(e);
-    if (tool === 'rect' || tool === 'circle' || tool === 'text' || tool === 'sticky') {
+    if (tool === 'rect' || tool === 'circle' || tool === 'diamond' || tool === 'text' || tool === 'sticky') {
       setPendingNode(pos);
       setLabelInput('');
       setShowLabelModal(true);
@@ -392,12 +530,14 @@ export function CanvasPage() {
 
   const addEmoji = useCallback((emoji: string, pos?: { x: number; y: number }) => {
     const position = pos ?? { x: 300 + Math.random() * 200, y: 200 + Math.random() * 100 };
+    isDirty.current = true;
     setNodes((ns) => [...ns, { id: uid(), type: 'emoji', position, data: { label: emoji, fontSize: 40 }, style: { width: 56, height: 56 } }]);
     setShowEmoji(false);
     setTool('pan');
   }, [setNodes]);
 
   const deleteSelected = useCallback(() => {
+    isDirty.current = true;
     setNodes((ns) => ns.filter((n) => !n.selected));
     setEdges((es) => es.filter((e) => !e.selected));
   }, [setNodes, setEdges]);
@@ -425,6 +565,7 @@ export function CanvasPage() {
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
 
   const contextDelete = useCallback(() => {
+    isDirty.current = true;
     if (contextMenu?.nodeId) setNodes((ns) => ns.filter((n) => n.id !== contextMenu.nodeId));
     if (contextMenu?.edgeId) setEdges((es) => es.filter((e) => e.id !== contextMenu.edgeId));
     setContextMenu(null);
@@ -432,6 +573,7 @@ export function CanvasPage() {
 
   const changeFontSize = useCallback((delta: number) => {
     if (!contextMenu?.nodeId) return;
+    isDirty.current = true;
     setNodes((ns) => ns.map((n) => {
       if (n.id !== contextMenu.nodeId) return n;
       const cur = (n.data as any).fontSize ?? (n.type === 'emoji' ? 40 : 13);
@@ -446,6 +588,7 @@ export function CanvasPage() {
 
   const changeColor = useCallback((colorObj: any) => {
     if (!contextMenu?.nodeId) return;
+    isDirty.current = true;
     setNodes((ns) => ns.map((n) => {
       if (n.id !== contextMenu.nodeId) return n;
       if (n.type === 'sticky') return { ...n, data: { ...n.data, bg: colorObj } };
@@ -459,9 +602,18 @@ export function CanvasPage() {
     { id: 'select', icon: MousePointer2, label: '선택' },
     { id: 'rect', icon: Square, label: '사각형' },
     { id: 'circle', icon: Circle, label: '원' },
+    { id: 'diamond', icon: Diamond, label: '마름모' },
     { id: 'text', icon: Type, label: '텍스트' },
     { id: 'sticky', icon: Minus, label: '포스트잇' },
   ];
+
+  if (dataLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-indigo-200 border-t-indigo-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
@@ -475,7 +627,17 @@ export function CanvasPage() {
       `}</style>
       {/* 툴바 */}
       <div className="flex items-center gap-2 px-4 py-2 bg-white border-b border-gray-200 flex-shrink-0 shadow-sm">
-        <span className="text-sm font-bold text-gray-700 mr-2">캔버스</span>
+        <button
+          onClick={() => navigate(`/projects/${projectId}/canvas`)}
+          className="flex items-center gap-1 text-gray-400 hover:text-gray-700 transition-colors mr-1"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <span className="text-sm font-bold text-gray-700 truncate max-w-[140px]" title={canvasData?.name}>
+          {canvasData?.name ?? '캔버스'}
+        </span>
+        <Save size={12} className={cn('ml-1 transition-opacity duration-200', saveCanvas.isPending ? 'text-gray-400 animate-pulse opacity-100' : 'opacity-0')} />
+        <div className="w-px h-4 bg-gray-200 mx-1" />
 
         <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
           {tools.map(({ id, icon: Icon, label }) => (
@@ -567,11 +729,24 @@ export function CanvasPage() {
               <Trash2 size={13} /> 삭제
             </button>
           )}
-          <span className="text-xs text-gray-400 border border-gray-200 px-2 py-1.5 rounded-lg">
-            {tool === 'pan' ? '드래그로 화면 이동' : tool === 'select' ? '드래그로 영역 선택 · Delete로 삭제' : '캔버스를 클릭해 추가'}
-          </span>
+          <button
+            onClick={() => setCommentOpen((v) => !v)}
+            className={cn(
+              'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+              commentOpen ? 'bg-indigo-50 border-indigo-300 text-indigo-600' : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700',
+            )}
+          >
+            <MessageSquare size={14} />
+            댓글
+            {comments.length > 0 && (
+              <span className="bg-indigo-100 text-indigo-600 rounded-full px-1.5 py-0.5 text-[10px] font-bold">{comments.length}</span>
+            )}
+          </button>
         </div>
       </div>
+
+      {/* 캔버스 + 댓글 패널 */}
+      <div className="flex-1 flex overflow-hidden">
 
       {/* 캔버스 */}
       <div ref={reactFlowWrapper} className="flex-1" data-selectmode={tool === 'select'} onClick={onCanvasClick} onContextMenu={(e) => e.preventDefault()}>
@@ -610,6 +785,75 @@ export function CanvasPage() {
           </Panel>
         </ReactFlow>
       </div>
+
+      {/* 댓글 패널 */}
+      {commentOpen && (
+        <div className="w-72 flex-shrink-0 bg-white border-l border-gray-200 flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <span className="text-sm font-semibold text-gray-800">댓글 <span className="text-gray-400 font-normal">{comments.length}</span></span>
+            <button onClick={() => setCommentOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+              <X size={15} />
+            </button>
+          </div>
+
+          {/* 댓글 목록 */}
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+            {comments.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center mt-8">첫 댓글을 남겨보세요</p>
+            ) : (
+              comments.map((c: any) => (
+                <div key={c.id} className="group flex gap-2.5">
+                  <Avatar name={c.user.name} avatar={c.user.avatar} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-1.5 mb-0.5">
+                      <span className="text-xs font-semibold text-gray-800">{c.user.name}</span>
+                      <span className="text-[10px] text-gray-400">{new Date(c.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    <p className="text-xs text-gray-700 whitespace-pre-wrap break-words leading-relaxed">{c.content}</p>
+                  </div>
+                  {user?.id === c.user.id && (
+                    <button
+                      onClick={() => deleteComment.mutate(c.id)}
+                      className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all flex-shrink-0 mt-0.5"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
+            <div ref={commentBottomRef} />
+          </div>
+
+          {/* 입력창 */}
+          <div className="px-4 py-3 border-t border-gray-100">
+            <div className="flex gap-2 items-end">
+              <textarea
+                value={commentInput}
+                onChange={(e) => setCommentInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (commentInput.trim()) addComment.mutate(commentInput.trim());
+                  }
+                }}
+                placeholder="댓글 입력... (Enter로 전송)"
+                rows={2}
+                className="flex-1 text-xs border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+              />
+              <button
+                onClick={() => { if (commentInput.trim()) addComment.mutate(commentInput.trim()); }}
+                disabled={!commentInput.trim() || addComment.isPending}
+                className="w-8 h-8 flex items-center justify-center bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-40 transition-colors flex-shrink-0"
+              >
+                <Send size={13} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      </div>{/* flex row 종료 */}
 
       {/* 우클릭 컨텍스트 메뉴 */}
       {contextMenu && (

@@ -22,6 +22,8 @@ import { PermissionsPage } from './pages/projects/PermissionsPage';
 import { MeetingCalendarPage } from './pages/meetings/MeetingCalendarPage';
 import { MessagesPage } from './pages/messages/MessagesPage';
 import { CanvasPage } from './pages/canvas/CanvasPage';
+import { CanvasListPage } from './pages/canvas/CanvasListPage';
+import { MentionPopup } from './components/MentionPopup';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)();
@@ -36,6 +38,7 @@ function RequireGuest({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <BrowserRouter>
+      <MentionPopup />
       <Routes>
         <Route
           path="/login"
@@ -73,6 +76,8 @@ export default function App() {
             <Route path="notices" element={<NoticesPage />} />
             <Route path="permissions" element={<PermissionsPage />} />
           </Route>
+          <Route path="canvas" element={<CanvasListPage />} />
+          <Route path="projects/:projectId/canvas/:canvasId" element={<CanvasPage />} />
           <Route path="meeting-calendar" element={<MeetingCalendarPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="partners" element={<PartnersPage />} />
@@ -80,7 +85,6 @@ export default function App() {
           <Route path="settings/profile" element={<ProfilePage />} />
           <Route path="admin/users" element={<AdminUsersPage />} />
           <Route path="messages" element={<MessagesPage />} />
-          <Route path="canvas" element={<CanvasPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

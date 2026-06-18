@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { User, Lock, Phone, Briefcase, Building, Save, Eye, EyeOff, CheckCircle, Smile } from 'lucide-react';
+import { User, Lock, Phone, Briefcase, Building, Save, Eye, EyeOff, CheckCircle, Smile, Bell } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { usersApi } from '../../api/users';
 import { useAuthStore } from '../../store/auth.store';
+import { useUiStore } from '../../store/ui.store';
 import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -17,6 +18,8 @@ const EMOJI_LIST = [
 
 export function ProfilePage() {
   const { user, updateUser } = useAuthStore();
+  const mentionAlarm = useUiStore((s) => s.mentionAlarm);
+  const setMentionAlarm = useUiStore((s) => s.setMentionAlarm);
   const pickerRef = useRef<HTMLDivElement>(null);
 
   const [profile, setProfile] = useState({
@@ -319,6 +322,32 @@ export function ProfilePage() {
               >
                 <Lock size={14} /> 비밀번호 변경
               </Button>
+            </div>
+          </div>
+
+          {/* 알림 설정 */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <Bell size={15} className="text-indigo-500" /> 알림 설정
+            </h2>
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <p className="text-sm font-medium text-gray-800">멘션 알림</p>
+                <p className="text-xs text-gray-400 mt-0.5">누군가 나를 멘션하면 화면 우측 하단에 알림 팝업이 표시됩니다</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMentionAlarm(!mentionAlarm)}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
+                  mentionAlarm ? 'bg-indigo-600' : 'bg-gray-200'
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform duration-200 ${
+                    mentionAlarm ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
             </div>
           </div>
 
