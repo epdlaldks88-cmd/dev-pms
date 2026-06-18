@@ -23,15 +23,21 @@ import { MeetingCalendarPage } from './pages/meetings/MeetingCalendarPage';
 import { MessagesPage } from './pages/messages/MessagesPage';
 import { CanvasPage } from './pages/canvas/CanvasPage';
 import { CanvasListPage } from './pages/canvas/CanvasListPage';
+import { SheetListPage } from './pages/sheets/SheetListPage';
+import { SheetEditorPage } from './pages/sheets/SheetEditorPage';
 import { MentionPopup } from './components/MentionPopup';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)();
+  const hasHydrated = useAuthStore((s) => s._hasHydrated);
+  if (!hasHydrated) return null;
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
 function RequireGuest({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)();
+  const hasHydrated = useAuthStore((s) => s._hasHydrated);
+  if (!hasHydrated) return null;
   return !isAuthenticated ? <>{children}</> : <Navigate to="/" replace />;
 }
 
@@ -78,6 +84,9 @@ export default function App() {
           </Route>
           <Route path="canvas" element={<CanvasListPage />} />
           <Route path="projects/:projectId/canvas/:canvasId" element={<CanvasPage />} />
+          <Route path="workload" element={<WorkloadPage />} />
+          <Route path="sheets" element={<SheetListPage />} />
+          <Route path="projects/:projectId/sheet/:sheetId" element={<SheetEditorPage />} />
           <Route path="meeting-calendar" element={<MeetingCalendarPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="partners" element={<PartnersPage />} />

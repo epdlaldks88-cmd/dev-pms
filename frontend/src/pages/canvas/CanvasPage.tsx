@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { canvasApi } from '../../api/canvas';
+import { usersApi } from '../../api/users';
 import {
   ReactFlow, Background, Controls, MiniMap,
   addEdge, useNodesState, useEdgesState,
@@ -13,13 +14,41 @@ import '@xyflow/react/dist/style.css';
 import {
   Square, Circle, Diamond, Type, Smile, Minus,
   Trash2, MousePointer2, Hand, ZoomIn, ZoomOut, ChevronLeft, Save,
-  MessageSquare, Send, X,
+  MessageSquare, Send, X, Undo2, Redo2,
+  ImageIcon, Lock, Unlock, MagnetIcon, Tag, UserPlus,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
 import { cn } from '../../lib/utils';
 
 const RESIZER_STYLE = { borderColor: '#6366f1', borderWidth: 1 };
+
+// ── 노드 공통 오버레이: 잠금·담당자 ──────────────────
+function NodeOverlay({ data, selected }: { data: any; selected: boolean }) {
+  const assignees: any[] = data.assignees ?? [];
+  return (
+    <>
+      {data.locked && (
+        <div className="absolute top-1 right-1 z-10 bg-white/80 rounded-full p-0.5 shadow-sm">
+          <Lock size={9} className="text-gray-500" />
+        </div>
+      )}
+      {assignees.length > 0 && (
+        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex -space-x-1 z-10">
+          {assignees.slice(0, 3).map((u: any) => (
+            <Avatar key={u.id} name={u.name} avatar={u.avatar} size="xs"
+              className="ring-1 ring-white w-5 h-5 text-[8px]" />
+          ))}
+          {assignees.length > 3 && (
+            <span className="w-5 h-5 rounded-full bg-gray-200 ring-1 ring-white text-[8px] font-bold text-gray-600 flex items-center justify-center">
+              +{assignees.length - 3}
+            </span>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
 const HANDLE_STYLE = {
   width: 10, height: 10, background: '#6366f1', border: '2px solid #fff',
   borderRadius: '50%', boxShadow: '0 0 0 1px #6366f1',
@@ -53,12 +82,13 @@ function RectNode({ id, data, selected }: any) {
   };
   return (
     <>
-      <NodeResizer isVisible={selected && !editing} minWidth={60} minHeight={40} handleStyle={{ width: 8, height: 8, borderRadius: 2 }} lineStyle={RESIZER_STYLE} />
+      <NodeResizer isVisible={selected && !editing && !data.locked} minWidth={60} minHeight={40} handleStyle={{ width: 8, height: 8, borderRadius: 2 }} lineStyle={RESIZER_STYLE} />
       {!editing && <NodeHandles />}
+      <NodeOverlay data={data} selected={selected} />
       <div
         style={{ backgroundColor: data.bg ?? '#e0e7ff', borderColor: data.border ?? '#6366f1' }}
         className={cn('w-full h-full rounded-lg border-2 flex items-center justify-center shadow-sm', selected && !editing && 'ring-2 ring-indigo-400 ring-offset-1')}
-        onDoubleClick={(e) => { e.stopPropagation(); setDraft(data.label ?? ''); setEditing(true); }}
+        onDoubleClick={(e) => { if (data.locked) return; e.stopPropagation(); setDraft(data.label ?? ''); setEditing(true); }}
       >
         {editing ? (
           <textarea
@@ -71,7 +101,7 @@ function RectNode({ id, data, selected }: any) {
             style={{ color: data.color ?? '#3730a3', fontSize: data.fontSize ?? 13 }}
           />
         ) : (
-          <span style={{ color: data.color ?? '#3730a3', fontSize: data.fontSize ?? 13 }} className="font-medium text-center px-2 break-words w-full text-center leading-tight cursor-default select-none">
+          <span style={{ color: data.color ?? '#3730a3', fontSize: data.fontSize ?? 13 }} className="font-medium text-center px-2 break-words whitespace-pre-wrap w-full text-center leading-tight cursor-default select-none">
             {data.label}
           </span>
         )}
@@ -93,25 +123,21 @@ function CircleNode({ id, data, selected }: any) {
   };
   return (
     <>
-      <NodeResizer isVisible={selected && !editing} minWidth={50} minHeight={50} handleStyle={{ width: 8, height: 8, borderRadius: 2 }} lineStyle={RESIZER_STYLE} />
+      <NodeResizer isVisible={selected && !editing && !data.locked} minWidth={50} minHeight={50} handleStyle={{ width: 8, height: 8, borderRadius: 2 }} lineStyle={RESIZER_STYLE} />
       {!editing && <NodeHandles />}
+      <NodeOverlay data={data} selected={selected} />
       <div
         style={{ backgroundColor: data.bg ?? '#d1fae5', borderColor: data.border ?? '#10b981' }}
         className={cn('w-full h-full rounded-full border-2 flex items-center justify-center shadow-sm overflow-hidden', selected && !editing && 'ring-2 ring-emerald-400 ring-offset-1')}
-        onDoubleClick={(e) => { e.stopPropagation(); setDraft(data.label ?? ''); setEditing(true); }}
+        onDoubleClick={(e) => { if (data.locked) return; e.stopPropagation(); setDraft(data.label ?? ''); setEditing(true); }}
       >
         {editing ? (
-          <textarea
-            ref={taRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
+          <textarea ref={taRef} value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit}
             onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Escape') setEditing(false); if (e.key === 'Enter' && e.metaKey) commit(); }}
             className="nodrag nopan w-full h-full bg-transparent resize-none outline-none text-center p-4 text-sm font-medium"
-            style={{ color: data.color ?? '#065f46', fontSize: data.fontSize ?? 12 }}
-          />
+            style={{ color: data.color ?? '#065f46', fontSize: data.fontSize ?? 12 }} />
         ) : (
-          <span style={{ color: data.color ?? '#065f46', fontSize: data.fontSize ?? 12 }} className="font-medium text-center px-2 break-words w-full text-center leading-tight cursor-default select-none">
+          <span style={{ color: data.color ?? '#065f46', fontSize: data.fontSize ?? 12 }} className="font-medium text-center px-2 break-words whitespace-pre-wrap w-full leading-tight cursor-default select-none">
             {data.label}
           </span>
         )}
@@ -133,37 +159,23 @@ function DiamondNode({ id, data, selected }: any) {
   };
   return (
     <>
-      <NodeResizer isVisible={selected && !editing} minWidth={80} minHeight={80} handleStyle={{ width: 8, height: 8, borderRadius: 2 }} lineStyle={RESIZER_STYLE} />
+      <NodeResizer isVisible={selected && !editing && !data.locked} minWidth={80} minHeight={80} handleStyle={{ width: 8, height: 8, borderRadius: 2 }} lineStyle={RESIZER_STYLE} />
       {!editing && <NodeHandles />}
-      <div
-        className="w-full h-full flex items-center justify-center"
-        onDoubleClick={(e) => { e.stopPropagation(); setDraft(data.label ?? ''); setEditing(true); }}
-      >
-        <svg
-          className="absolute inset-0 w-full h-full"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          style={{ filter: selected && !editing ? 'drop-shadow(0 0 0 2px #a5b4fc)' : undefined }}
-        >
-          <polygon
-            points="50,2 98,50 50,98 2,50"
-            fill={data.bg ?? '#fef3c7'}
-            stroke={data.border ?? '#f59e0b'}
-            strokeWidth="3"
-          />
+      <NodeOverlay data={data} selected={selected} />
+      <div className="w-full h-full flex items-center justify-center"
+        onDoubleClick={(e) => { if (data.locked) return; e.stopPropagation(); setDraft(data.label ?? ''); setEditing(true); }}>
+        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none"
+          style={{ filter: selected && !editing ? 'drop-shadow(0 0 0 2px #a5b4fc)' : undefined }}>
+          <polygon points="50,2 98,50 50,98 2,50" fill={data.bg ?? '#fef3c7'} stroke={data.border ?? '#f59e0b'} strokeWidth="3" />
         </svg>
         {editing ? (
-          <textarea
-            ref={taRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
+          <textarea ref={taRef} value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit}
             onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Escape') setEditing(false); if (e.key === 'Enter' && e.metaKey) commit(); }}
             className="nodrag nopan relative z-10 w-1/2 h-1/2 bg-transparent resize-none outline-none text-center text-sm font-medium"
-            style={{ color: data.color ?? '#92400e', fontSize: data.fontSize ?? 12 }}
-          />
+            style={{ color: data.color ?? '#92400e', fontSize: data.fontSize ?? 12 }} />
         ) : (
-          <span className="relative z-10 font-medium text-center px-2 break-words leading-tight cursor-default select-none" style={{ color: data.color ?? '#92400e', fontSize: data.fontSize ?? 12 }}>
+          <span className="relative z-10 font-medium text-center px-2 break-words whitespace-pre-wrap leading-tight cursor-default select-none"
+            style={{ color: data.color ?? '#92400e', fontSize: data.fontSize ?? 12 }}>
             {data.label}
           </span>
         )}
@@ -178,51 +190,27 @@ function TextNode({ id, data, selected }: any) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(data.label ?? '');
   const taRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    if (editing && taRef.current) {
-      taRef.current.focus();
-      taRef.current.select();
-    }
-  }, [editing]);
-
-  const startEdit = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setDraft(data.label ?? '');
-    setEditing(true);
-  };
-
+  useEffect(() => { if (editing && taRef.current) { taRef.current.focus(); taRef.current.select(); } }, [editing]);
   const commit = (e?: React.FocusEvent | React.KeyboardEvent) => {
     e?.stopPropagation();
     setNodes((ns) => ns.map((n) => n.id === id ? { ...n, data: { ...n.data, label: draft } } : n));
     setEditing(false);
   };
-
   return (
     <>
-      <NodeResizer isVisible={selected && !editing} minWidth={40} minHeight={20} handleStyle={{ width: 8, height: 8, borderRadius: 2 }} lineStyle={RESIZER_STYLE} />
+      <NodeResizer isVisible={selected && !editing && !data.locked} minWidth={40} minHeight={20} handleStyle={{ width: 8, height: 8, borderRadius: 2 }} lineStyle={RESIZER_STYLE} />
       {!editing && <NodeHandles />}
+      <NodeOverlay data={data} selected={selected} />
       <div className={cn('w-full h-full flex items-start px-2 py-1', selected && !editing && 'outline outline-2 outline-indigo-400 outline-offset-1 rounded')}>
         {editing ? (
-          <textarea
-            ref={taRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={(e) => {
-              e.stopPropagation();
-              if (e.key === 'Escape') { setEditing(false); }
-              if (e.key === 'Enter' && e.metaKey) commit();
-            }}
+          <textarea ref={taRef} value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit}
+            onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Escape') setEditing(false); if (e.key === 'Enter' && e.metaKey) commit(); }}
             className="nodrag nopan w-full h-full resize-none bg-transparent outline-none font-medium leading-relaxed"
-            style={{ color: data.color ?? '#111827', fontSize: data.fontSize ?? 16, border: 'none' }}
-          />
+            style={{ color: data.color ?? '#111827', fontSize: data.fontSize ?? 16, border: 'none' }} />
         ) : (
-          <span
-            onDoubleClick={startEdit}
+          <span onDoubleClick={(e) => { if (data.locked) return; e.stopPropagation(); setDraft(data.label ?? ''); setEditing(true); }}
             style={{ color: data.color ?? '#111827', fontSize: data.fontSize ?? 16 }}
-            className="font-medium whitespace-pre-wrap break-words w-full cursor-text leading-relaxed"
-          >
+            className="font-medium whitespace-pre-wrap break-words w-full cursor-text leading-relaxed">
             {data.label || <span className="text-gray-300 text-sm italic font-normal">더블클릭해서 편집</span>}
           </span>
         )}
@@ -236,6 +224,7 @@ function EmojiNode({ data, selected }: any) {
   return (
     <>
       <NodeHandles />
+      <NodeOverlay data={data} selected={selected} />
       <div className={cn('cursor-default select-none', selected && 'outline outline-2 outline-indigo-400 rounded-full')}>
         <span style={{ fontSize: data.fontSize ?? 40 }}>{data.label}</span>
       </div>
@@ -249,49 +238,64 @@ function StickyNode({ id, data, selected }: any) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(data.label ?? '');
   const taRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    if (editing && taRef.current) {
-      taRef.current.focus();
-      taRef.current.select();
-    }
-  }, [editing]);
-
+  useEffect(() => { if (editing && taRef.current) { taRef.current.focus(); taRef.current.select(); } }, [editing]);
   const commit = () => {
     setNodes((ns) => ns.map((n) => n.id === id ? { ...n, data: { ...n.data, label: draft } } : n));
     setEditing(false);
   };
-
   return (
     <>
-      <NodeResizer isVisible={selected && !editing} minWidth={100} minHeight={60} handleStyle={{ width: 8, height: 8, borderRadius: 2 }} lineStyle={{ borderColor: '#eab308', borderWidth: 1 }} />
+      <NodeResizer isVisible={selected && !editing && !data.locked} minWidth={100} minHeight={60} handleStyle={{ width: 8, height: 8, borderRadius: 2 }} lineStyle={{ borderColor: '#eab308', borderWidth: 1 }} />
       {!editing && <NodeHandles />}
-      <div
-        style={{ backgroundColor: data.bg ?? '#fef08a' }}
-        className={cn(
-          'w-full h-full rounded shadow-md p-2 border border-yellow-300 overflow-hidden',
-          selected && !editing && 'ring-2 ring-yellow-500 ring-offset-1',
-        )}
-        onDoubleClick={(e) => { e.stopPropagation(); setDraft(data.label ?? ''); setEditing(true); }}
-      >
+      <NodeOverlay data={data} selected={selected} />
+      <div style={{ backgroundColor: data.bg ?? '#fef08a' }}
+        className={cn('w-full h-full rounded shadow-md p-2 border border-yellow-300 overflow-hidden', selected && !editing && 'ring-2 ring-yellow-500 ring-offset-1')}
+        onDoubleClick={(e) => { if (data.locked) return; e.stopPropagation(); setDraft(data.label ?? ''); setEditing(true); }}>
         {editing ? (
-          <textarea
-            ref={taRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={(e) => {
-              e.stopPropagation();
-              if (e.key === 'Escape') setEditing(false);
-            }}
+          <textarea ref={taRef} value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit}
+            onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Escape') setEditing(false); }}
             className="nodrag nopan w-full h-full resize-none bg-transparent outline-none leading-relaxed"
-            style={{ color: '#713f12', fontSize: data.fontSize ?? 12, border: 'none' }}
-          />
+            style={{ color: '#713f12', fontSize: data.fontSize ?? 12, border: 'none' }} />
         ) : (
           <p style={{ color: '#713f12', fontSize: data.fontSize ?? 12 }} className="whitespace-pre-wrap leading-relaxed cursor-text">
             {data.label || <span className="text-yellow-400 italic text-xs">더블클릭해서 편집</span>}
           </p>
         )}
+      </div>
+    </>
+  );
+}
+
+// ── 커스텀 노드: 이미지 ───────────────────────────
+function ImageNode({ id, data, selected }: any) {
+  const { setNodes } = useReactFlow();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setNodes((ns) => ns.map((n) => n.id === id ? { ...n, data: { ...n.data, src: reader.result as string } } : n));
+    };
+    reader.readAsDataURL(file);
+  };
+  return (
+    <>
+      <NodeResizer isVisible={selected && !data.locked} minWidth={80} minHeight={60} handleStyle={{ width: 8, height: 8, borderRadius: 2 }} lineStyle={RESIZER_STYLE} />
+      <NodeHandles />
+      <NodeOverlay data={data} selected={selected} />
+      <div className={cn('w-full h-full rounded-lg overflow-hidden border-2 flex items-center justify-center bg-gray-50',
+        selected ? 'border-indigo-400 ring-2 ring-indigo-200' : 'border-gray-200')}>
+        {data.src ? (
+          <img src={data.src} alt={data.label ?? ''} className="w-full h-full object-contain" />
+        ) : (
+          <button type="button" onClick={() => fileRef.current?.click()}
+            className="nodrag flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500 transition-colors p-4">
+            <ImageIcon size={28} />
+            <span className="text-xs">이미지 선택</span>
+          </button>
+        )}
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
       </div>
     </>
   );
@@ -304,6 +308,7 @@ const nodeTypes: NodeTypes = {
   text: TextNode,
   emoji: EmojiNode,
   sticky: StickyNode,
+  image: ImageNode,
 };
 
 const EMPTY_NODES: Node[] = [];
@@ -325,10 +330,9 @@ const BG_COLORS = [
 ];
 const STICKY_COLORS = ['#fef08a','#bbf7d0','#fde68a','#bfdbfe','#f5d0fe','#fed7aa'];
 
-type Tool = 'pan' | 'select' | 'rect' | 'circle' | 'diamond' | 'text' | 'emoji' | 'sticky';
+type Tool = 'pan' | 'select' | 'rect' | 'circle' | 'diamond' | 'text' | 'emoji' | 'sticky' | 'image';
 
-let idCounter = 100;
-const uid = () => `node-${++idCounter}`;
+const uid = () => `node-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
 export function CanvasPage() {
   const { projectId, canvasId } = useParams<{ projectId: string; canvasId: string }>();
@@ -347,6 +351,9 @@ export function CanvasPage() {
 
   const saveCanvas = useMutation({
     mutationFn: (data: any) => canvasApi.save(projectId!, canvasId!, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['canvas', projectId, canvasId] });
+    },
   });
 
   const { data: comments = [] } = useQuery({
@@ -408,6 +415,11 @@ export function CanvasPage() {
   const [rfInstance, setRfInstance] = useState<any>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId?: string; edgeId?: string; nodeType?: string } | null>(null);
   const [clipboard, setClipboard] = useState<Node[]>([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const [snapToGrid, setSnapToGrid] = useState(false);
+  const [edgeLabelEdit, setEdgeLabelEdit] = useState<{ edgeId: string; label: string } | null>(null);
+  const [assigneeNodeId, setAssigneeNodeId] = useState<string | null>(null);
   const selectedCount = nodes.filter((n) => n.selected).length + edges.filter((e) => e.selected).length;
 
   // 자동 저장 - 유저가 직접 조작했을 때만 (isDirty)
@@ -434,8 +446,8 @@ export function CanvasPage() {
       const payload = e.data ? JSON.parse(e.data) : {};
       if (payload.type === 'comment') {
         qc.invalidateQueries({ queryKey: ['canvas-comments', projectId, canvasId] });
-      } else {
-        isDirty.current = false; // 원격 업데이트 수신 시 dirty 초기화
+      } else if (!isDirty.current) {
+        // 로컬 미저장 변경사항이 없을 때만 원격 업데이트 반영 (내 auto-save SSE 포함)
         qc.invalidateQueries({ queryKey: ['canvas', projectId, canvasId] });
         setInitialized(false);
       }
@@ -445,39 +457,184 @@ export function CanvasPage() {
   }, [projectId, canvasId, qc]);
 
   const nodesRef = useRef(nodes);
+  const edgesRef = useRef(edges);
   const clipboardRef = useRef(clipboard);
+  const initializedRef = useRef(false);
   useEffect(() => { nodesRef.current = nodes; }, [nodes]);
+  useEffect(() => { edgesRef.current = edges; }, [edges]);
   useEffect(() => { clipboardRef.current = clipboard; }, [clipboard]);
+  useEffect(() => { initializedRef.current = initialized; }, [initialized]);
+
+  // ── Undo / Redo 히스토리 ──────────────────────────
+  const historyRef = useRef<{ past: string[]; future: string[] }>({ past: [], future: [] });
+  const lastSnapRef = useRef<string>('');
+  const isRestoringRef = useRef(false);
+
+  // 직렬화: 선택/드래그 등 일시적 상태 제거
+  const serialize = useCallback((ns: Node[], es: any[]) => {
+    const cleanN = ns.map(({ selected: _s, dragging: _d, width: _w, height: _h,
+      positionAbsolute: _pa, measured: _m, ...n }: any) => n);
+    const cleanE = es.map(({ selected: _s, ...e }: any) => e);
+    return JSON.stringify({ nodes: cleanN, edges: cleanE });
+  }, []);
+
+  const syncHistFlags = useCallback(() => {
+    setCanUndo(historyRef.current.past.length > 0);
+    setCanRedo(historyRef.current.future.length > 0);
+  }, []);
+
+  // 로드 완료 시 기준 스냅샷 설정
+  useEffect(() => {
+    if (!initialized) return;
+    lastSnapRef.current = serialize(nodesRef.current, edgesRef.current);
+    historyRef.current = { past: [], future: [] };
+    syncHistFlags();
+  }, [initialized, serialize, syncHistFlags]);
+
+  // 변경이 멈추면(400ms) 직전 상태를 past에 기록
+  useEffect(() => {
+    if (!initialized || isRestoringRef.current) return;
+    const t = setTimeout(() => {
+      const snap = serialize(nodesRef.current, edgesRef.current);
+      if (snap === lastSnapRef.current) return;
+      historyRef.current.past.push(lastSnapRef.current);
+      if (historyRef.current.past.length > 100) historyRef.current.past.shift();
+      historyRef.current.future = [];
+      lastSnapRef.current = snap;
+      syncHistFlags();
+    }, 400);
+    return () => clearTimeout(t);
+  }, [nodes, edges, initialized, serialize, syncHistFlags]);
+
+  const applySnapshot = useCallback((snap: string) => {
+    const parsed = JSON.parse(snap);
+    isRestoringRef.current = true;
+    setNodes(parsed.nodes ?? []);
+    setEdges(parsed.edges ?? []);
+    lastSnapRef.current = snap;
+    isDirty.current = true; // 복원 결과를 저장
+    setTimeout(() => { isRestoringRef.current = false; }, 60);
+  }, [setNodes, setEdges]);
+
+  const undo = useCallback(() => {
+    const h = historyRef.current;
+    if (h.past.length === 0) return;
+    const prev = h.past.pop()!;
+    h.future.push(lastSnapRef.current);
+    applySnapshot(prev);
+    syncHistFlags();
+  }, [applySnapshot, syncHistFlags]);
+
+  const redo = useCallback(() => {
+    const h = historyRef.current;
+    if (h.future.length === 0) return;
+    const next = h.future.pop()!;
+    h.past.push(lastSnapRef.current);
+    applySnapshot(next);
+    syncHistFlags();
+  }, [applySnapshot, syncHistFlags]);
+
+  const undoRef = useRef(undo);
+  const redoRef = useRef(redo);
+  useEffect(() => { undoRef.current = undo; }, [undo]);
+  useEffect(() => { redoRef.current = redo; }, [redo]);
+
+  // 페이지 이탈 시 미저장 변경사항 즉시 flush (isDirty 여부와 무관하게 초기화된 상태면 저장)
+  useEffect(() => {
+    return () => {
+      if (!initializedRef.current || !projectId || !canvasId) return;
+      if (!isDirty.current) return;
+      const cleanNodes = nodesRef.current.map(({ selected: _, ...n }) => n);
+      const cleanEdges = edgesRef.current.map(({ selected: _, ...e }) => e);
+      const token = localStorage.getItem('accessToken');
+      fetch(`/api/projects/${projectId}/canvases/${canvasId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token ?? ''}` },
+        body: JSON.stringify({ data: { nodes: cleanNodes, edges: cleanEdges } }),
+        keepalive: true,
+      });
+    };
+  }, [projectId, canvasId]);
+
+  // ── 도구 단축키 (독립 effect, capture 단계) ───────────
+  useEffect(() => {
+    const TOOL_MAP: Record<string, Tool> = {
+      h: 'pan', v: 'select', r: 'rect', c: 'circle',
+      d: 'diamond', t: 'text', n: 'sticky', i: 'image',
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const el = e.target as HTMLElement;
+      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable) return;
+      const mapped = TOOL_MAP[e.key.toLowerCase()];
+      if (mapped) { e.preventDefault(); setTool(mapped); }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-        const selected = nodesRef.current.filter((n) => n.selected);
-        if (selected.length > 0) setClipboard(selected);
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) redoRef.current(); else undoRef.current();
         return;
       }
-      if (!e.ctrlKey && !e.metaKey && e.key === 'h') { setTool('pan'); return; }
-      if (!e.ctrlKey && !e.metaKey && e.key === 'v') { setTool('select'); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        redoRef.current();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        const selected = nodesRef.current.filter((n) => n.selected);
+        if (selected.length > 0) {
+          clipboardRef.current = selected; // ref 즉시 갱신 (붙여넣기 시 stale 방지)
+          setClipboard(selected);
+        }
+        return;
+      }
       if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
         const cb = clipboardRef.current;
         if (cb.length === 0) return;
-        const offset = 24;
-        const pasted = cb.map((n) => ({
-          ...n,
-          id: uid(),
-          position: { x: n.position.x + offset, y: n.position.y + offset },
-          selected: true,
-          data: { ...n.data },
-        }));
+        const offset = 48;
+        // 원본 id → 새 id 매핑 (엣지 재연결용)
+        const idMap = new Map<string, string>();
+        const pasted = cb.map((n) => {
+          const newId = uid();
+          idMap.set(n.id, newId);
+          // React Flow 내부 측정 필드 제거 후 복제
+          const { id: _id, selected: _sel, dragging: _drag, width: _w, height: _h,
+                  positionAbsolute: _pa, measured: _m, ...clean } = n as any;
+          return {
+            ...clean,
+            id: newId,
+            position: { x: n.position.x + offset, y: n.position.y + offset },
+            selected: true,
+            data: { ...n.data },
+          };
+        });
+        // 복사된 노드들 사이에 연결된 엣지만 새 id로 함께 복제
+        const copiedEdges = edgesRef.current
+          .filter((ed) => idMap.has(ed.source) && idMap.has(ed.target))
+          .map((ed) => {
+            const { selected: _s, ...cleanEdge } = ed as any;
+            return {
+              ...cleanEdge,
+              id: `edge-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              source: idMap.get(ed.source)!,
+              target: idMap.get(ed.target)!,
+            };
+          });
         isDirty.current = true;
         setNodes((ns) => ns.map((n) => ({ ...n, selected: false })).concat(pasted));
+        if (copiedEdges.length > 0) setEdges((es) => es.concat(copiedEdges));
         setClipboard(pasted);
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [setNodes]);
 
   const onConnect = useCallback((params: Connection) => {
@@ -510,6 +667,8 @@ export function CanvasPage() {
       newNode = { id: uid(), type: 'text', position: pos, data: { label, color: '#111827', fontSize: 16 }, style: { width: 160, height: 40 } };
     } else if (tool === 'sticky') {
       newNode = { id: uid(), type: 'sticky', position: pos, data: { label, bg: stickyBg }, style: { width: 200, height: 140 } };
+    } else if (tool === 'image') {
+      newNode = { id: uid(), type: 'image', position: pos, data: { label: '' }, style: { width: 200, height: 150 } };
     } else {
       return;
     }
@@ -520,13 +679,24 @@ export function CanvasPage() {
 
   const onCanvasClick = useCallback((e: React.MouseEvent) => {
     if (tool === 'pan' || tool === 'select') return;
+    // 노드/엣지 위를 클릭한 경우 새 도형 생성하지 않음
+    const target = e.target as HTMLElement;
+    const isPane = target.classList.contains('react-flow__pane') ||
+      target.classList.contains('react-flow__background') ||
+      target === e.currentTarget;
+    if (!isPane) { setTool('select'); return; }
     const pos = getCanvasPosition(e);
+    if (tool === 'image') {
+      addNode(pos, '');
+      setTool('pan');
+      return;
+    }
     if (tool === 'rect' || tool === 'circle' || tool === 'diamond' || tool === 'text' || tool === 'sticky') {
       setPendingNode(pos);
       setLabelInput('');
       setShowLabelModal(true);
     }
-  }, [tool, getCanvasPosition]);
+  }, [tool, getCanvasPosition, addNode]);
 
   const addEmoji = useCallback((emoji: string, pos?: { x: number; y: number }) => {
     const position = pos ?? { x: 300 + Math.random() * 200, y: 200 + Math.random() * 100 };
@@ -597,14 +767,53 @@ export function CanvasPage() {
     setContextMenu(null);
   }, [contextMenu, setNodes]);
 
-  const tools: { id: Tool; icon: any; label: string }[] = [
-    { id: 'pan', icon: Hand, label: '이동' },
-    { id: 'select', icon: MousePointer2, label: '선택' },
-    { id: 'rect', icon: Square, label: '사각형' },
-    { id: 'circle', icon: Circle, label: '원' },
-    { id: 'diamond', icon: Diamond, label: '마름모' },
-    { id: 'text', icon: Type, label: '텍스트' },
-    { id: 'sticky', icon: Minus, label: '포스트잇' },
+  // ── 담당자 목록 (assignee picker 열릴 때만 fetch) ──
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: usersApi.getAll,
+    enabled: !!assigneeNodeId,
+  });
+
+  // ── 잠금 토글 ──────────────────────────────────────
+  const toggleLock = useCallback((nodeId: string) => {
+    isDirty.current = true;
+    setNodes((ns) => ns.map((n) => n.id === nodeId
+      ? { ...n, draggable: !!n.data.locked, data: { ...n.data, locked: !n.data.locked } }
+      : n));
+    setContextMenu(null);
+  }, [setNodes]);
+
+  // ── 엣지 라벨 저장 ─────────────────────────────────
+  const commitEdgeLabel = useCallback((edgeId: string, label: string) => {
+    isDirty.current = true;
+    setEdges((es) => es.map((e) => e.id === edgeId ? { ...e, label: label.trim() || undefined } : e));
+    setEdgeLabelEdit(null);
+    setContextMenu(null);
+  }, [setEdges]);
+
+  // ── 담당자 토글 ────────────────────────────────────
+  const toggleAssignee = useCallback((nodeId: string, u: any) => {
+    isDirty.current = true;
+    setNodes((ns) => ns.map((n) => {
+      if (n.id !== nodeId) return n;
+      const cur: any[] = n.data.assignees ?? [];
+      const exists = cur.some((a) => a.id === u.id);
+      const next = exists ? cur.filter((a) => a.id !== u.id) : [...cur, { id: u.id, name: u.name, avatar: u.avatar }];
+      return { ...n, data: { ...n.data, assignees: next } };
+    }));
+  }, [setNodes]);
+
+  const navTools: { id: Tool; icon: any; label: string; shortcut: string }[] = [
+    { id: 'pan',    icon: Hand,          label: '이동',   shortcut: 'H' },
+    { id: 'select', icon: MousePointer2, label: '선택',   shortcut: 'V' },
+  ];
+  const shapeTools: { id: Tool; icon: any; label: string; shortcut: string }[] = [
+    { id: 'rect',    icon: Square,    label: '사각형',  shortcut: 'R' },
+    { id: 'circle',  icon: Circle,    label: '원',      shortcut: 'C' },
+    { id: 'diamond', icon: Diamond,   label: '마름모',  shortcut: 'D' },
+    { id: 'text',    icon: Type,      label: '텍스트',  shortcut: 'T' },
+    { id: 'sticky',  icon: Minus,     label: '포스트잇',shortcut: 'N' },
+    { id: 'image',   icon: ImageIcon, label: '이미지',  shortcut: 'I' },
   ];
 
   if (dataLoading) {
@@ -639,18 +848,79 @@ export function CanvasPage() {
         <Save size={12} className={cn('ml-1 transition-opacity duration-200', saveCanvas.isPending ? 'text-gray-400 animate-pulse opacity-100' : 'opacity-0')} />
         <div className="w-px h-4 bg-gray-200 mx-1" />
 
+        {/* 실행 취소 / 다시 실행 */}
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={undo}
+            disabled={!canUndo}
+            title="실행 취소 (Ctrl+Z)"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+          >
+            <Undo2 size={15} />
+          </button>
+          <button
+            onClick={redo}
+            disabled={!canRedo}
+            title="다시 실행 (Ctrl+Shift+Z)"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+          >
+            <Redo2 size={15} />
+          </button>
+        </div>
+        <div className="w-px h-4 bg-gray-200 mx-1" />
+
+        {/* 이동 · 선택 · 스냅 */}
         <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-          {tools.map(({ id, icon: Icon, label }) => (
+          {navTools.map(({ id, icon: Icon, label, shortcut }) => (
             <button
               key={id}
               onClick={() => { setTool(id); setShowEmoji(false); }}
-              title={label}
+              title={`${label} (${shortcut})`}
               className={cn(
-                'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
+                'group relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
                 tool === id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700',
               )}
             >
               <Icon size={14} /> {label}
+              <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                {label} <kbd className="ml-1 font-mono opacity-70">{shortcut}</kbd>
+              </span>
+            </button>
+          ))}
+          <div className="w-px h-4 bg-gray-300 mx-0.5" />
+          <button
+            onClick={() => setSnapToGrid((v) => !v)}
+            title="격자 스냅 (16px 단위로 정렬)"
+            className={cn(
+              'group relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
+              snapToGrid ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+            )}
+          >
+            <MagnetIcon size={14} /> 스냅
+            <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity z-50">
+              스냅 — 도형을 격자(16px)에 맞춤
+            </span>
+          </button>
+        </div>
+
+        <div className="w-px h-4 bg-gray-200" />
+
+        {/* 도형 · 콘텐츠 */}
+        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+          {shapeTools.map(({ id, icon: Icon, label, shortcut }) => (
+            <button
+              key={id}
+              onClick={() => { setTool(id); setShowEmoji(false); }}
+              title={`${label} (${shortcut})`}
+              className={cn(
+                'group relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
+                tool === id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+              )}
+            >
+              <Icon size={14} /> {label}
+              <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                {label} <kbd className="ml-1 font-mono opacity-70">{shortcut}</kbd>
+              </span>
             </button>
           ))}
         </div>
@@ -758,10 +1028,13 @@ export function CanvasPage() {
           onConnect={onConnect}
           onInit={setRfInstance}
           nodeTypes={nodeTypes}
+          onNodeClick={() => {
+            if (!['pan', 'select'].includes(tool)) setTool('select');
+          }}
           onNodeContextMenu={onNodeContextMenu}
           onEdgeContextMenu={onEdgeContextMenu}
           onSelectionChange={onSelectionChange}
-          onPaneClick={(e) => { closeContextMenu(); }}
+          onPaneClick={() => { closeContextMenu(); }}
           fitView
           className="bg-gray-50"
           deleteKeyCode="Delete"
@@ -769,6 +1042,8 @@ export function CanvasPage() {
           selectionOnDrag={tool === 'select'}
           panOnDrag={tool === 'select' ? [1, 2] : true}
           selectionMode={SelectionMode.Full}
+          snapToGrid={snapToGrid}
+          snapGrid={[16, 16]}
           connectionLineStyle={{ stroke: '#6366f1', strokeWidth: 2 }}
           defaultEdgeOptions={{
             markerEnd: { type: MarkerType.ArrowClosed },
@@ -900,6 +1175,31 @@ export function CanvasPage() {
                   </>
                 )}
 
+                {/* 잠금 / 담당자 */}
+                <div className="border-t border-gray-100 my-1" />
+                <button onClick={() => toggleLock(contextMenu.nodeId!)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                  {nodes.find((n) => n.id === contextMenu.nodeId)?.data?.locked
+                    ? <><Unlock size={14} /> 잠금 해제</>
+                    : <><Lock size={14} /> 잠금</>}
+                </button>
+                <button onClick={() => { setAssigneeNodeId(contextMenu.nodeId!); setContextMenu(null); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                  <UserPlus size={14} /> 담당자 지정
+                </button>
+                <div className="border-t border-gray-100 my-1" />
+              </>
+            )}
+            {/* 엣지 라벨 편집 */}
+            {contextMenu.edgeId && (
+              <>
+                <button onClick={() => {
+                  const edge = edges.find((e) => e.id === contextMenu.edgeId);
+                  setEdgeLabelEdit({ edgeId: contextMenu.edgeId!, label: String(edge?.label ?? '') });
+                  setContextMenu(null);
+                }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                  <Tag size={14} /> 라벨 편집
+                </button>
                 <div className="border-t border-gray-100 my-1" />
               </>
             )}
@@ -951,6 +1251,69 @@ export function CanvasPage() {
               >
                 추가
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 엣지 라벨 편집 모달 */}
+      {edgeLabelEdit && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setEdgeLabelEdit(null)} />
+          <div className="relative bg-white rounded-xl shadow-2xl p-5 w-72">
+            <p className="text-sm font-semibold text-gray-800 mb-3">연결선 라벨</p>
+            <input
+              autoFocus
+              value={edgeLabelEdit.label}
+              onChange={(e) => setEdgeLabelEdit({ ...edgeLabelEdit, label: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitEdgeLabel(edgeLabelEdit.edgeId, edgeLabelEdit.label);
+                if (e.key === 'Escape') setEdgeLabelEdit(null);
+              }}
+              placeholder="라벨 입력 (비우면 제거)"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <div className="flex justify-end gap-2 mt-3">
+              <button onClick={() => setEdgeLabelEdit(null)} className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700">취소</button>
+              <button onClick={() => commitEdgeLabel(edgeLabelEdit.edgeId, edgeLabelEdit.label)}
+                className="px-4 py-1.5 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">확인</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 담당자 지정 모달 */}
+      {assigneeNodeId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setAssigneeNodeId(null)} />
+          <div className="relative bg-white rounded-xl shadow-2xl w-72 max-h-[70vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              <p className="text-sm font-semibold text-gray-800">담당자 지정</p>
+              <button onClick={() => setAssigneeNodeId(null)} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2">
+              {allUsers.map((u: any) => {
+                const assigned = (nodes.find((n) => n.id === assigneeNodeId)?.data?.assignees ?? []) as any[];
+                const checked = assigned.some((a) => a.id === u.id);
+                return (
+                  <button key={u.id} onClick={() => toggleAssignee(assigneeNodeId, u)}
+                    className={cn('w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left',
+                      checked ? 'bg-indigo-50' : 'hover:bg-gray-50')}>
+                    <Avatar name={u.name} avatar={u.avatar} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{u.name}</p>
+                      <p className="text-xs text-gray-400 truncate">{u.position || u.email}</p>
+                    </div>
+                    {checked && <div className="w-4 h-4 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0">
+                      <svg viewBox="0 0 12 12" className="w-2.5 h-2.5 text-white fill-current"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
+                    </div>}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="px-4 py-3 border-t border-gray-100">
+              <button onClick={() => setAssigneeNodeId(null)}
+                className="w-full py-1.5 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">완료</button>
             </div>
           </div>
         </div>

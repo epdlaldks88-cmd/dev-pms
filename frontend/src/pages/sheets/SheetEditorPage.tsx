@@ -1,0 +1,1005 @@
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal, flushSync } from 'react-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Plus, X, Check, Table2, Bold, Italic, AlignLeft, AlignCenter, AlignRight, ChevronDown, Download } from 'lucide-react';
+import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
+import { sheetsApi } from '../../api/sheets';
+import { cn } from '../../lib/utils';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+type CellStyle = {
+  bg?: string; color?: string; fontSize?: number;
+  bold?: boolean; italic?: boolean; align?: 'left' | 'center' | 'right';
+};
+type CellData = { v?: string; s?: CellStyle };
+type MergeInfo = { rows: number; cols: number };
+type SheetData = {
+  cells: Record<string, CellData>;
+  rows: number; cols: number;
+  colWidths: Record<number, number>;
+  merges: Record<string, MergeInfo>;
+};
+type Rng = { r1: number; c1: number; r2: number; c2: number };
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+const DROWS = 100, DCOLS = 26, CHW = 52, DCW = 120, RH = 26;
+const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36];
+const BG_COLORS = [
+  // 무채색
+  '#ffffff','#f8fafc','#f1f5f9','#e2e8f0','#cbd5e1','#94a3b8','#64748b','#475569','#334155','#1e293b','#0f172a','#000000',
+  // 빨강
+  '#fff5f5','#fed7d7','#fc8181','#f56565','#e53e3e','#c53030','#9b2c2c',
+  // 주황
+  '#fff7ed','#fed7aa','#fb923c','#f97316','#ea580c','#c2410c','#9a3412',
+  // 노랑
+  '#fefce8','#fef9c3','#fde047','#facc15','#eab308','#ca8a04','#a16207',
+  // 초록
+  '#f0fdf4','#d1fae5','#6ee7b7','#34d399','#10b981','#059669','#047857',
+  // 청록
+  '#ecfdf5','#ccfbf1','#5eead4','#2dd4bf','#14b8a6','#0d9488','#0f766e',
+  // 파랑
+  '#eff6ff','#dbeafe','#93c5fd','#60a5fa','#3b82f6','#2563eb','#1d4ed8',
+  // 남색
+  '#eef2ff','#e0e7ff','#a5b4fc','#818cf8','#6366f1','#4f46e5','#4338ca',
+  // 보라
+  '#faf5ff','#f3e8ff','#d8b4fe','#c084fc','#a855f7','#9333ea','#7e22ce',
+  // 분홍
+  '#fdf2f8','#fce7f3','#f9a8d4','#f472b6','#ec4899','#db2777','#be185d',
+];
+const TEXT_COLORS = [
+  // 무채색
+  '#000000','#1e293b','#334155','#475569','#64748b','#94a3b8','#cbd5e1','#e2e8f0','#f1f5f9','#ffffff',
+  // 빨강 계열
+  '#9b2c2c','#c53030','#e53e3e','#f56565','#fc8181',
+  // 주황 계열
+  '#9a3412','#c2410c','#ea580c','#f97316','#fb923c',
+  // 노랑 계열
+  '#a16207','#ca8a04','#eab308','#facc15','#fde047',
+  // 초록 계열
+  '#047857','#059669','#10b981','#34d399','#6ee7b7',
+  // 청록 계열
+  '#0f766e','#0d9488','#14b8a6','#2dd4bf','#5eead4',
+  // 파랑 계열
+  '#1d4ed8','#2563eb','#3b82f6','#60a5fa','#93c5fd',
+  // 남색 계열
+  '#4338ca','#4f46e5','#6366f1','#818cf8','#a5b4fc',
+  // 보라 계열
+  '#7e22ce','#9333ea','#a855f7','#c084fc','#d8b4fe',
+  // 분홍 계열
+  '#be185d','#db2777','#ec4899','#f472b6','#f9a8d4',
+];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const colLabel = (i: number) => {
+  let s = '', n = i;
+  while (n >= 0) { s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26) - 1; }
+  return s;
+};
+const ck = (r: number, c: number) => `${r},${c}`;
+const norm = (v: any): CellData => !v ? {} : typeof v === 'string' ? { v } : v;
+const emptyData = (): SheetData => ({ cells: {}, rows: DROWS, cols: DCOLS, colWidths: {}, merges: {} });
+const getRange = (s: [number,number]|null, e: [number,number]|null): Rng|null => {
+  if (!s) return null;
+  const ee = e ?? s;
+  return { r1: Math.min(s[0],ee[0]), c1: Math.min(s[1],ee[1]), r2: Math.max(s[0],ee[0]), c2: Math.max(s[1],ee[1]) };
+};
+const inRng = (r: number, c: number, rng: Rng|null) =>
+  !!rng && r >= rng.r1 && r <= rng.r2 && c >= rng.c1 && c <= rng.c2;
+const removeOverlap = (merges: Record<string,MergeInfo>, rng: Rng) => {
+  const res = { ...merges };
+  for (const [k, m] of Object.entries(merges)) {
+    const [mr, mc] = k.split(',').map(Number);
+    if (mr <= rng.r2 && mr+m.rows-1 >= rng.r1 && mc <= rng.c2 && mc+m.cols-1 >= rng.c1) delete res[k];
+  }
+  return res;
+};
+
+// ── Portal Dropdown ────────────────────────────────────────────────────────────
+function usePortalPos(anchorRef: React.RefObject<HTMLElement | null>, open: boolean) {
+  const [pos, setPos] = useState<{ top: number; left: number; ready: boolean }>({ top: 0, left: 0, ready: false });
+  useLayoutEffect(() => {
+    if (open && anchorRef.current) {
+      const r = anchorRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 4, left: r.left, ready: true });
+    } else {
+      setPos(p => ({ ...p, ready: false }));
+    }
+  }, [open]);
+  return pos;
+}
+
+// ── Color Picker ──────────────────────────────────────────────────────────────
+function ColorSwatch({ colors, value, onChange, label, preview }: {
+  colors: string[]; value?: string; onChange: (c?: string) => void; label: string; preview: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const anchorRef  = useRef<HTMLDivElement>(null);
+  const dropRef    = useRef<HTMLDivElement>(null);
+  const pos        = usePortalPos(anchorRef, open);
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (anchorRef.current?.contains(e.target as Node)) return;
+      if (dropRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  return (
+    <div ref={anchorRef} className="relative flex-shrink-0">
+      <button onClick={() => setOpen(v => !v)} className="flex items-center gap-0.5 px-1 py-1 rounded hover:bg-gray-100" title={label}>
+        <div className="flex flex-col items-center">{preview}</div>
+        <ChevronDown size={9} className="text-gray-400" />
+      </button>
+      {open && createPortal(
+        <div ref={dropRef} className="fixed z-[9999] p-2 bg-white border border-gray-200 rounded-xl shadow-xl min-w-[140px]"
+          style={{ top: pos.top, left: pos.left, visibility: pos.ready ? 'visible' : 'hidden' }}>
+          <p className="text-[10px] text-gray-400 mb-1.5 font-medium">{label}</p>
+          <div className="grid grid-cols-6 gap-1">
+            {colors.map(c => (
+              <button key={c} onClick={() => { onChange(c); setOpen(false); }}
+                className="w-5 h-5 rounded border border-gray-200 hover:scale-110 transition-transform"
+                style={{ backgroundColor: c }} title={c} />
+            ))}
+          </div>
+          <button onClick={() => { onChange(undefined); setOpen(false); }}
+            className="mt-1.5 w-full text-[10px] text-gray-400 hover:text-gray-600 text-center">초기화</button>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
+// ── Spreadsheet Grid ──────────────────────────────────────────────────────────
+export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange: (d: SheetData) => void }) {
+  const { rows, cols, colWidths, merges } = data;
+
+  const [selStart, setSelStart] = useState<[number,number]|null>(null);
+  const [selEnd, setSelEnd]     = useState<[number,number]|null>(null);
+  const [editing, setEditing]   = useState(false);
+  const [editVal, setEditVal]   = useState('');
+  const [fsSizeOpen, setFsSizeOpen]   = useState(false);
+  const [fsSizeInput, setFsSizeInput] = useState('13');
+  const fsDropRef = useRef<HTMLDivElement>(null);
+
+  const [copyRange, setCopyRange] = useState<Rng|null>(null);
+
+  const containerRef   = useRef<HTMLDivElement>(null);
+  const inputRef       = useRef<HTMLInputElement>(null);
+  const dragging       = useRef(false);
+  const fsRef          = useRef<HTMLDivElement>(null);
+  const clipboardRef   = useRef<{
+    rows: number; cols: number;
+    cells: Record<string, CellData>;
+    merges: Record<string, MergeInfo>;
+  } | null>(null);
+
+  // Stable refs for use inside callbacks
+  const selStartRef = useRef(selStart);
+  const editingRef  = useRef(editing);
+  const editValRef  = useRef(editVal);
+  const dataRef     = useRef(data);
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { selStartRef.current = selStart; }, [selStart]);
+  useEffect(() => { editingRef.current = editing; }, [editing]);
+  useEffect(() => { editValRef.current = editVal; }, [editVal]);
+  useEffect(() => { dataRef.current = data; }, [data]);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+
+  // Undo / Redo history — lazy init on first recordChange so we capture real API data, not the empty default
+  const historyRef    = useRef<SheetData[]>([]);
+  const historyIdxRef = useRef(-1);
+
+  const recordChange = useCallback((newData: SheetData) => {
+    // First change: seed history with the current state (real data already in dataRef)
+    if (historyIdxRef.current === -1) {
+      historyRef.current = [JSON.parse(JSON.stringify(dataRef.current))];
+      historyIdxRef.current = 0;
+    }
+    // Trim redo tail
+    historyRef.current = historyRef.current.slice(0, historyIdxRef.current + 1);
+    historyRef.current.push(JSON.parse(JSON.stringify(newData)));
+    if (historyRef.current.length > 100) historyRef.current.shift();
+    else historyIdxRef.current++;
+    onChangeRef.current(newData);
+  }, []);
+
+  const range = getRange(selStart, selEnd);
+  const colW = (c: number) => colWidths[c] ?? DCW;
+
+  // Merge maps
+  const { hidden, spanMap } = useMemo(() => {
+    const hidden: Record<string, string> = {};
+    const spanMap: Record<string, { rowSpan: number; colSpan: number }> = {};
+    for (const [k, m] of Object.entries(merges)) {
+      const [r, c] = k.split(',').map(Number);
+      spanMap[k] = { rowSpan: m.rows, colSpan: m.cols };
+      for (let dr = 0; dr < m.rows; dr++)
+        for (let dc = 0; dc < m.cols; dc++)
+          if (dr || dc) hidden[ck(r+dr, c+dc)] = k;
+    }
+    return { hidden, spanMap };
+  }, [merges]);
+
+  // Active style (from selStart cell)
+  const activeStyle = useMemo((): CellStyle => {
+    if (!selStart) return {};
+    const k = ck(selStart[0], selStart[1]);
+    const parentKey = hidden[k] ?? k;
+    return norm(data.cells[parentKey]).s ?? {};
+  }, [selStart, hidden, data.cells]);
+
+  useEffect(() => { setFsSizeInput(String(activeStyle.fontSize ?? 13)); }, [activeStyle.fontSize]);
+
+  // Commit edit (uses refs → no stale closure)
+  const commitEdit = useCallback(() => {
+    if (!editingRef.current || !selStartRef.current) return;
+    const [r, c] = selStartRef.current;
+    const k = ck(r, c);
+    const d = dataRef.current;
+    const cell = norm(d.cells[k]);
+    const val = editValRef.current;
+    const newCells = { ...d.cells };
+    if (!val && !cell.s) delete newCells[k];
+    else newCells[k] = { ...cell, v: val || undefined };
+    recordChange({ ...d, cells: newCells });
+    setEditing(false);
+    editingRef.current = false;
+  }, [recordChange]);
+
+  useEffect(() => { if (editing && inputRef.current) inputRef.current.focus(); }, [editing, selStart]);
+
+  // 언마운트 시 진행 중인 셀 편집을 강제 커밋 (부모 cleanup보다 먼저 실행됨)
+  useEffect(() => {
+    return () => {
+      if (editingRef.current && selStartRef.current) {
+        const [r, c] = selStartRef.current;
+        const k = ck(r, c);
+        const d = dataRef.current;
+        const cell = norm(d.cells[k]);
+        const val = editValRef.current;
+        const newCells = { ...d.cells };
+        if (!val && !cell.s) delete newCells[k];
+        else newCells[k] = { ...cell, v: val || undefined };
+        onChangeRef.current({ ...d, cells: newCells });
+      }
+    };
+  }, []);
+
+  // Apply style to selection
+  const applyStyle = useCallback((style: Partial<CellStyle>) => {
+    const rng = getRange(selStartRef.current, selEnd);
+    if (!rng) return;
+    const d = dataRef.current;
+    const newCells = { ...d.cells };
+    for (let r = rng.r1; r <= rng.r2; r++) {
+      for (let c = rng.c1; c <= rng.c2; c++) {
+        if (hidden[ck(r, c)]) continue;
+        const k = ck(r, c);
+        const cell = norm(newCells[k]);
+        const ns: CellStyle = { ...cell.s, ...style };
+        (Object.keys(ns) as (keyof CellStyle)[]).forEach(key => { if (ns[key] === undefined) delete ns[key]; });
+        newCells[k] = { ...cell, s: Object.keys(ns).length ? ns : undefined };
+      }
+    }
+    recordChange({ ...d, cells: newCells });
+  }, [selEnd, hidden, recordChange]);
+
+  // Merge
+  const mergeCells = useCallback(() => {
+    const rng = getRange(selStartRef.current, selEnd);
+    if (!rng || (rng.r1 === rng.r2 && rng.c1 === rng.c2)) return;
+    const d = dataRef.current;
+    const vals: string[] = [];
+    for (let r = rng.r1; r <= rng.r2; r++)
+      for (let c = rng.c1; c <= rng.c2; c++) { const v = norm(d.cells[ck(r,c)]).v; if (v) vals.push(v); }
+    const newMerges = removeOverlap(d.merges, rng);
+    newMerges[ck(rng.r1, rng.c1)] = { rows: rng.r2-rng.r1+1, cols: rng.c2-rng.c1+1 };
+    const newCells = { ...d.cells };
+    for (let r = rng.r1; r <= rng.r2; r++)
+      for (let c = rng.c1; c <= rng.c2; c++) {
+        const k = ck(r, c);
+        if (r === rng.r1 && c === rng.c1) { const cell = norm(newCells[k]); newCells[k] = { ...cell, v: vals[0] ?? cell.v }; }
+        else delete newCells[k];
+      }
+    recordChange({ ...d, cells: newCells, merges: newMerges });
+    setSelEnd(null);
+  }, [selEnd, recordChange]);
+
+  // Unmerge
+  const unmergeCells = useCallback(() => {
+    if (!selStartRef.current) return;
+    const k = ck(selStartRef.current[0], selStartRef.current[1]);
+    const d = dataRef.current;
+    const parentKey = d.merges[k] ? k : hidden[k];
+    if (!parentKey) return;
+    const newMerges = { ...d.merges };
+    delete newMerges[parentKey];
+    recordChange({ ...d, merges: newMerges });
+  }, [hidden, recordChange]);
+
+  const canMerge = !!(range && (range.r1 !== range.r2 || range.c1 !== range.c2));
+  const canUnmerge = !!(selStart && (merges[ck(selStart[0], selStart[1])] || hidden[ck(selStart[0], selStart[1])]));
+
+  // Cell address for formula bar
+  const cellAddress = useMemo(() => {
+    if (!selStart) return '';
+    const [r, c] = selStart;
+    const k = ck(r, c);
+    const pk = hidden[k] ?? k;
+    const m = merges[pk];
+    if (m) {
+      const [pr, pc] = pk.split(',').map(Number);
+      return `${colLabel(pc)}${pr+1}:${colLabel(pc+m.cols-1)}${pr+m.rows}`;
+    }
+    return `${colLabel(c)}${r+1}`;
+  }, [selStart, hidden, merges]);
+
+  const cellValue = selStart ? (norm(data.cells[hidden[ck(selStart[0],selStart[1])] ?? ck(selStart[0],selStart[1])]).v ?? '') : '';
+
+  // Keyboard handler
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    const s = selStartRef.current;
+    if (!s) return;
+    const [r, c] = s;
+
+    if ((e.ctrlKey || e.metaKey) && !editingRef.current) {
+      if (e.key === 'z' || e.key === 'Z') {
+        e.preventDefault();
+        if (historyIdxRef.current > 0) {
+          historyIdxRef.current--;
+          onChangeRef.current(JSON.parse(JSON.stringify(historyRef.current[historyIdxRef.current])));
+        }
+        return;
+      }
+      if (e.key === 'y' || e.key === 'Y') {
+        e.preventDefault();
+        if (historyIdxRef.current < historyRef.current.length - 1) {
+          historyIdxRef.current++;
+          onChangeRef.current(JSON.parse(JSON.stringify(historyRef.current[historyIdxRef.current])));
+        }
+        return;
+      }
+      if (e.key === 'b' || e.key === 'B') { e.preventDefault(); applyStyle({ bold: !activeStyle.bold }); return; }
+      if (e.key === 'i' || e.key === 'I') { e.preventDefault(); applyStyle({ italic: !activeStyle.italic }); return; }
+
+      if (e.key === 'c' || e.key === 'C') {
+        e.preventDefault();
+        const rng = getRange(selStartRef.current, selEnd);
+        if (!rng) return;
+        const d = dataRef.current;
+        const copyCells: Record<string, CellData> = {};
+        const copyMerges: Record<string, MergeInfo> = {};
+        for (let rr = rng.r1; rr <= rng.r2; rr++)
+          for (let cc = rng.c1; cc <= rng.c2; cc++) {
+            const src = ck(rr, cc);
+            if (d.cells[src]) copyCells[ck(rr - rng.r1, cc - rng.c1)] = { ...d.cells[src] };
+          }
+        for (const [k, m] of Object.entries(d.merges)) {
+          const [mr, mc] = k.split(',').map(Number);
+          if (mr >= rng.r1 && mr <= rng.r2 && mc >= rng.c1 && mc <= rng.c2)
+            copyMerges[ck(mr - rng.r1, mc - rng.c1)] = { ...m };
+        }
+        clipboardRef.current = { rows: rng.r2-rng.r1+1, cols: rng.c2-rng.c1+1, cells: copyCells, merges: copyMerges };
+        setCopyRange(rng);
+        // 시스템 클립보드에도 탭 구분 텍스트로 복사
+        const lines: string[] = [];
+        for (let rr = 0; rr < rng.r2-rng.r1+1; rr++)
+          lines.push(Array.from({ length: rng.c2-rng.c1+1 }, (_, cc) => norm(copyCells[ck(rr,cc)]).v ?? '').join('\t'));
+        navigator.clipboard.writeText(lines.join('\n')).catch(() => {});
+        return;
+      }
+
+      if (e.key === 'v' || e.key === 'V') {
+        e.preventDefault();
+        const origin = selStartRef.current;
+        if (!origin) return;
+        const [pr, pc] = origin;
+        const d = dataRef.current;
+
+        if (clipboardRef.current) {
+          // 내부 클립보드: 서식 포함 붙여넣기
+          const { rows: cbRows, cols: cbCols, cells: cbCells, merges: cbMerges } = clipboardRef.current;
+          const newCells = { ...d.cells };
+          const newMerges = removeOverlap(d.merges, { r1: pr, c1: pc, r2: pr+cbRows-1, c2: pc+cbCols-1 });
+          for (let dr = 0; dr < cbRows; dr++)
+            for (let dc = 0; dc < cbCols; dc++) {
+              if (pr+dr >= d.rows || pc+dc >= d.cols) continue;
+              const dst = ck(pr+dr, pc+dc);
+              const src = ck(dr, dc);
+              if (cbCells[src]) newCells[dst] = { ...cbCells[src] };
+              else delete newCells[dst];
+            }
+          for (const [k, m] of Object.entries(cbMerges)) {
+            const [mr, mc] = k.split(',').map(Number);
+            if (pr+mr < d.rows && pc+mc < d.cols)
+              newMerges[ck(pr+mr, pc+mc)] = { ...m };
+          }
+          recordChange({ ...d, cells: newCells, merges: newMerges });
+          setCopyRange(null);
+        } else {
+          // 시스템 클립보드: 텍스트 파싱
+          navigator.clipboard.readText().then(text => {
+            if (!text) return;
+            const lines = text.split('\n').map(l => l.split('\t'));
+            const nd = dataRef.current;
+            const newCells = { ...nd.cells };
+            lines.forEach((row, dr) => row.forEach((val, dc) => {
+              if (pr+dr >= nd.rows || pc+dc >= nd.cols) return;
+              const dst = ck(pr+dr, pc+dc);
+              const existing = norm(newCells[dst]);
+              if (val) newCells[dst] = { ...existing, v: val };
+              else if (existing.s) newCells[dst] = { s: existing.s };
+              else delete newCells[dst];
+            }));
+            recordChange({ ...nd, cells: newCells });
+          }).catch(() => {});
+        }
+        return;
+      }
+    }
+
+    if (editingRef.current) {
+      if (e.key === 'Enter') { e.preventDefault(); commitEdit(); setSelStart([Math.min(r+1, rows-1), c]); setSelEnd(null); }
+      else if (e.key === 'Escape') { setEditing(false); editingRef.current = false; setCopyRange(null); clipboardRef.current = null; }
+      else if (e.key === 'Tab') { e.preventDefault(); commitEdit(); setSelStart([r, Math.min(c+1, cols-1)]); setSelEnd(null); }
+      return;
+    }
+
+    if (e.key === 'Escape') { setCopyRange(null); clipboardRef.current = null; return; }
+
+    const move = (nr: number, nc: number) => { setSelStart([nr, nc]); setSelEnd(null); };
+    const extend = (dr: number, dc: number) => {
+      const cur = selEnd ?? s;
+      setSelEnd([Math.max(0, Math.min(rows-1, cur[0]+dr)), Math.max(0, Math.min(cols-1, cur[1]+dc))]);
+    };
+
+    if (e.key === 'ArrowUp')    { e.preventDefault(); e.shiftKey ? extend(-1,0) : move(Math.max(r-1,0), c); }
+    else if (e.key === 'ArrowDown')  { e.preventDefault(); e.shiftKey ? extend(1,0) : move(Math.min(r+1,rows-1), c); }
+    else if (e.key === 'ArrowLeft')  { e.preventDefault(); e.shiftKey ? extend(0,-1) : move(r, Math.max(c-1,0)); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); e.shiftKey ? extend(0,1) : move(r, Math.min(c+1,cols-1)); }
+    else if (e.key === 'Tab')        { e.preventDefault(); move(r, Math.min(c+1, cols-1)); }
+    else if (e.key === 'Enter')      { e.preventDefault(); setEditVal(norm(dataRef.current.cells[ck(r,c)]).v ?? ''); setEditing(true); editingRef.current = true; }
+    else if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      const rng = getRange(s, selEnd);
+      if (!rng) return;
+      const d = dataRef.current;
+      const newCells = { ...d.cells };
+      for (let rr = rng.r1; rr <= rng.r2; rr++)
+        for (let cc = rng.c1; cc <= rng.c2; cc++) {
+          const k = ck(rr, cc);
+          if (hidden[k]) continue;
+          const cell = norm(newCells[k]);
+          if (cell.s) newCells[k] = { s: cell.s };
+          else delete newCells[k];
+        }
+      recordChange({ ...d, cells: newCells });
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+      editingRef.current = true;
+      setSelEnd(null);
+      flushSync(() => { setEditing(true); setEditVal(''); });
+      inputRef.current?.focus();
+    }
+  }, [selEnd, activeStyle, applyStyle, commitEdit, hidden, rows, cols, recordChange]);
+
+  // Mouse handlers
+  const onCellDown = (r: number, c: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    if (editingRef.current) commitEdit();
+    containerRef.current?.focus({ preventScroll: true });
+    if (e.shiftKey && selStart) { setSelEnd([r, c]); return; }
+    setSelStart([r, c]); setSelEnd(null); setEditing(false); editingRef.current = false;
+    dragging.current = true;
+  };
+  const onCellEnter = (r: number, c: number) => { if (dragging.current) setSelEnd([r, c]); };
+
+  useEffect(() => {
+    const up = () => { dragging.current = false; };
+    window.addEventListener('mouseup', up);
+    return () => window.removeEventListener('mouseup', up);
+  }, []);
+
+  // Font size dropdown close
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (fsRef.current?.contains(e.target as Node)) return;
+      if (fsDropRef.current?.contains(e.target as Node)) return;
+      setFsSizeOpen(false);
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  // Column resize
+  const resizeRef = useRef<{ col: number; startX: number; startW: number }|null>(null);
+  const onResizeStart = (e: React.MouseEvent, col: number) => {
+    e.preventDefault(); e.stopPropagation();
+    resizeRef.current = { col, startX: e.clientX, startW: colW(col) };
+    const onMove = (mv: MouseEvent) => {
+      if (!resizeRef.current) return;
+      const nw = Math.max(40, resizeRef.current.startW + mv.clientX - resizeRef.current.startX);
+      onChangeRef.current({ ...dataRef.current, colWidths: { ...dataRef.current.colWidths, [resizeRef.current.col]: nw } });
+    };
+    const onUp = () => { resizeRef.current = null; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  const sep = <div className="w-px h-5 bg-gray-200 mx-0.5 flex-shrink-0" />;
+
+  return (
+    <div className="flex flex-col flex-1 overflow-hidden">
+      {/* ── Toolbar ── */}
+      <div className="flex-shrink-0 flex items-center gap-0.5 px-3 h-10 border-b border-gray-200 bg-white overflow-x-auto">
+        {/* Bold / Italic */}
+        <button onClick={() => applyStyle({ bold: !activeStyle.bold })}
+          className={cn('px-1.5 py-1 rounded text-sm font-bold hover:bg-gray-100 flex-shrink-0', activeStyle.bold && 'bg-indigo-100 text-indigo-700')}
+          title="굵게 (Ctrl+B)"><Bold size={14} /></button>
+        <button onClick={() => applyStyle({ italic: !activeStyle.italic })}
+          className={cn('px-1.5 py-1 rounded text-sm italic hover:bg-gray-100 flex-shrink-0', activeStyle.italic && 'bg-indigo-100 text-indigo-700')}
+          title="기울임 (Ctrl+I)"><Italic size={14} /></button>
+
+        {sep}
+
+        {/* Font size */}
+        <div ref={fsRef} className="relative flex-shrink-0">
+          <div className="flex items-center border border-gray-200 rounded overflow-hidden h-7">
+            <input value={fsSizeInput} onChange={e => setFsSizeInput(e.target.value)}
+              onBlur={() => { const n = parseInt(fsSizeInput); if (n >= 6 && n <= 96) applyStyle({ fontSize: n }); else setFsSizeInput(String(activeStyle.fontSize ?? 13)); }}
+              onKeyDown={e => { if (e.key === 'Enter') { const n = parseInt(fsSizeInput); if (n >= 6 && n <= 96) applyStyle({ fontSize: n }); (e.target as HTMLInputElement).blur(); } }}
+              className="w-10 text-xs text-center outline-none" />
+            <button onClick={() => setFsSizeOpen(v => !v)} className="px-0.5 border-l border-gray-200 hover:bg-gray-100 h-full flex items-center">
+              <ChevronDown size={10} /></button>
+          </div>
+          {fsSizeOpen && fsRef.current && createPortal(
+            <div ref={fsDropRef}
+              className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[56px]"
+              style={{ top: fsRef.current.getBoundingClientRect().bottom + 4, left: fsRef.current.getBoundingClientRect().left }}>
+              {FONT_SIZES.map(sz => (
+                <button key={sz} onClick={() => { applyStyle({ fontSize: sz }); setFsSizeOpen(false); }}
+                  className={cn('w-full px-3 py-1 text-xs text-left hover:bg-gray-50', activeStyle.fontSize === sz && 'bg-indigo-50 text-indigo-700')}>{sz}</button>
+              ))}
+            </div>,
+            document.body
+          )}
+        </div>
+
+        {sep}
+
+        {/* Text color */}
+        <ColorSwatch colors={TEXT_COLORS} value={activeStyle.color} onChange={c => applyStyle({ color: c })} label="글자 색상"
+          preview={<span className="text-xs font-bold leading-none" style={{ color: activeStyle.color ?? '#0f172a', borderBottom: `2px solid ${activeStyle.color ?? '#0f172a'}` }}>A</span>} />
+
+        {/* BG color */}
+        <ColorSwatch colors={BG_COLORS} value={activeStyle.bg} onChange={c => applyStyle({ bg: c })} label="배경 색상"
+          preview={
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-xs leading-none">🎨</span>
+              <div className="w-4 h-1 rounded-sm border border-gray-200" style={{ backgroundColor: activeStyle.bg ?? '#ffffff' }} />
+            </div>
+          } />
+
+        {sep}
+
+        {/* Alignment */}
+        <button onClick={() => applyStyle({ align: 'left' })}
+          className={cn('p-1.5 rounded hover:bg-gray-100 flex-shrink-0', activeStyle.align === 'left' && 'bg-indigo-100 text-indigo-700')}
+          title="왼쪽 정렬"><AlignLeft size={14} /></button>
+        <button onClick={() => applyStyle({ align: 'center' })}
+          className={cn('p-1.5 rounded hover:bg-gray-100 flex-shrink-0', activeStyle.align === 'center' && 'bg-indigo-100 text-indigo-700')}
+          title="가운데 정렬"><AlignCenter size={14} /></button>
+        <button onClick={() => applyStyle({ align: 'right' })}
+          className={cn('p-1.5 rounded hover:bg-gray-100 flex-shrink-0', activeStyle.align === 'right' && 'bg-indigo-100 text-indigo-700')}
+          title="오른쪽 정렬"><AlignRight size={14} /></button>
+
+        {sep}
+
+        {/* Merge / Unmerge */}
+        <button onClick={mergeCells} disabled={!canMerge}
+          className="px-2 py-1 text-xs rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed text-gray-700 font-medium whitespace-nowrap flex-shrink-0"
+          title="선택 범위 병합">셀 병합</button>
+        <button onClick={unmergeCells} disabled={!canUnmerge}
+          className="px-2 py-1 text-xs rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed text-gray-700 font-medium whitespace-nowrap flex-shrink-0"
+          title="병합 해제">병합 해제</button>
+      </div>
+
+      {/* ── Formula bar ── */}
+      <div className="flex-shrink-0 flex items-center h-7 border-b border-gray-200 bg-gray-50 px-2 gap-2">
+        <span className="text-[11px] text-gray-500 font-mono w-16 text-center border-r border-gray-200 pr-2 flex-shrink-0">{cellAddress}</span>
+        <span className="text-sm text-gray-700 truncate">{cellValue}</span>
+      </div>
+
+      {/* ── Grid ── */}
+      <div
+        ref={containerRef}
+        tabIndex={0}
+        className="flex-1 overflow-auto outline-none"
+        onKeyDown={handleKeyDown}
+      >
+        <table className="border-collapse" style={{ tableLayout: 'fixed' }}>
+          <colgroup>
+            <col style={{ width: CHW }} />
+            {Array.from({ length: cols }, (_, c) => <col key={c} style={{ width: colW(c) }} />)}
+          </colgroup>
+          <thead>
+            <tr>
+              <th className="sticky top-0 left-0 z-30 bg-gray-50 border border-gray-200 text-xs text-gray-400"
+                style={{ width: CHW, height: RH }} />
+              {Array.from({ length: cols }, (_, c) => (
+                <th key={c}
+                  className={cn('sticky top-0 z-20 bg-gray-50 border border-gray-200 text-xs font-medium text-gray-500 relative select-none',
+                    range && c >= range.c1 && c <= range.c2 && 'bg-indigo-50 text-indigo-700')}
+                  style={{ height: RH }}>
+                  {colLabel(c)}
+                  <span className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-indigo-400 opacity-0 hover:opacity-100 z-10"
+                    onMouseDown={e => onResizeStart(e, c)} />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: rows }, (_, r) => (
+              <tr key={r}>
+                <td className={cn('sticky left-0 z-10 bg-gray-50 border border-gray-200 text-xs text-gray-400 font-medium text-center select-none',
+                  range && r >= range.r1 && r <= range.r2 && 'bg-indigo-50 text-indigo-700')}
+                  style={{ width: CHW, height: RH }}>{r + 1}</td>
+
+                {Array.from({ length: cols }, (_, c) => {
+                  const k = ck(r, c);
+                  if (hidden[k]) return null;
+                  const isSel    = inRng(r, c, range);
+                  const isAnchor = selStart?.[0] === r && selStart?.[1] === c;
+                  const isCopy   = inRng(r, c, copyRange);
+                  const cell     = norm(data.cells[k]);
+                  const s        = cell.s ?? {};
+                  const span     = spanMap[k] ?? { rowSpan: 1, colSpan: 1 };
+                  // 복사 범위 테두리 계산
+                  const copyBorder = isCopy ? [
+                    r === copyRange!.r1 ? '2px dashed #3b82f6' : undefined,
+                    c === copyRange!.c2 ? '2px dashed #3b82f6' : undefined,
+                    r === copyRange!.r2 ? '2px dashed #3b82f6' : undefined,
+                    c === copyRange!.c1 ? '2px dashed #3b82f6' : undefined,
+                  ] : [];
+                  return (
+                    <td key={c}
+                      rowSpan={span.rowSpan} colSpan={span.colSpan}
+                      className={cn(
+                        'border border-gray-200 p-0 relative cursor-cell text-sm',
+                        isAnchor && !editing && 'outline outline-2 outline-indigo-500 outline-offset-[-1px] z-10',
+                        (isAnchor && editing) || isCopy && 'z-10',
+                      )}
+                      style={{
+                        height: RH,
+                        backgroundColor: isSel ? (isAnchor ? '#bfdbfe' : '#dbeafe') : s.bg,
+                        borderTop:    copyBorder[0],
+                        borderRight:  copyBorder[1],
+                        borderBottom: copyBorder[2],
+                        borderLeft:   copyBorder[3],
+                        fontWeight: s.bold ? 'bold' : undefined,
+                        fontStyle: s.italic ? 'italic' : undefined,
+                        color: s.color,
+                        fontSize: s.fontSize ? `${s.fontSize}px` : undefined,
+                      }}
+                      onMouseDown={e => onCellDown(r, c, e)}
+                      onMouseEnter={() => onCellEnter(r, c)}
+                      onDoubleClick={() => {
+                        if (hidden[k]) return;
+                        setSelStart([r, c]); setSelEnd(null);
+                        setEditVal(norm(data.cells[k]).v ?? '');
+                        setEditing(true); editingRef.current = true;
+                      }}
+                    >
+                      {isAnchor && editing ? (
+                        <input ref={inputRef} value={editVal} onChange={e => setEditVal(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') { e.preventDefault(); commitEdit(); setSelStart([Math.min(r+1,rows-1), c]); setSelEnd(null); }
+                            else if (e.key === 'Escape') { setEditing(false); editingRef.current = false; }
+                            else if (e.key === 'Tab') { e.preventDefault(); commitEdit(); setSelStart([r, Math.min(c+1,cols-1)]); setSelEnd(null); }
+                            e.stopPropagation();
+                          }}
+                          onBlur={commitEdit}
+                          className="absolute inset-0 w-full h-full px-1.5 text-sm border-none outline-none bg-white z-10"
+                          style={{ fontWeight: s.bold?'bold':undefined, fontStyle: s.italic?'italic':undefined, fontSize: s.fontSize?`${s.fontSize}px`:undefined, color: s.color, textAlign: s.align }}
+                        />
+                      ) : (
+                        <span className="block px-1.5 truncate overflow-hidden" style={{ lineHeight:`${RH}px`, textAlign: s.align ?? 'left' }}>
+                          {cell.v ?? ''}
+                        </span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ── Sheet Editor Page ─────────────────────────────────────────────────────────
+export function SheetEditorPage() {
+  const { projectId, sheetId } = useParams<{ projectId: string; sheetId: string }>();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+
+  const [sheetData, setSheetData] = useState<SheetData>(emptyData());
+  const [showNewSheet, setShowNewSheet] = useState(false);
+  const [newSheetName, setNewSheetName] = useState('');
+  const [renamingId, setRenamingId] = useState<string|null>(null);
+  const [renameVal, setRenameVal] = useState('');
+  const [saving, setSaving] = useState(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout>>();
+  const sheetDataRef = useRef<SheetData>(emptyData());
+  const dataLoadedRef = useRef(false);
+
+  const { data: sheets = [] } = useQuery({
+    queryKey: ['sheets', projectId],
+    queryFn: () => sheetsApi.list(projectId!),
+    enabled: !!projectId,
+  });
+
+  const { data: rawSheet } = useQuery({
+    queryKey: ['sheet', projectId, sheetId],
+    queryFn: () => sheetsApi.get(projectId!, sheetId!),
+    enabled: !!projectId && !!sheetId,
+    // 이탈 시 setQueryData로 갱신한 캐시를, 돌아왔을 때 백그라운드 refetch가 옛 DB 데이터로 덮어쓰지 않도록
+    staleTime: 10_000,
+    refetchOnMount: false,
+  });
+
+  useEffect(() => {
+    if (rawSheet?.data) {
+      const d = rawSheet.data as any;
+      const parsed: SheetData = {
+        cells: d.cells ?? {},
+        rows: d.rows ?? DROWS,
+        cols: d.cols ?? DCOLS,
+        colWidths: d.colWidths ?? {},
+        merges: d.merges ?? {},
+      };
+      setSheetData(parsed);
+      sheetDataRef.current = parsed;
+      dataLoadedRef.current = true;
+    } else if (rawSheet) {
+      setSheetData(emptyData());
+    }
+  }, [rawSheet]);
+
+  const saveMutation = useMutation({
+    mutationFn: (d: SheetData) => sheetsApi.save(projectId!, sheetId!, d),
+    onMutate: () => setSaving(true),
+    onSettled: () => setSaving(false),
+    onError: () => toast.error('저장에 실패했습니다.'),
+  });
+
+  const handleChange = useCallback((d: SheetData) => {
+    setSheetData(d);
+    sheetDataRef.current = d;
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => saveMutation.mutate(d), 500);
+  }, [sheetId]);
+
+  // 미저장 데이터를 즉시 저장하고 캐시를 갱신 (이탈/탭전환 공통)
+  const flushSave = useCallback(() => {
+    clearTimeout(saveTimer.current);
+    if (!dataLoadedRef.current || !projectId || !sheetId) return;
+    const latest = sheetDataRef.current;
+    // 돌아왔을 때 race 없이 최신 데이터가 보이도록 react-query 캐시를 즉시 갱신
+    qc.setQueryData(['sheet', projectId, sheetId], (old: any) =>
+      old ? { ...old, data: latest } : old);
+    sheetsApi.save(projectId, sheetId, latest).catch((e) => console.error('시트 저장 실패', e));
+  }, [projectId, sheetId, qc]);
+
+  // 페이지 이탈 시 즉시 저장
+  useEffect(() => {
+    return () => { flushSave(); };
+  }, [flushSave]);
+
+  // 브라우저 새로고침/탭 닫기 시 keepalive 요청으로 확실히 저장
+  useEffect(() => {
+    const onHide = () => {
+      clearTimeout(saveTimer.current);
+      if (!dataLoadedRef.current || !projectId || !sheetId) return;
+      const token = localStorage.getItem('accessToken');
+      try {
+        fetch(`/api/projects/${projectId}/sheets/${sheetId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ data: sheetDataRef.current }),
+          keepalive: true,
+        });
+      } catch { /* noop */ }
+    };
+    window.addEventListener('pagehide', onHide);
+    return () => window.removeEventListener('pagehide', onHide);
+  }, [projectId, sheetId]);
+
+  const switchSheet = (id: string) => {
+    if (id === sheetId) return;
+    flushSave();
+    navigate(`/projects/${projectId}/sheet/${id}`);
+  };
+
+  const createSheet = useMutation({
+    mutationFn: (name: string) => sheetsApi.create(projectId!, name),
+    onSuccess: (sheet) => {
+      qc.invalidateQueries({ queryKey: ['sheets', projectId] });
+      setShowNewSheet(false); setNewSheetName('');
+      navigate(`/projects/${projectId}/sheet/${sheet.id}`);
+    },
+    onError: () => toast.error('시트 생성에 실패했습니다.'),
+  });
+
+  const deleteSheet = useMutation({
+    mutationFn: (id: string) => sheetsApi.remove(projectId!, id),
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: ['sheets', projectId] });
+      if (id === sheetId) {
+        const rem = sheets.filter((s: any) => s.id !== id);
+        navigate(rem.length > 0 ? `/projects/${projectId}/sheet/${rem[0].id}` : '/sheets');
+      }
+    },
+    onError: () => toast.error('삭제에 실패했습니다.'),
+  });
+
+  const renameSheet = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => sheetsApi.rename(projectId!, id, name),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sheets', projectId] }); setRenamingId(null); },
+    onError: () => toast.error('이름 변경에 실패했습니다.'),
+  });
+
+  const currentSheet = sheets.find((s: any) => s.id === sheetId);
+
+  // ── Excel 내보내기 ────────────────────────────────────────────────────────────
+  const exportExcel = () => {
+    const wb = XLSX.utils.book_new();
+
+    for (const sheet of sheets) {
+      const isActive = sheet.id === sheetId;
+      const d: SheetData = isActive ? sheetData : emptyData();
+
+      // 데이터가 있는 마지막 행/열 계산
+      const keys = Object.keys(d.cells);
+      if (keys.length === 0 && !isActive) {
+        const ws = XLSX.utils.aoa_to_sheet([[]]);
+        XLSX.utils.book_append_sheet(wb, ws, sheet.name);
+        continue;
+      }
+
+      let maxR = 0, maxC = 0;
+      keys.forEach(k => {
+        const [r, c] = k.split(',').map(Number);
+        if (r > maxR) maxR = r;
+        if (c > maxC) maxC = c;
+      });
+
+      // 2D 배열로 변환
+      const aoa: any[][] = Array.from({ length: maxR + 1 }, () => Array(maxC + 1).fill(''));
+      keys.forEach(k => {
+        const [r, c] = k.split(',').map(Number);
+        aoa[r][c] = norm(d.cells[k]).v ?? '';
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+      // 열 너비 적용
+      ws['!cols'] = Array.from({ length: maxC + 1 }, (_, c) => ({
+        wch: Math.round((d.colWidths[c] ?? DCW) / 7),
+      }));
+
+      // 셀 병합 적용
+      ws['!merges'] = Object.entries(d.merges).map(([k, m]) => {
+        const [r, c] = k.split(',').map(Number);
+        return { s: { r, c }, e: { r: r + m.rows - 1, c: c + m.cols - 1 } };
+      });
+
+      // 셀 서식 적용 (배경·글자색·굵기·기울임·정렬)
+      keys.forEach(k => {
+        const [r, c] = k.split(',').map(Number);
+        const cell = norm(d.cells[k]);
+        const s = cell.s;
+        if (!s) return;
+        const addr = XLSX.utils.encode_cell({ r, c });
+        if (!ws[addr]) return;
+        const hexToArgb = (hex?: string) => hex ? 'FF' + hex.replace('#', '').toUpperCase().padStart(6, '0') : undefined;
+        ws[addr].s = {
+          fill: s.bg ? { patternType: 'solid', fgColor: { rgb: hexToArgb(s.bg) } } : undefined,
+          font: {
+            bold: s.bold ?? false,
+            italic: s.italic ?? false,
+            color: s.color ? { rgb: hexToArgb(s.color) } : undefined,
+            sz: s.fontSize ?? 11,
+          },
+          alignment: {
+            horizontal: s.align ?? 'left',
+            vertical: 'center',
+            wrapText: false,
+          },
+        };
+      });
+
+      XLSX.utils.book_append_sheet(wb, ws, sheet.name);
+    }
+
+    const filename = `${currentSheet?.name ?? '시트'}.xlsx`;
+    XLSX.writeFile(wb, filename, { bookType: 'xlsx', cellStyles: true });
+    toast.success(`${filename} 다운로드 완료`);
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-white overflow-hidden">
+      {/* Top nav */}
+      <div className="flex-shrink-0 flex items-center gap-3 px-4 h-11 border-b border-gray-200 bg-white">
+        <button onClick={() => navigate('/sheets')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors flex-shrink-0">
+          <ArrowLeft size={15} /><span className="text-xs">시트 목록</span>
+        </button>
+        <div className="w-px h-4 bg-gray-200" />
+        <Table2 size={14} className="text-emerald-500 flex-shrink-0" />
+        <span className="text-sm font-semibold text-gray-800 truncate">{currentSheet?.name ?? '...'}</span>
+        <div className="ml-auto flex items-center gap-3 flex-shrink-0">
+          <span className="text-[11px] text-gray-400">{saving ? '저장 중...' : '자동 저장'}</span>
+          <button
+            onClick={exportExcel}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition-colors"
+            title="Excel 파일로 다운로드"
+          >
+            <Download size={13} />
+            Excel 다운로드
+          </button>
+        </div>
+      </div>
+
+      {/* Grid (includes toolbar + formula bar) */}
+      <SpreadsheetGrid data={sheetData} onChange={handleChange} />
+
+      {/* Sheet tabs */}
+      <div className="flex-shrink-0 flex items-center border-t border-gray-200 bg-gray-50 h-9 px-2 gap-0.5 overflow-x-auto">
+        {sheets.map((sheet: any) => (
+          <div key={sheet.id}
+            className={cn('group relative flex items-center gap-1 px-3 h-7 rounded-t text-xs font-medium cursor-pointer whitespace-nowrap border border-b-0 transition-colors',
+              sheet.id === sheetId ? 'bg-white text-emerald-700 border-gray-300 shadow-sm' : 'bg-transparent text-gray-500 border-transparent hover:bg-white hover:text-gray-700')}
+            onClick={() => switchSheet(sheet.id)}
+            onDoubleClick={() => { setRenamingId(sheet.id); setRenameVal(sheet.name); }}>
+            {renamingId === sheet.id ? (
+              <input autoFocus value={renameVal} onChange={e => setRenameVal(e.target.value)}
+                onKeyDown={e => { if (e.key==='Enter') renameSheet.mutate({id:sheet.id,name:renameVal||sheet.name}); if (e.key==='Escape') setRenamingId(null); e.stopPropagation(); }}
+                onBlur={() => renameSheet.mutate({id:sheet.id,name:renameVal||sheet.name})}
+                onClick={e => e.stopPropagation()}
+                className="w-24 text-xs border border-emerald-400 rounded px-1 outline-none bg-white" />
+            ) : <span>{sheet.name}</span>}
+            {sheets.length > 1 && (
+              <button onClick={e => { e.stopPropagation(); if (confirm(`"${sheet.name}"을 삭제하시겠습니까?`)) deleteSheet.mutate(sheet.id); }}
+                className="hidden group-hover:flex items-center justify-center w-3.5 h-3.5 rounded-full hover:bg-red-100 hover:text-red-500 text-gray-400">
+                <X size={9} />
+              </button>
+            )}
+          </div>
+        ))}
+
+        {showNewSheet ? (
+          <div className="flex items-center gap-1 ml-1">
+            <input autoFocus value={newSheetName} onChange={e => setNewSheetName(e.target.value)}
+              onKeyDown={e => { if (e.key==='Enter'&&newSheetName.trim()) createSheet.mutate(newSheetName.trim()); if (e.key==='Escape') {setShowNewSheet(false);setNewSheetName('');} }}
+              placeholder="시트 이름" className="w-24 h-6 text-xs border border-emerald-400 rounded px-2 outline-none" />
+            <button onClick={() => newSheetName.trim() && createSheet.mutate(newSheetName.trim())}
+              className="flex items-center justify-center w-6 h-6 rounded bg-emerald-600 text-white hover:bg-emerald-700"><Check size={11} /></button>
+            <button onClick={() => {setShowNewSheet(false);setNewSheetName('');}}
+              className="flex items-center justify-center w-6 h-6 rounded text-gray-400 hover:bg-gray-200"><X size={11} /></button>
+          </div>
+        ) : (
+          <button onClick={() => setShowNewSheet(true)}
+            className="flex items-center justify-center w-7 h-7 ml-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors flex-shrink-0"
+            title="새 시트 추가"><Plus size={14} /></button>
+        )}
+      </div>
+    </div>
+  );
+}

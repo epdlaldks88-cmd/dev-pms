@@ -16,6 +16,12 @@ export function formatRelativeTime(date: string | Date) {
   return formatDistanceToNow(new Date(date), { addSuffix: true, locale: ko });
 }
 
+export function formatMessageTime(date: string | Date) {
+  const d = new Date(date);
+  const prefix = isToday(d) ? '' : format(d, 'M/d ', { locale: ko });
+  return prefix + format(d, 'HH:mm');
+}
+
 export function formatDueDate(date: string | Date) {
   const d = new Date(date);
   if (isToday(d)) return '오늘';

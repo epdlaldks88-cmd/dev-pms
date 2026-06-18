@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Clock, Briefcase, Trash2, X, Pencil, CheckCircle2, Check, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -30,6 +30,7 @@ export function WorkloadPage() {
   const currentUser = useAuthStore((s) => s.user);
   const isGlobalAdmin = currentUser?.role === 'ADMIN';
   const { projectId: routeProjectId } = useParams<{ projectId: string }>();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     if (!routeProjectId) return;
@@ -47,7 +48,7 @@ export function WorkloadPage() {
 
   // ── 조회 필터 ──────────────────────────────────────────
   const [filterProject, setFilterProject] = useState(routeProjectId ?? '');
-  const [filterUser, setFilterUser] = useState('');
+  const [filterUser, setFilterUser] = useState(searchParams.get('user') ?? '');
   const [filterStage, setFilterStage] = useState<WorkLogStage | ''>('');
   const [filterStart, setFilterStart] = useState('');
   const [filterEnd, setFilterEnd] = useState('');

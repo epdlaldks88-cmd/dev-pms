@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { X, Send, Search, Plus, MessageSquare, ChevronLeft, Trash2 } from 'lucide-react';
+import { EmojiPickerButton } from '../ui/EmojiPicker';
 import toast from 'react-hot-toast';
 import { messagesApi } from '../../api/messages';
 import { usersApi } from '../../api/users';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../ui/Avatar';
-import { formatRelativeTime, cn } from '../../lib/utils';
+import { formatRelativeTime, formatMessageTime, cn } from '../../lib/utils';
 
 interface Props {
   open: boolean;
@@ -24,6 +25,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
   const [view, setView] = useState<View>(initialUserId ? 'chat' : 'list');
   const [activeUserId, setActiveUserId] = useState<string | null>(initialUserId ?? null);
   const [draft, setDraft] = useState('');
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
   const [confirmHideId, setConfirmHideId] = useState<string | null>(null);
   const [pendingCutoffIso, setPendingCutoffIso] = useState<string>('');
@@ -183,14 +185,13 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
 
   return (
     <>
-      {/* 백드롭 */}
-      <div
-        className={cn(
-          'fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px] transition-opacity duration-300',
-          open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none',
-        )}
-        onClick={onClose}
-      />
+      {/* 백드롭 — open일 때만 DOM에 올려서 backdrop-blur 상시 렌더 방지 */}
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]"
+          onClick={onClose}
+        />
+      )}
 
       {/* 슬라이드 패널 */}
       <div
@@ -357,8 +358,8 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                           )}>
                             {m.content}
                           </div>
-                          <span className="text-[10px] text-gray-400 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {new Date(m.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                          <span className="text-[10px] text-gray-400 px-1 whitespace-nowrap">
+                            {formatMessageTime(m.createdAt)}
                           </span>
                         </div>
                       </div>
@@ -371,6 +372,12 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
             {/* 입력창 */}
             <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0">
               <div className="flex items-center gap-2 bg-gray-50 rounded-xl border border-gray-200 px-3 py-2 focus-within:border-indigo-400 focus-within:bg-white transition-colors">
+                <EmojiPickerButton
+                  open={emojiOpen}
+                  onToggle={() => setEmojiOpen((v) => !v)}
+                  onSelect={(emoji) => setDraft((d) => d + emoji)}
+                  placement="top-right"
+                />
                 <input
                   ref={inputRef}
                   type="text"

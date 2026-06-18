@@ -119,7 +119,10 @@ export function Header() {
     allNotifs.forEach((n) => {
       if (n.type === 'MENTION' && !seenMentionIds.current.has(n.id)) {
         seenMentionIds.current.add(n.id);
-        showMentionPopup({ id: n.id, title: n.title, message: n.message, link: n.link });
+        // 멘션 패널이 열려있으면 팝업 불필요
+        if (!msgOpen) {
+          showMentionPopup({ id: n.id, title: n.title, message: n.message, link: n.link });
+        }
       }
     });
   }, [allNotifs, showMentionPopup]);

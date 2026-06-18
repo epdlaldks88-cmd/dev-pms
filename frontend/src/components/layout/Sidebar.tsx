@@ -3,7 +3,7 @@ import { NavLink, useNavigate, useMatch } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard, FolderKanban, Bell, ChevronLeft, ChevronRight,
-  Zap, Building2, Users, CalendarDays, ShieldCheck, PenTool,
+  Zap, Building2, Users, CalendarDays, ShieldCheck, PenTool, Table2,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useUiStore } from '../../store/ui.store';
@@ -15,6 +15,7 @@ const navItems = [
   { to: '/projects', icon: FolderKanban, label: '프로젝트' },
   { to: '/meeting-calendar', icon: CalendarDays, label: '일정관리' },
   { to: '/canvas', icon: PenTool, label: '캔버스' },
+  { to: '/sheets', icon: Table2, label: '시트' },
   { to: '/partners', icon: Building2, label: '파트너사 관리' },
   { to: '/notifications', icon: Bell, label: '알림' },
 ];

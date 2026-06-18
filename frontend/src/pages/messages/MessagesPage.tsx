@@ -2,13 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Send, Plus, X, Search, MessageSquare } from 'lucide-react';
+import { EmojiPickerButton } from '../../components/ui/EmojiPicker';
 import toast from 'react-hot-toast';
 import { messagesApi } from '../../api/messages';
 import { usersApi } from '../../api/users';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { formatRelativeTime, cn } from '../../lib/utils';
+import { formatRelativeTime, formatMessageTime, cn } from '../../lib/utils';
 
 export function MessagesPage() {
   const qc = useQueryClient();
@@ -23,6 +24,7 @@ export function MessagesPage() {
     if (to) setActiveUserId(to);
   }, [searchParams]);
   const [draft, setDraft] = useState('');
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -203,8 +205,8 @@ export function MessagesPage() {
                         >
                           {m.content}
                         </div>
-                        <span className="text-[10px] text-gray-400 flex-shrink-0 mb-0.5">
-                          {formatRelativeTime(m.createdAt)}
+                        <span className="text-[10px] text-gray-400 flex-shrink-0 mb-0.5 whitespace-nowrap">
+                          {formatMessageTime(m.createdAt)}
                         </span>
                       </div>
                     </div>
@@ -216,6 +218,12 @@ export function MessagesPage() {
             {/* 입력 */}
             <div className="flex-shrink-0 border-t border-gray-200 bg-white p-3">
               <div className="flex items-end gap-2">
+                <EmojiPickerButton
+                  open={emojiOpen}
+                  onToggle={() => setEmojiOpen((v) => !v)}
+                  onSelect={(emoji) => setDraft((d) => d + emoji)}
+                  placement="top"
+                />
                 <textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}

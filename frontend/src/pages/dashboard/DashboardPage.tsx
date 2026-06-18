@@ -262,7 +262,7 @@ export function DashboardPage() {
               <Clock size={15} className="text-violet-500" /> 내 이번 주 일감
             </h2>
             <Link
-              to={projects?.[0]?.id ? `/projects/${projects[0].id}/workload` : '/projects'}
+              to={user?.id ? `/workload?user=${user.id}` : '/workload'}
               className="text-xs text-indigo-600 hover:underline"
             >전체</Link>
           </div>
