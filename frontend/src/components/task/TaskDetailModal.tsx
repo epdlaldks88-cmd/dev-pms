@@ -153,7 +153,7 @@ export function TaskDetailModal() {
   });
 
   const toggleSubtask = useMutation({
-    mutationFn: ({ subId, status }: { subId: string; status: string }) =>
+    mutationFn: ({ subId, status }: { subId: string; status: TaskStatus }) =>
       tasksApi.update(task!.projectId, subId, { status }),
     onSuccess: () => invalidateTask(),
   });

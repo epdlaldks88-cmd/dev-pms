@@ -821,7 +821,7 @@ export function CanvasPage() {
     isDirty.current = true;
     setNodes((ns) => ns.map((n) => {
       if (n.id !== nodeId) return n;
-      const cur: any[] = n.data.assignees ?? [];
+      const cur: any[] = (n.data.assignees as any[]) ?? [];
       const exists = cur.some((a) => a.id === u.id);
       const next = exists ? cur.filter((a) => a.id !== u.id) : [...cur, { id: u.id, name: u.name, avatar: u.avatar }];
       return { ...n, data: { ...n.data, assignees: next } };

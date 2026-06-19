@@ -216,7 +216,7 @@ export function MeetingsPage() {
       startTime: form.startTime || undefined,
       endTime: form.endTime || undefined,
       attendees: form.attendees || undefined,
-      projectId: form.projectId || null,
+      projectId: form.projectId || undefined,
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['meetings'] });

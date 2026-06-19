@@ -31,7 +31,7 @@ export interface ProjectMember {
   id: string;
   role: ProjectRole;
   joinedAt: string;
-  user: Pick<User, 'id' | 'name' | 'email' | 'avatar'>;
+  user: Pick<User, 'id' | 'name' | 'email' | 'avatar' | 'position'>;
 }
 
 export interface Project {
@@ -41,6 +41,7 @@ export interface Project {
   status: ProjectStatus;
   startDate?: string;
   endDate?: string;
+  openDate?: string;
   color: string;
   icon?: string;
   createdAt: string;
