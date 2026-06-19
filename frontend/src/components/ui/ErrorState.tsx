@@ -17,7 +17,7 @@ export function ErrorState({ message = '데이터를 불러오지 못했습니�
       {onRetry && (
         <button
           onClick={onRetry}
-          className="text-xs text-indigo-500 hover:text-indigo-700 underline underline-offset-2"
+          className="text-xs text-gray-600 hover:text-red-600 underline underline-offset-2"
         >
           다시 시도
         </button>

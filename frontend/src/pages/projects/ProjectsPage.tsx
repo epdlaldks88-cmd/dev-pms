@@ -22,7 +22,7 @@ const STATUS_OPTIONS: { value: ProjectStatus | 'ALL'; label: string }[] = [
 ];
 
 const PROJECT_COLORS = [
-  '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
+  '#e60012', '#e60012', '#ec4899', '#ef4444',
   '#f97316', '#eab308', '#22c55e', '#06b6d4', '#0ea5e9',
 ];
 
@@ -31,7 +31,7 @@ export function ProjectsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'ALL'>('ALL');
   const [createOpen, setCreateOpen] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '', color: '#6366f1', startDate: '', endDate: '' });
+  const [form, setForm] = useState({ name: '', description: '', color: '#e60012', startDate: '', endDate: '' });
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ['projects'],
@@ -43,7 +43,7 @@ export function ProjectsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['projects'] });
       setCreateOpen(false);
-      setForm({ name: '', description: '', color: '#6366f1', startDate: '', endDate: '' });
+      setForm({ name: '', description: '', color: '#e60012', startDate: '', endDate: '' });
       toast.success('프로젝트가 생성되었습니다.');
     },
     onError: () => toast.error('프로젝트 생성에 실패했습니다.'),
@@ -70,7 +70,7 @@ export function ProjectsPage() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">프로젝트</h1>
+          <h1 className="text-xl font-bold text-gray-700">프로젝트</h1>
           <p className="text-sm text-gray-500 mt-0.5">팀의 모든 프로젝트를 관리하세요.</p>
         </div>
         <Button variant="primary" size="md" onClick={() => setCreateOpen(true)}>
@@ -87,7 +87,7 @@ export function ProjectsPage() {
             placeholder="프로젝트 검색..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-8 pl-8 pr-3 text-sm bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full h-8 pl-8 pr-3 text-sm bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
         <div className="flex gap-1 bg-gray-100 p-0.5 rounded-lg">
@@ -97,7 +97,7 @@ export function ProjectsPage() {
               onClick={() => setStatusFilter(s.value as any)}
               className={cn(
                 'px-3 py-1 text-xs rounded-md font-medium transition-colors',
-                statusFilter === s.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+                statusFilter === s.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-600',
               )}
             >
               {s.label}
@@ -149,7 +149,7 @@ export function ProjectsPage() {
                           {p.icon ?? '📁'}
                         </div>
                         <div>
-                          <p className="font-medium text-sm text-gray-900 hover:text-indigo-600 transition-colors">
+                          <p className="font-medium text-sm text-gray-900 hover:text-red-600 transition-colors">
                             {p.name}
                           </p>
                           {p.description && (
@@ -229,13 +229,13 @@ export function ProjectsPage() {
             required
           />
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-gray-700">설명</label>
+            <label className="text-sm font-medium text-gray-600">설명</label>
             <textarea
               placeholder="프로젝트 설명을 입력하세요."
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               rows={3}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
             />
           </div>
           <div className="flex gap-4">
@@ -255,7 +255,7 @@ export function ProjectsPage() {
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-gray-700">색상</label>
+            <label className="text-sm font-medium text-gray-600">색상</label>
             <div className="flex gap-2 flex-wrap">
               {PROJECT_COLORS.map((c) => (
                 <button

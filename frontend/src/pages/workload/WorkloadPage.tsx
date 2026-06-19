@@ -185,7 +185,7 @@ export function WorkloadPage() {
           <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-400">
             <Filter size={12} /> 조회 조건
             {activeFilters > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-[10px] font-bold">
+              <span className="ml-1 px-1.5 py-0.5 bg-primary-100 text-gray-800 rounded-full text-[10px] font-bold">
                 {activeFilters}
               </span>
             )}
@@ -196,13 +196,13 @@ export function WorkloadPage() {
             <input
               type="date" value={filterStart}
               onChange={(e) => setFilterStart(e.target.value)}
-              className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
             />
             <span className="text-gray-300 text-xs">~</span>
             <input
               type="date" value={filterEnd} min={filterStart}
               onChange={(e) => setFilterEnd(e.target.value)}
-              className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
             />
           </div>
 
@@ -210,7 +210,7 @@ export function WorkloadPage() {
           <select
             value={filterUser}
             onChange={(e) => setFilterUser(e.target.value)}
-            className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+            className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
           >
             <option value="">전체 담당자</option>
             {allUsers?.map((u: any) => (
@@ -255,7 +255,7 @@ export function WorkloadPage() {
             <select
               value={filterProject}
               onChange={(e) => setFilterProject(e.target.value)}
-              className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
             >
               <option value="">전체 프로젝트</option>
               {projects?.map((p: any) => (
@@ -268,7 +268,7 @@ export function WorkloadPage() {
           {activeFilters > 0 && (
             <button
               onClick={() => { setFilterUser(''); setFilterStage(''); setFilterStart(''); setFilterEnd(''); }}
-              className="text-xs text-gray-400 hover:text-gray-600 underline ml-1"
+              className="text-xs text-white/70 hover:text-white underline ml-1"
             >
               초기화
             </button>
@@ -286,7 +286,7 @@ export function WorkloadPage() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
                 </span>
-                <span className="text-sm font-semibold text-gray-900">확인 대기 중인 일감</span>
+                <span className="text-sm font-semibold text-gray-600">확인 대기 중인 일감</span>
                 <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-100 text-orange-600 text-[11px] font-bold">
                   {pendingAck.length}
                 </span>
@@ -333,14 +333,14 @@ export function WorkloadPage() {
         {summary && summary.length > 0 && (
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">담당자별 공수 요약</h2>
+              <h2 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">담당자별 공수 요약</h2>
               <button
                 onClick={() => toggleUser(currentUser?.id ?? '')}
                 className={cn(
                   'text-[11px] font-medium px-2.5 py-0.5 rounded-full border transition-colors',
                   selectedUserId === currentUser?.id
-                    ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'bg-white text-gray-500 border-gray-200 hover:border-indigo-400 hover:text-indigo-600',
+                    ? 'bg-primary-600 text-white border-primary-600'
+                    : 'bg-white text-gray-500 border-gray-200 hover:border-primary-400 hover:text-red-600',
                 )}
               >
                 내 일감만
@@ -348,7 +348,7 @@ export function WorkloadPage() {
               {selectedUserId && (
                 <button
                   onClick={() => setSelectedUserId(null)}
-                  className="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-full transition-colors"
+                  className="text-[11px] text-gray-600 hover:text-red-600 font-medium bg-primary-50 hover:bg-primary-100 px-2 py-0.5 rounded-full transition-colors"
                 >
                   전체 보기 ✕
                 </button>
@@ -366,27 +366,27 @@ export function WorkloadPage() {
                     className={cn(
                       'flex items-center gap-2 px-3 py-2 rounded-xl border transition-all duration-150',
                       isSelected
-                        ? 'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-200 shadow-sm'
+                        ? 'bg-primary-50 border-gray-300 ring-2 ring-primary-200 shadow-sm'
                         : isDimmed
                           ? 'bg-white border-gray-200 opacity-40 hover:opacity-70'
-                          : 'bg-white border-gray-200 hover:border-indigo-200 hover:shadow-sm',
+                          : 'bg-white border-gray-200 hover:border-gray-200 hover:shadow-sm',
                     )}
                   >
                     <Avatar name={s.user?.name ?? '?'} avatar={s.user?.avatar} size="xs" />
-                    <span className={cn('text-xs font-bold truncate flex-1 text-left', isSelected ? 'text-indigo-700' : 'text-gray-800')}>
+                    <span className={cn('text-xs font-bold truncate flex-1 text-left', isSelected ? 'text-gray-800' : 'text-gray-800')}>
                       {s.user?.name ?? '—'}
                     </span>
                     <span className={cn(
                       'flex-shrink-0 text-xs font-extrabold',
-                      isSelected ? 'text-indigo-600' : 'text-violet-600',
+                      isSelected ? 'text-gray-600' : 'text-gray-600',
                     )}>
                       {s.count}건
                     </span>
-                    <span className={cn('flex-shrink-0 text-[11px] font-semibold', isSelected ? 'text-indigo-400' : 'text-gray-400')}>
+                    <span className={cn('flex-shrink-0 text-[11px] font-semibold', isSelected ? 'text-gray-500' : 'text-gray-400')}>
                       {s.totalHours}h
                     </span>
                     {isSelected && (
-                      <span className="flex-shrink-0 w-3.5 h-3.5 rounded-full bg-indigo-500 flex items-center justify-center">
+                      <span className="flex-shrink-0 w-3.5 h-3.5 rounded-full bg-primary-500 flex items-center justify-center">
                         <Check size={8} className="text-white" />
                       </span>
                     )}
@@ -447,17 +447,17 @@ export function WorkloadPage() {
                     <tr
                       key={log.id}
                       onClick={() => setViewLog(log)}
-                      className="border-b border-gray-100 last:border-0 hover:bg-indigo-50/40 cursor-pointer group transition-colors"
+                      className="border-b border-gray-100 last:border-0 hover:bg-primary-50/40 cursor-pointer group transition-colors"
                     >
                       <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{displayDate(log)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
                           <Avatar name={log.user.name} avatar={log.user.avatar} size="xs" />
-                          <span className="text-xs text-gray-700 truncate">{log.user.name}</span>
+                          <span className="text-xs text-gray-600 truncate">{log.user.name}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`text-xs font-medium truncate max-w-[120px] block ${log.task ? 'text-indigo-600' : 'text-gray-400 line-through'}`}>
+                        <span className={`text-xs font-medium truncate max-w-[120px] block ${log.task ? 'text-gray-600' : 'text-gray-400 line-through'}`}>
                           {log.task?.title ?? log.taskTitle ?? '-'}
                         </span>
                       </td>
@@ -466,7 +466,7 @@ export function WorkloadPage() {
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-600 max-w-[200px] truncate">{log.description || '-'}</td>
                       <td className="px-4 py-3 text-center">
-                        <span className="flex items-center justify-center gap-0.5 text-sm font-bold text-gray-700">
+                        <span className="flex items-center justify-center gap-0.5 text-sm font-bold text-gray-600">
                           <Clock size={12} className="text-gray-400" />{log.hours}h
                         </span>
                       </td>
@@ -495,7 +495,7 @@ export function WorkloadPage() {
                         )}
                       </td>
                       <td className="px-2 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                        <span className="text-[10px] text-gray-300 group-hover:text-indigo-400 transition-colors font-medium">상세 →</span>
+                        <span className="text-[10px] text-gray-300 group-hover:text-red-600 transition-colors font-medium">상세 →</span>
                       </td>
                     </tr>
                   );
@@ -522,13 +522,13 @@ export function WorkloadPage() {
             <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
 
               {/* 헤더 */}
-              <div className="px-6 py-5 bg-gradient-to-br from-indigo-50 via-white to-violet-50 border-b border-gray-200">
+              <div className="px-6 py-5 bg-gradient-to-r from-red-500 to-red-600 border-b border-red-600">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-semibold text-indigo-400 uppercase tracking-wider mb-1.5">
+                    <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
                       {viewLog.task?.project?.name ?? viewLog.projectName ?? '프로젝트 없음'}
                     </p>
-                    <h2 className="text-base font-bold text-gray-900 leading-snug">
+                    <h2 className="text-base font-bold text-gray-700 leading-snug">
                       {viewLog.task?.title ?? viewLog.taskTitle ?? '(삭제된 태스크)'}
                     </h2>
                   </div>
@@ -548,7 +548,7 @@ export function WorkloadPage() {
                               stage: viewLog.stage ?? '',
                             });
                           }}
-                          className="p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-primary-50 rounded-lg transition-colors"
                           title="수정"
                         >
                           <Pencil size={14} />
@@ -562,7 +562,7 @@ export function WorkloadPage() {
                         </button>
                       </>
                     )}
-                    <button onClick={() => setViewLog(null)} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg ml-0.5 transition-colors">
+                    <button onClick={() => setViewLog(null)} className="p-1.5 text-white/70 hover:text-white hover:bg-gray-100 rounded-lg ml-0.5 transition-colors">
                       <X size={16} />
                     </button>
                   </div>
@@ -582,8 +582,8 @@ export function WorkloadPage() {
                 </Row>
                 <Row label="공수">
                   <div className="flex items-center gap-1.5">
-                    <Clock size={13} className="text-indigo-400" />
-                    <span className="text-sm font-bold text-gray-900">{viewLog.hours}h</span>
+                    <Clock size={13} className="text-gray-500" />
+                    <span className="text-sm font-bold text-gray-600">{viewLog.hours}h</span>
                     <span className="text-xs text-gray-400">({viewLog.hours * 60}분)</span>
                   </div>
                 </Row>
@@ -593,7 +593,7 @@ export function WorkloadPage() {
                   </span>
                 </Row>
                 <Row label="사용자확인일">
-                  <span className={cn('text-sm', viewLog.userConfirmedAt ? 'text-violet-600 font-medium' : 'text-gray-400')}>
+                  <span className={cn('text-sm', viewLog.userConfirmedAt ? 'text-gray-600 font-medium' : 'text-gray-400')}>
                     {viewLog.userConfirmedAt ? formatDate(viewLog.userConfirmedAt) : '—'}
                   </span>
                 </Row>
@@ -621,7 +621,7 @@ export function WorkloadPage() {
                 </Row>
                 {viewLog.description && (
                   <Row label="작업 내용">
-                    <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
                       {viewLog.description}
                     </p>
                   </Row>
@@ -642,9 +642,9 @@ export function WorkloadPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-br from-indigo-50 via-white to-violet-50 border-b border-gray-200">
-              <h2 className="text-base font-bold text-gray-900">일감 등록</h2>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600 p-1"><X size={18} /></button>
+            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-red-500 to-red-600 border-b border-red-600">
+              <h2 className="text-base font-bold text-gray-700">일감 등록</h2>
+              <button onClick={() => setShowAddModal(false)} className="text-white/70 hover:text-white p-1"><X size={18} /></button>
             </div>
             <div className="p-6 space-y-4">
               {!routeProjectId && (
@@ -653,7 +653,7 @@ export function WorkloadPage() {
                   <select
                     value={form.projectId}
                     onChange={(e) => setForm({ ...form, projectId: e.target.value, taskId: '' })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="">프로젝트 선택</option>
                     {projects?.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -666,7 +666,7 @@ export function WorkloadPage() {
                   value={form.taskId}
                   onChange={(e) => setForm({ ...form, taskId: e.target.value })}
                   disabled={!form.projectId}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50"
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-50"
                 >
                   <option value="">{form.projectId ? '태스크 선택' : '먼저 프로젝트를 선택하세요'}</option>
                   {formTasks?.map((t: any) => <option key={t.id} value={t.id}>{t.title}</option>)}
@@ -677,7 +677,7 @@ export function WorkloadPage() {
                 <select
                   value={form.userId}
                   onChange={(e) => setForm({ ...form, userId: e.target.value })}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   {allUsers?.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
@@ -686,20 +686,20 @@ export function WorkloadPage() {
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">공수 (시간) *</label>
                 <input type="number" min={0.5} step={0.5} value={form.hours}
                   onChange={(e) => setForm({ ...form, hours: parseFloat(e.target.value) || 0 })}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div className="flex gap-3">
                 <div className="flex-1">
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">시작일</label>
                   <input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div className="flex-1">
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">종료일</label>
                   <input type="date" value={form.endDate} min={form.startDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
@@ -707,7 +707,7 @@ export function WorkloadPage() {
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">작업 내용</label>
                 <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
                   placeholder="어떤 작업을 했는지 간략히 입력하세요..." rows={3}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
                 />
               </div>
             </div>
@@ -731,9 +731,9 @@ export function WorkloadPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setEditLog(null)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-br from-indigo-50 via-white to-violet-50 border-b border-gray-200">
-              <h2 className="text-base font-bold text-gray-900">일감 수정</h2>
-              <button onClick={() => setEditLog(null)} className="text-gray-400 hover:text-gray-600 p-1"><X size={18} /></button>
+            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-red-500 to-red-600 border-b border-red-600">
+              <h2 className="text-base font-bold text-gray-700">일감 수정</h2>
+              <button onClick={() => setEditLog(null)} className="text-white/70 hover:text-white p-1"><X size={18} /></button>
             </div>
             <div className="p-6 space-y-4">
               {/* 태스크 정보 */}
@@ -773,7 +773,7 @@ export function WorkloadPage() {
                   })}
                 </div>
                 {editLog.userConfirmedAt && (
-                  <p className="text-[11px] text-violet-600 mt-1.5">
+                  <p className="text-[11px] text-gray-600 mt-1.5">
                     사용자확인일: {formatDate(editLog.userConfirmedAt)}
                   </p>
                 )}
@@ -785,7 +785,7 @@ export function WorkloadPage() {
                 <select
                   value={editForm.userId}
                   onChange={(e) => setEditForm({ ...editForm, userId: e.target.value })}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   {allUsers?.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
@@ -796,7 +796,7 @@ export function WorkloadPage() {
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">공수 (시간) *</label>
                 <input type="number" min={0.5} step={0.5} value={editForm.hours}
                   onChange={(e) => setEditForm({ ...editForm, hours: parseFloat(e.target.value) || 0 })}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
 
@@ -805,13 +805,13 @@ export function WorkloadPage() {
                 <div className="flex-1">
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">시작일</label>
                   <input type="date" value={editForm.startDate} onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div className="flex-1">
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">종료일</label>
                   <input type="date" value={editForm.endDate} min={editForm.startDate} onChange={(e) => setEditForm({ ...editForm, endDate: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
@@ -820,7 +820,7 @@ export function WorkloadPage() {
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">작업 내용</label>
                 <textarea value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                  rows={3} className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  rows={3} className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
                 />
               </div>
             </div>

@@ -6,7 +6,7 @@ export const STAGE_CONFIG: Record<WorkLogStage, { label: string; color: string; 
   RECEIVED:       { label: '접수',     color: 'text-gray-600',   bg: 'bg-gray-100',    border: 'border-gray-300' },
   DEVELOPMENT:    { label: '개발',     color: 'text-blue-700',   bg: 'bg-blue-50',     border: 'border-blue-300' },
   COMPLETED:      { label: '완료',     color: 'text-emerald-700',bg: 'bg-emerald-50',  border: 'border-emerald-300' },
-  USER_CONFIRMED: { label: '사용자확인', color: 'text-violet-700', bg: 'bg-violet-50',   border: 'border-violet-300' },
+  USER_CONFIRMED: { label: '사용자확인', color: 'text-gray-800', bg: 'bg-primary-50',   border: 'border-primary-300' },
   DEPLOYED:       { label: '배포',     color: 'text-orange-700', bg: 'bg-orange-50',   border: 'border-orange-300' },
 };
 

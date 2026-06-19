@@ -72,18 +72,18 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-indigo-950 to-gray-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-primary-950 to-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
+          <div className="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/30">
             <Zap size={20} className="text-white" />
           </div>
           <span className="text-2xl font-bold text-white">L.PMS</span>
         </div>
 
         <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <h1 className="text-xl font-bold text-gray-900 mb-1">로그인</h1>
+          <h1 className="text-xl font-bold text-gray-700 mb-1">로그인</h1>
           <p className="text-sm text-gray-500 mb-6">계정에 로그인하여 시작하세요.</p>
 
           <form onSubmit={onSubmit} className="space-y-4">
@@ -121,7 +121,7 @@ export function LoginPage() {
             <button
               type="button"
               onClick={() => openFind('id')}
-              className="text-xs text-gray-400 hover:text-indigo-600 transition-colors"
+              className="text-xs text-gray-400 hover:text-red-600 transition-colors"
             >
               아이디 찾기
             </button>
@@ -129,7 +129,7 @@ export function LoginPage() {
             <button
               type="button"
               onClick={() => openFind('password')}
-              className="text-xs text-gray-400 hover:text-indigo-600 transition-colors"
+              className="text-xs text-gray-400 hover:text-red-600 transition-colors"
             >
               비밀번호 찾기
             </button>
@@ -137,7 +137,7 @@ export function LoginPage() {
 
           <p className="text-center text-sm text-gray-500 mt-4">
             계정이 없으신가요?{' '}
-            <Link to="/register" className="text-indigo-600 font-medium hover:underline">
+            <Link to="/register" className="text-gray-600 font-medium hover:underline">
               회원가입
             </Link>
           </p>
@@ -157,13 +157,13 @@ export function LoginPage() {
               <div className="flex gap-4">
                 <button
                   onClick={() => { setFindTab('id'); setFoundId(null); setFoundPw(null); }}
-                  className={`text-sm font-semibold pb-0.5 transition-colors ${findTab === 'id' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+                  className={`text-sm font-semibold pb-0.5 transition-colors ${findTab === 'id' ? 'text-gray-600 border-b-2 border-primary-600' : 'text-gray-400 hover:text-gray-600'}`}
                 >
                   아이디 찾기
                 </button>
                 <button
                   onClick={() => { setFindTab('password'); setFoundId(null); setFoundPw(null); }}
-                  className={`text-sm font-semibold pb-0.5 transition-colors ${findTab === 'password' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+                  className={`text-sm font-semibold pb-0.5 transition-colors ${findTab === 'password' ? 'text-gray-600 border-b-2 border-primary-600' : 'text-gray-400 hover:text-gray-600'}`}
                 >
                   비밀번호 찾기
                 </button>
@@ -204,7 +204,7 @@ export function LoginPage() {
                   ) : (
                     <div className="text-center py-4 space-y-3">
                       <p className="text-sm text-gray-500">회원님의 아이디는</p>
-                      <p className="text-lg font-bold text-indigo-600 bg-indigo-50 rounded-xl py-3">{foundId}</p>
+                      <p className="text-lg font-bold text-gray-600 bg-primary-50 rounded-xl py-3">{foundId}</p>
                       <p className="text-xs text-gray-400">입니다.</p>
                       <Button variant="secondary" className="w-full" onClick={closeFind}>확인</Button>
                     </div>
@@ -241,7 +241,7 @@ export function LoginPage() {
                   ) : (
                     <div className="text-center py-4 space-y-3">
                       <p className="text-sm text-gray-500">임시 비밀번호가 발급되었습니다.</p>
-                      <p className="text-lg font-bold text-indigo-600 bg-indigo-50 rounded-xl py-3 tracking-widest">{foundPw}</p>
+                      <p className="text-lg font-bold text-gray-600 bg-primary-50 rounded-xl py-3 tracking-widest">{foundPw}</p>
                       <p className="text-xs text-gray-400">로그인 후 프로필 설정에서 비밀번호를 변경하세요.</p>
                       <Button variant="secondary" className="w-full" onClick={closeFind}>확인</Button>
                     </div>

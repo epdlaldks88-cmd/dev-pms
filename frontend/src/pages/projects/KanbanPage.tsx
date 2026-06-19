@@ -167,9 +167,9 @@ export function KanbanPage() {
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center gap-1.5 text-sm text-gray-500">
-          <Link to="/projects" className="hover:text-gray-700">프로젝트</Link>
+          <Link to="/projects" className="hover:text-gray-600">프로젝트</Link>
           <ChevronRight size={14} />
-          <Link to={`/projects/${projectId}`} className="hover:text-gray-700">{project?.name}</Link>
+          <Link to={`/projects/${projectId}`} className="hover:text-gray-600">{project?.name}</Link>
           <ChevronRight size={14} />
           <span className="text-gray-900 font-medium">칸반보드</span>
         </div>
@@ -224,7 +224,7 @@ export function KanbanPage() {
                       if (e.key === 'Escape') { setAddingColumn(false); setNewColumnName(''); }
                     }}
                     placeholder="단계 이름 (예: 이슈)"
-                    className="w-full text-sm rounded-lg border border-gray-300 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-sm rounded-lg border border-gray-300 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <div className="flex gap-1.5 mt-2">
                     <Button size="sm" variant="primary" onClick={() => newColumnName.trim() && addColumn.mutate(newColumnName.trim())}>
@@ -238,7 +238,7 @@ export function KanbanPage() {
               ) : (
                 <button
                   onClick={() => setAddingColumn(true)}
-                  className="w-full flex items-center justify-center gap-1.5 text-sm text-gray-500 py-2.5 rounded-xl border-2 border-dashed border-gray-200 hover:border-indigo-300 hover:text-indigo-500 transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-center gap-1.5 text-sm text-gray-500 py-2.5 rounded-xl border-2 border-dashed border-gray-200 hover:border-gray-300 hover:text-red-600 transition-colors cursor-pointer"
                 >
                   <Plus size={15} /> 단계 추가
                 </button>

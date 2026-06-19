@@ -56,22 +56,22 @@ export function AdminUsersPage() {
           <div className="grid grid-cols-3 gap-4">
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Users size={18} className="text-indigo-600" />
+                <div className="w-9 h-9 bg-primary-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Users size={18} className="text-gray-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{users?.length ?? 0}</p>
+                  <p className="text-2xl font-bold text-gray-600">{users?.length ?? 0}</p>
                   <p className="text-xs text-gray-500">전체 사용자</p>
                 </div>
               </div>
             </div>
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Shield size={18} className="text-indigo-600" />
+                <div className="w-9 h-9 bg-primary-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Shield size={18} className="text-gray-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{adminCount}</p>
+                  <p className="text-2xl font-bold text-gray-600">{adminCount}</p>
                   <p className="text-xs text-gray-500">관리자</p>
                 </div>
               </div>
@@ -82,7 +82,7 @@ export function AdminUsersPage() {
                   <ShieldOff size={18} className="text-gray-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{memberCount}</p>
+                  <p className="text-2xl font-bold text-gray-600">{memberCount}</p>
                   <p className="text-xs text-gray-500">일반 사용자</p>
                 </div>
               </div>
@@ -96,7 +96,7 @@ export function AdminUsersPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="이름, 이메일, 부서로 검색..."
-              className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
             />
           </div>
 
@@ -131,9 +131,9 @@ export function AdminUsersPage() {
                       <Avatar name={u.name} avatar={u.avatar} size="sm" className="flex-shrink-0" />
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <p className="text-sm font-semibold text-gray-900 truncate">{u.name}</p>
+                          <p className="text-sm font-semibold text-gray-600 truncate">{u.name}</p>
                           {u.id === currentUser?.id && (
-                            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded">나</span>
+                            <span className="text-[10px] font-bold text-gray-600 bg-primary-50 px-1 py-0.5 rounded">나</span>
                           )}
                         </div>
                         <p className="text-xs text-gray-400 truncate">{u.email}</p>
@@ -182,7 +182,7 @@ export function AdminUsersPage() {
                       {u.id === currentUser?.id ? (
                         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
                           u.role === 'ADMIN'
-                            ? 'bg-indigo-100 text-indigo-700'
+                            ? 'bg-primary-100 text-gray-800'
                             : 'bg-gray-100 text-gray-600'
                         }`}>
                           {u.role === 'ADMIN' ? '관리자' : '일반'}
@@ -199,7 +199,7 @@ export function AdminUsersPage() {
                           title={u.role === 'ADMIN' ? '일반 사용자로 변경' : '관리자로 승급'}
                           className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border transition-colors cursor-pointer disabled:opacity-50 ${
                             u.role === 'ADMIN'
-                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+                              ? 'bg-primary-50 text-gray-800 border-gray-200 hover:bg-primary-100'
                               : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                           }`}
                         >

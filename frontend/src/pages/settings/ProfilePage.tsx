@@ -108,7 +108,7 @@ export function ProfilePage() {
                 <button
                   type="button"
                   onClick={() => setShowEmojiPicker((v) => !v)}
-                  className="absolute -bottom-1 -right-1 w-5 h-5 bg-white border border-gray-300 rounded-full flex items-center justify-center shadow-sm hover:bg-indigo-50 hover:border-indigo-300 transition-colors"
+                  className="absolute -bottom-1 -right-1 w-5 h-5 bg-white border border-gray-300 rounded-full flex items-center justify-center shadow-sm hover:bg-primary-50 hover:border-gray-300 transition-colors"
                   title="이모지 변경"
                 >
                   <Smile size={11} className="text-gray-500" />
@@ -135,8 +135,8 @@ export function ProfilePage() {
                           key={emoji}
                           type="button"
                           onClick={() => { setProfile({ ...profile, avatar: emoji }); setShowEmojiPicker(false); }}
-                          className={`w-7 h-7 flex items-center justify-center text-lg rounded-lg transition-all hover:bg-indigo-50 hover:scale-110 ${
-                            profile.avatar === emoji ? 'bg-indigo-100 ring-2 ring-indigo-400' : ''
+                          className={`w-7 h-7 flex items-center justify-center text-lg rounded-lg transition-all hover:bg-primary-50 hover:scale-110 ${
+                            profile.avatar === emoji ? 'bg-primary-100 ring-2 ring-primary-400' : ''
                           }`}
                         >
                           {emoji}
@@ -148,11 +148,11 @@ export function ProfilePage() {
               </div>
 
               <div>
-                <p className="text-base font-bold text-gray-900">{user?.name}</p>
+                <p className="text-base font-bold text-gray-600">{user?.name}</p>
                 <p className="text-sm text-gray-500">{user?.email}</p>
                 <span className={`mt-1 inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${
                   user?.role === 'ADMIN'
-                    ? 'bg-indigo-100 text-indigo-700'
+                    ? 'bg-primary-100 text-gray-800'
                     : 'bg-gray-100 text-gray-600'
                 }`}>
                   {user?.role === 'ADMIN' ? '관리자' : '일반 사용자'}
@@ -165,7 +165,7 @@ export function ProfilePage() {
           {/* 기본 정보 */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <User size={15} className="text-indigo-500" /> 기본 정보
+              <User size={15} className="text-gray-600" /> 기본 정보
             </h2>
             <div className="space-y-4">
               <div>
@@ -174,7 +174,7 @@ export function ProfilePage() {
                   type="text"
                   value={profile.name}
                   onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="이름을 입력하세요"
                 />
               </div>
@@ -188,7 +188,7 @@ export function ProfilePage() {
                     type="text"
                     value={profile.position}
                     onChange={(e) => setProfile({ ...profile, position: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="예: 과장, 시니어 개발자"
                   />
                 </div>
@@ -200,7 +200,7 @@ export function ProfilePage() {
                     type="text"
                     value={profile.department}
                     onChange={(e) => setProfile({ ...profile, department: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="예: 개발팀, 기획팀"
                   />
                 </div>
@@ -214,7 +214,7 @@ export function ProfilePage() {
                   type="tel"
                   value={profile.phone}
                   onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="예: 010-1234-5678"
                 />
               </div>
@@ -235,7 +235,7 @@ export function ProfilePage() {
           {/* 비밀번호 변경 */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <Lock size={15} className="text-indigo-500" /> 비밀번호 변경
+              <Lock size={15} className="text-gray-600" /> 비밀번호 변경
             </h2>
 
             {pwChanged && (
@@ -252,7 +252,7 @@ export function ProfilePage() {
                     type={showPw.current ? 'text' : 'password'}
                     value={pwForm.currentPassword}
                     onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 pr-10 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="현재 비밀번호"
                   />
                   <button
@@ -272,7 +272,7 @@ export function ProfilePage() {
                     type={showPw.next ? 'text' : 'password'}
                     value={pwForm.newPassword}
                     onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 pr-10 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="새 비밀번호"
                   />
                   <button
@@ -292,7 +292,7 @@ export function ProfilePage() {
                     type={showPw.confirm ? 'text' : 'password'}
                     value={pwForm.confirmPassword}
                     onChange={(e) => setPwForm({ ...pwForm, confirmPassword: e.target.value })}
-                    className={`w-full text-sm border rounded-lg px-3 py-2.5 pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                    className={`w-full text-sm border rounded-lg px-3 py-2.5 pr-10 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
                       pwForm.confirmPassword && pwForm.newPassword !== pwForm.confirmPassword
                         ? 'border-red-300'
                         : 'border-gray-300'
@@ -328,7 +328,7 @@ export function ProfilePage() {
           {/* 알림 설정 */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <Bell size={15} className="text-indigo-500" /> 알림 설정
+              <Bell size={15} className="text-gray-600" /> 알림 설정
             </h2>
             <div className="flex items-center justify-between py-2">
               <div>
@@ -339,7 +339,7 @@ export function ProfilePage() {
                 type="button"
                 onClick={() => setMentionAlarm(!mentionAlarm)}
                 className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
-                  mentionAlarm ? 'bg-indigo-600' : 'bg-gray-200'
+                  mentionAlarm ? 'bg-primary-600' : 'bg-gray-200'
                 }`}
               >
                 <span

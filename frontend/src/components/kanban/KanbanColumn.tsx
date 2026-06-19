@@ -56,7 +56,7 @@ export function KanbanColumn({ column, projectId, canManage, currentUserId, isOw
       <div className="flex items-center justify-between mb-2 px-1 group">
         <div className="flex items-center gap-2">
           <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: column.color }} />
-          <span className="text-xs font-semibold text-gray-700">{column.name}</span>
+          <span className="text-xs font-semibold text-gray-600">{column.name}</span>
           <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full font-medium">
             {column.tasks.length}
           </span>
@@ -105,7 +105,7 @@ export function KanbanColumn({ column, projectId, canManage, currentUserId, isOw
         ref={setNodeRef}
         className={cn(
           'flex-1 rounded-xl p-2 space-y-2 min-h-[120px] border-2 border-dashed transition-colors',
-          isOver ? 'bg-indigo-50/70 border-indigo-300' : 'bg-gray-100/60 border-transparent',
+          isOver ? 'bg-primary-50/70 border-gray-300' : 'bg-gray-100/60 border-transparent',
         )}
       >
         <SortableContext items={column.tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
@@ -121,7 +121,7 @@ export function KanbanColumn({ column, projectId, canManage, currentUserId, isOw
         {column.tasks.length === 0 && (
           <button
             onClick={() => openCreateTask(projectId, column.id)}
-            className="w-full text-xs text-gray-400 py-4 border-2 border-dashed border-gray-200 rounded-lg hover:border-indigo-300 hover:text-indigo-500 transition-colors cursor-pointer"
+            className="w-full text-xs text-gray-400 py-4 border-2 border-dashed border-gray-200 rounded-lg hover:border-gray-300 hover:text-red-600 transition-colors cursor-pointer"
           >
             + 태스크 추가
           </button>

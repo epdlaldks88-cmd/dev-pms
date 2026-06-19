@@ -34,7 +34,7 @@ const BG_COLORS = [
   '#f0fdf4','#d1fae5','#6ee7b7','#34d399','#10b981','#059669','#047857',
   '#ecfdf5','#ccfbf1','#5eead4','#2dd4bf','#14b8a6','#0d9488','#0f766e',
   '#eff6ff','#dbeafe','#93c5fd','#60a5fa','#3b82f6','#2563eb','#1d4ed8',
-  '#eef2ff','#e0e7ff','#a5b4fc','#818cf8','#6366f1','#4f46e5','#4338ca',
+  '#fff0f0','#ffe0e0','#ff9090','#ff5050','#e60012','#cc000f','#a8000c',
   '#faf5ff','#f3e8ff','#d8b4fe','#c084fc','#a855f7','#9333ea','#7e22ce',
   '#fdf2f8','#fce7f3','#f9a8d4','#f472b6','#ec4899','#db2777','#be185d',
 ];
@@ -46,7 +46,7 @@ const TEXT_COLORS = [
   '#047857','#059669','#10b981','#34d399','#6ee7b7',
   '#0f766e','#0d9488','#14b8a6','#2dd4bf','#5eead4',
   '#1d4ed8','#2563eb','#3b82f6','#60a5fa','#93c5fd',
-  '#4338ca','#4f46e5','#6366f1','#818cf8','#a5b4fc',
+  '#a8000c','#cc000f','#e60012','#ff5050','#ff9090',
   '#7e22ce','#9333ea','#a855f7','#c084fc','#d8b4fe',
   '#be185d','#db2777','#ec4899','#f472b6','#f9a8d4',
 ];
@@ -140,7 +140,6 @@ interface MemoCellProps {
   r: number; c: number;
   cell: CellData;
   span: { rowSpan: number; colSpan: number };
-  isSel: boolean;
   isAnchor: boolean;
   isEditing: boolean;
   editKey: number;
@@ -155,7 +154,7 @@ interface MemoCellProps {
 }
 
 const MemoCell = memo(function Cell({
-  r, c, cell, span, isSel, isAnchor, isEditing, editKey, editInitVal,
+  r, c, cell, span, isAnchor, isEditing, editKey, editInitVal,
   isCopy, copyBorderTop, copyBorderRight, copyBorderBottom, copyBorderLeft,
   inputRef, rows, cols, onCommit, onEscape, onMoveAfterEdit,
 }: MemoCellProps) {
@@ -166,12 +165,12 @@ const MemoCell = memo(function Cell({
       rowSpan={span.rowSpan} colSpan={span.colSpan}
       className={cn(
         'border border-gray-200 p-0 relative cursor-cell text-sm',
-        isAnchor && !isEditing && 'outline outline-2 outline-indigo-500 outline-offset-[-1px] z-10',
+        isAnchor && !isEditing && 'outline outline-2 outline-primary-500 outline-offset-[-1px] z-10',
         (isAnchor && isEditing || isCopy) && 'z-10',
       )}
       style={{
         height: RH,
-        backgroundColor: isSel ? (isAnchor ? '#bfdbfe' : '#dbeafe') : s.bg,
+        backgroundColor: s.bg,
         borderTop:    copyBorderTop,
         borderRight:  copyBorderRight,
         borderBottom: copyBorderBottom,
@@ -187,6 +186,7 @@ const MemoCell = memo(function Cell({
           key={editKey}
           ref={inputRef}
           defaultValue={editInitVal}
+          onFocus={e => { const len = e.target.value.length; e.target.setSelectionRange(len, len); }}
           onKeyDown={e => {
             if (e.key === 'Enter') { e.preventDefault(); onCommit(); onMoveAfterEdit(r, c, 1, 0); }
             else if (e.key === 'Escape') { onEscape(); }
@@ -205,7 +205,6 @@ const MemoCell = memo(function Cell({
     </td>
   );
 }, (prev, next) => {
-  if (prev.isSel !== next.isSel) return false;
   if (prev.isAnchor !== next.isAnchor) return false;
   if (prev.isAnchor && prev.isEditing !== next.isEditing) return false;
   if (prev.isAnchor && next.isEditing && prev.editKey !== next.editKey) return false;
@@ -237,6 +236,12 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
   const [copyRange, setCopyRange] = useState<Rng|null>(null);
 
   const containerRef   = useRef<HTMLDivElement>(null);
+  const tableRef       = useRef<HTMLTableElement>(null);
+  // 선택 하이라이트 DOM 직접 관리 (React 재렌더 없이)
+  const cellElMap      = useRef<Map<string, HTMLTableCellElement>>(new Map());
+  const prevDragRange  = useRef<Rng | null>(null);
+  const selEndDragRef  = useRef<[number,number] | null>(null);
+  const rafDragId      = useRef<number>(0);
   const inputRef       = useRef<HTMLInputElement>(null);
   const dragging       = useRef(false);
   const fsRef          = useRef<HTMLDivElement>(null);
@@ -318,17 +323,20 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
     recordChange({ ...d, cells: newCells });
     setEditing(false);
     editingRef.current = false;
+    containerRef.current?.focus({ preventScroll: true });
   }, [recordChange]);
 
   const handleEscape = useCallback(() => {
     setEditing(false);
     editingRef.current = false;
+    containerRef.current?.focus({ preventScroll: true });
   }, []);
 
   const handleMoveAfterEdit = useCallback((r: number, c: number, dr: number, dc: number) => {
     const d = dataRef.current;
     setSelStart([Math.min(r + dr, d.rows - 1), Math.min(c + dc, d.cols - 1)]);
     setSelEnd(null);
+    containerRef.current?.focus({ preventScroll: true });
   }, []);
 
   useEffect(() => { if (editing && inputRef.current) inputRef.current.focus(); }, [editing]);
@@ -560,7 +568,7 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
         }
       recordChange({ ...d, cells: newCells });
     } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
-      editInitVal.current = '';
+      editInitVal.current = e.key;
       setEditKey(k => k + 1);
       setSelEnd(null);
       flushSync(() => { setEditing(true); });
@@ -582,13 +590,6 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
     dragging.current = true;
   }, [commitEdit]);
 
-  const onTbodyMouseEnter = useCallback((e: React.MouseEvent<HTMLTableSectionElement>) => {
-    if (!dragging.current) return;
-    const td = (e.target as Element).closest('td[data-row]') as HTMLElement | null;
-    if (!td) return;
-    setSelEnd([Number(td.dataset.row), Number(td.dataset.col)]);
-  }, []);
-
   const onTbodyDblClick = useCallback((e: React.MouseEvent<HTMLTableSectionElement>) => {
     const td = (e.target as Element).closest('td[data-row]') as HTMLElement | null;
     if (!td) return;
@@ -602,8 +603,73 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
     setEditing(true); editingRef.current = true;
   }, []);
 
+  // 테이블 초기 렌더 후 td 요소 맵 구축 (O(1) 선택 DOM 접근용)
   useEffect(() => {
-    const up = () => { dragging.current = false; };
+    const tbody = tableRef.current?.querySelector('tbody');
+    if (!tbody) return;
+    cellElMap.current.clear();
+    (tbody.querySelectorAll('td[data-row]') as NodeListOf<HTMLTableCellElement>).forEach(td => {
+      cellElMap.current.set(`${td.dataset.row},${td.dataset.col}`, td);
+    });
+  }, [rows, cols]);
+
+  // 선택 범위 하이라이트 DOM 직접 적용 (React 재렌더 없음)
+  const applySelDOM = useCallback((rng: Rng | null, start: [number,number] | null, prev: Rng | null) => {
+    const map = cellElMap.current;
+    if (prev) {
+      for (let r = prev.r1; r <= prev.r2; r++)
+        for (let c = prev.c1; c <= prev.c2; c++)
+          (map.get(`${r},${c}`) ?? null)?.style.setProperty('box-shadow', '');
+    }
+    if (rng) {
+      for (let r = rng.r1; r <= rng.r2; r++)
+        for (let c = rng.c1; c <= rng.c2; c++) {
+          if (start?.[0] === r && start?.[1] === c) continue;
+          (map.get(`${r},${c}`) ?? null)?.style.setProperty('box-shadow', 'inset 0 0 0 9999px rgba(219,234,254,0.55)');
+        }
+    }
+  }, []);
+
+  const onTbodyMouseOver = useCallback((e: React.MouseEvent<HTMLTableSectionElement>) => {
+    if (!dragging.current) return;
+    const td = (e.target as Element).closest('td[data-row]') as HTMLElement | null;
+    if (!td) return;
+    const nr = Number(td.dataset.row);
+    const nc = Number(td.dataset.col);
+    const cur = selEndDragRef.current;
+    if (cur && cur[0] === nr && cur[1] === nc) return;
+    selEndDragRef.current = [nr, nc];
+    cancelAnimationFrame(rafDragId.current);
+    rafDragId.current = requestAnimationFrame(() => {
+      const rng = getRange(selStartRef.current, selEndDragRef.current);
+      applySelDOM(rng, selStartRef.current, prevDragRange.current);
+      prevDragRange.current = rng;
+    });
+  }, [applySelDOM]);
+
+  // 비드래그 선택 변경(클릭, Shift+화살표) → useEffect로 DOM 반영
+  useEffect(() => {
+    const map = cellElMap.current;
+    map.forEach(td => td.style.setProperty('box-shadow', ''));
+    if (range) {
+      for (let r = range.r1; r <= range.r2; r++)
+        for (let c = range.c1; c <= range.c2; c++) {
+          if (selStart?.[0] === r && selStart?.[1] === c) continue;
+          (map.get(`${r},${c}`) ?? null)?.style.setProperty('box-shadow', 'inset 0 0 0 9999px rgba(219,234,254,0.55)');
+        }
+    }
+    prevDragRange.current = range;
+  }, [range, selStart]);
+
+  useEffect(() => {
+    const up = () => {
+      dragging.current = false;
+      if (selEndDragRef.current) {
+        setSelEnd(selEndDragRef.current);
+        selEndDragRef.current = null;
+        prevDragRange.current = null;
+      }
+    };
     window.addEventListener('mouseup', up);
     return () => window.removeEventListener('mouseup', up);
   }, []);
@@ -619,17 +685,23 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  // Column resize
-  const resizeRef = useRef<{ col: number; startX: number; startW: number }|null>(null);
+  // Column resize — 드래그 중 DOM 직접 조작, mouseup 시에만 state 반영
   const onResizeStart = (e: React.MouseEvent, col: number) => {
     e.preventDefault(); e.stopPropagation();
-    resizeRef.current = { col, startX: e.clientX, startW: colW(col) };
+    const startX = e.clientX;
+    const startW = colW(col);
+    // colgroup의 col 요소: 0번은 행 헤더, 1번부터 데이터 열
+    const colEl = tableRef.current?.querySelectorAll('col')[col + 1] as HTMLElement | undefined;
     const onMove = (mv: MouseEvent) => {
-      if (!resizeRef.current) return;
-      const nw = Math.max(40, resizeRef.current.startW + mv.clientX - resizeRef.current.startX);
-      onChangeRef.current({ ...dataRef.current, colWidths: { ...dataRef.current.colWidths, [resizeRef.current.col]: nw } });
+      const nw = Math.max(40, startW + mv.clientX - startX);
+      if (colEl) colEl.style.width = `${nw}px`;
     };
-    const onUp = () => { resizeRef.current = null; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    const onUp = (mv: MouseEvent) => {
+      const nw = Math.max(40, startW + mv.clientX - startX);
+      onChangeRef.current({ ...dataRef.current, colWidths: { ...dataRef.current.colWidths, [col]: nw } });
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   };
@@ -641,10 +713,10 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
       {/* ── Toolbar ── */}
       <div className="flex-shrink-0 flex items-center gap-0.5 px-3 h-10 border-b border-gray-200 bg-white overflow-x-auto">
         <button onClick={() => applyStyle({ bold: !activeStyle.bold })}
-          className={cn('px-1.5 py-1 rounded text-sm font-bold hover:bg-gray-100 flex-shrink-0', activeStyle.bold && 'bg-indigo-100 text-indigo-700')}
+          className={cn('px-1.5 py-1 rounded text-sm font-bold hover:bg-gray-100 flex-shrink-0', activeStyle.bold && 'bg-primary-100 text-gray-800')}
           title="굵게 (Ctrl+B)"><Bold size={14} /></button>
         <button onClick={() => applyStyle({ italic: !activeStyle.italic })}
-          className={cn('px-1.5 py-1 rounded text-sm italic hover:bg-gray-100 flex-shrink-0', activeStyle.italic && 'bg-indigo-100 text-indigo-700')}
+          className={cn('px-1.5 py-1 rounded text-sm italic hover:bg-gray-100 flex-shrink-0', activeStyle.italic && 'bg-primary-100 text-gray-800')}
           title="기울임 (Ctrl+I)"><Italic size={14} /></button>
 
         {sep}
@@ -664,7 +736,7 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
               style={{ top: fsRef.current.getBoundingClientRect().bottom + 4, left: fsRef.current.getBoundingClientRect().left }}>
               {FONT_SIZES.map(sz => (
                 <button key={sz} onClick={() => { applyStyle({ fontSize: sz }); setFsSizeOpen(false); }}
-                  className={cn('w-full px-3 py-1 text-xs text-left hover:bg-gray-50', activeStyle.fontSize === sz && 'bg-indigo-50 text-indigo-700')}>{sz}</button>
+                  className={cn('w-full px-3 py-1 text-xs text-left hover:bg-gray-50', activeStyle.fontSize === sz && 'bg-primary-50 text-gray-800')}>{sz}</button>
               ))}
             </div>,
             document.body
@@ -687,29 +759,29 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
         {sep}
 
         <button onClick={() => applyStyle({ align: 'left' })}
-          className={cn('p-1.5 rounded hover:bg-gray-100 flex-shrink-0', activeStyle.align === 'left' && 'bg-indigo-100 text-indigo-700')}
+          className={cn('p-1.5 rounded hover:bg-gray-100 flex-shrink-0', activeStyle.align === 'left' && 'bg-primary-100 text-gray-800')}
           title="왼쪽 정렬"><AlignLeft size={14} /></button>
         <button onClick={() => applyStyle({ align: 'center' })}
-          className={cn('p-1.5 rounded hover:bg-gray-100 flex-shrink-0', activeStyle.align === 'center' && 'bg-indigo-100 text-indigo-700')}
+          className={cn('p-1.5 rounded hover:bg-gray-100 flex-shrink-0', activeStyle.align === 'center' && 'bg-primary-100 text-gray-800')}
           title="가운데 정렬"><AlignCenter size={14} /></button>
         <button onClick={() => applyStyle({ align: 'right' })}
-          className={cn('p-1.5 rounded hover:bg-gray-100 flex-shrink-0', activeStyle.align === 'right' && 'bg-indigo-100 text-indigo-700')}
+          className={cn('p-1.5 rounded hover:bg-gray-100 flex-shrink-0', activeStyle.align === 'right' && 'bg-primary-100 text-gray-800')}
           title="오른쪽 정렬"><AlignRight size={14} /></button>
 
         {sep}
 
         <button onClick={mergeCells} disabled={!canMerge}
-          className="px-2 py-1 text-xs rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed text-gray-700 font-medium whitespace-nowrap flex-shrink-0"
+          className="px-2 py-1 text-xs rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed text-gray-600 font-medium whitespace-nowrap flex-shrink-0"
           title="선택 범위 병합">셀 병합</button>
         <button onClick={unmergeCells} disabled={!canUnmerge}
-          className="px-2 py-1 text-xs rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed text-gray-700 font-medium whitespace-nowrap flex-shrink-0"
+          className="px-2 py-1 text-xs rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed text-gray-600 font-medium whitespace-nowrap flex-shrink-0"
           title="병합 해제">병합 해제</button>
       </div>
 
       {/* ── Formula bar ── */}
       <div className="flex-shrink-0 flex items-center h-7 border-b border-gray-200 bg-gray-50 px-2 gap-2">
         <span className="text-[11px] text-gray-500 font-mono w-16 text-center border-r border-gray-200 pr-2 flex-shrink-0">{cellAddress}</span>
-        <span className="text-sm text-gray-700 truncate">{cellValue}</span>
+        <span className="text-sm text-gray-600 truncate">{cellValue}</span>
       </div>
 
       {/* ── Grid ── */}
@@ -719,7 +791,7 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
         className="flex-1 overflow-auto outline-none"
         onKeyDown={handleKeyDown}
       >
-        <table className="border-collapse" style={{ tableLayout: 'fixed' }}>
+        <table ref={tableRef} className="border-collapse" style={{ tableLayout: 'fixed' }}>
           <colgroup>
             <col style={{ width: CHW }} />
             {Array.from({ length: cols }, (_, c) => <col key={c} style={{ width: colW(c) }} />)}
@@ -731,26 +803,25 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
               {Array.from({ length: cols }, (_, c) => (
                 <th key={c}
                   className={cn('sticky top-0 z-20 bg-gray-50 border border-gray-200 text-xs font-medium text-gray-500 relative select-none',
-                    range && c >= range.c1 && c <= range.c2 && 'bg-indigo-50 text-indigo-700')}
+                    range && c >= range.c1 && c <= range.c2 && 'bg-primary-50 text-gray-800')}
                   style={{ height: RH }}>
                   {colLabel(c)}
-                  <span className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-indigo-400 opacity-0 hover:opacity-100 z-10"
+                  <span className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary-400 opacity-0 hover:opacity-100 z-10"
                     onMouseDown={e => onResizeStart(e, c)} />
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody onMouseDown={onTbodyMouseDown} onMouseEnter={onTbodyMouseEnter} onDoubleClick={onTbodyDblClick}>
+          <tbody onMouseDown={onTbodyMouseDown} onMouseOver={onTbodyMouseOver} onDoubleClick={onTbodyDblClick}>
             {Array.from({ length: rows }, (_, r) => (
               <tr key={r}>
                 <td className={cn('sticky left-0 z-10 bg-gray-50 border border-gray-200 text-xs text-gray-400 font-medium text-center select-none',
-                  range && r >= range.r1 && r <= range.r2 && 'bg-indigo-50 text-indigo-700')}
+                  range && r >= range.r1 && r <= range.r2 && 'bg-primary-50 text-gray-800')}
                   style={{ width: CHW, height: RH }}>{r + 1}</td>
 
                 {Array.from({ length: cols }, (_, c) => {
                   const k = ck(r, c);
                   if (hidden[k]) return null;
-                  const isSel    = inRng(r, c, range);
                   const isAnchor = selStart?.[0] === r && selStart?.[1] === c;
                   const isCopy   = inRng(r, c, copyRange);
                   const cell     = norm(data.cells[k]);
@@ -761,7 +832,6 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
                       r={r} c={c}
                       cell={cell}
                       span={span}
-                      isSel={isSel}
                       isAnchor={!!isAnchor}
                       isEditing={!!isAnchor && editing}
                       editKey={editKey}
@@ -1015,7 +1085,7 @@ export function SheetEditorPage() {
         {sheets.map((sheet: any) => (
           <div key={sheet.id}
             className={cn('group relative flex items-center gap-1 px-3 h-7 rounded-t text-xs font-medium cursor-pointer whitespace-nowrap border border-b-0 transition-colors',
-              sheet.id === sheetId ? 'bg-white text-emerald-700 border-gray-300 shadow-sm' : 'bg-transparent text-gray-500 border-transparent hover:bg-white hover:text-gray-700')}
+              sheet.id === sheetId ? 'bg-white text-emerald-700 border-gray-300 shadow-sm' : 'bg-transparent text-gray-500 border-transparent hover:bg-white hover:text-gray-600')}
             onClick={() => switchSheet(sheet.id)}
             onDoubleClick={() => { setRenamingId(sheet.id); setRenameVal(sheet.name); }}>
             {renamingId === sheet.id ? (
@@ -1046,7 +1116,7 @@ export function SheetEditorPage() {
           </div>
         ) : (
           <button onClick={() => setShowNewSheet(true)}
-            className="flex items-center justify-center w-7 h-7 ml-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors flex-shrink-0"
+            className="flex items-center justify-center w-7 h-7 ml-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors flex-shrink-0"
             title="새 시트 추가"><Plus size={14} /></button>
         )}
       </div>

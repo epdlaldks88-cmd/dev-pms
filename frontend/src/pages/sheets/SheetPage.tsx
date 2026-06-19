@@ -166,14 +166,14 @@ function SpreadsheetGrid({
                 key={c}
                 className={cn(
                   'sticky top-0 z-20 bg-gray-50 border border-gray-200 text-xs font-medium text-gray-500 relative',
-                  sel && sel[1] === c && 'bg-indigo-50 text-indigo-700',
+                  sel && sel[1] === c && 'bg-primary-50 text-gray-800',
                 )}
                 style={{ height: ROW_HEIGHT }}
               >
                 {colLabel(c)}
                 {/* 리사이즈 핸들 */}
                 <span
-                  className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-indigo-400 opacity-0 hover:opacity-100 z-10"
+                  className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary-400 opacity-0 hover:opacity-100 z-10"
                   onMouseDown={(e) => onResizeStart(e, c)}
                 />
               </th>
@@ -189,7 +189,7 @@ function SpreadsheetGrid({
               <td
                 className={cn(
                   'sticky left-0 z-10 bg-gray-50 border border-gray-200 text-xs text-gray-400 font-medium text-center',
-                  sel && sel[0] === r && 'bg-indigo-50 text-indigo-700',
+                  sel && sel[0] === r && 'bg-primary-50 text-gray-800',
                 )}
                 style={{ width: COL_HEADER_WIDTH, height: ROW_HEIGHT }}
               >
@@ -206,7 +206,7 @@ function SpreadsheetGrid({
                     key={c}
                     className={cn(
                       'border border-gray-200 p-0 relative cursor-cell text-sm text-gray-800',
-                      isSel && !editing && 'outline outline-2 outline-indigo-500 outline-offset-[-1px] z-10',
+                      isSel && !editing && 'outline outline-2 outline-primary-500 outline-offset-[-1px] z-10',
                       isSel && editing && 'z-10',
                     )}
                     style={{ height: ROW_HEIGHT, maxWidth: colW(c) }}
@@ -384,8 +384,8 @@ export function SheetPage() {
             className={cn(
               'group relative flex items-center gap-1.5 px-3 h-7 rounded-t text-xs font-medium cursor-pointer whitespace-nowrap border border-b-0 transition-colors',
               activeSheetId === sheet.id
-                ? 'bg-white text-indigo-700 border-gray-300 shadow-sm'
-                : 'bg-transparent text-gray-500 border-transparent hover:bg-white hover:text-gray-700',
+                ? 'bg-white text-gray-800 border-gray-300 shadow-sm'
+                : 'bg-transparent text-gray-500 border-transparent hover:bg-white hover:text-gray-600',
             )}
             onClick={() => handleTabSwitch(sheet.id)}
             onDoubleClick={() => { setRenamingId(sheet.id); setRenameVal(sheet.name); }}
@@ -402,7 +402,7 @@ export function SheetPage() {
                 }}
                 onBlur={() => renameSheet.mutate({ id: sheet.id, name: renameVal || sheet.name })}
                 onClick={(e) => e.stopPropagation()}
-                className="w-24 text-xs border border-indigo-400 rounded px-1 outline-none bg-white"
+                className="w-24 text-xs border border-primary-400 rounded px-1 outline-none bg-white"
               />
             ) : (
               <span>{sheet.name}</span>
@@ -432,11 +432,11 @@ export function SheetPage() {
                 if (e.key === 'Escape') { setShowNewSheet(false); setNewSheetName(''); }
               }}
               placeholder="시트 이름"
-              className="w-24 h-6 text-xs border border-indigo-400 rounded px-2 outline-none"
+              className="w-24 h-6 text-xs border border-primary-400 rounded px-2 outline-none"
             />
             <button
               onClick={() => newSheetName.trim() && createSheet.mutate(newSheetName.trim())}
-              className="flex items-center justify-center w-6 h-6 rounded bg-indigo-600 text-white hover:bg-indigo-700"
+              className="flex items-center justify-center w-6 h-6 rounded bg-primary-600 text-white hover:bg-primary-700"
             >
               <Check size={11} />
             </button>
@@ -450,7 +450,7 @@ export function SheetPage() {
         ) : (
           <button
             onClick={() => setShowNewSheet(true)}
-            className="flex items-center justify-center w-7 h-7 ml-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors flex-shrink-0"
+            className="flex items-center justify-center w-7 h-7 ml-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors flex-shrink-0"
             title="새 시트 추가"
           >
             <Plus size={14} />

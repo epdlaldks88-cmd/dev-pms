@@ -7,7 +7,7 @@ import { cn } from '../../lib/utils';
 
 const ROLES = [
   { key: 'OWNER', label: '소유자', icon: Crown, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
-  { key: 'ADMIN', label: '관리자', icon: ShieldCheck, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200' },
+  { key: 'ADMIN', label: '관리자', icon: ShieldCheck, color: 'text-gray-600', bg: 'bg-primary-50', border: 'border-gray-200' },
   { key: 'MEMBER', label: '멤버', icon: Users, color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-200' },
   { key: 'VIEWER', label: '뷰어', icon: Eye, color: 'text-gray-400', bg: 'bg-gray-50', border: 'border-gray-200' },
 ] as const;
@@ -87,29 +87,29 @@ export function PermissionsPage() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center gap-2 px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
-        <ShieldCheck size={18} className="text-indigo-500" />
-        <h1 className="text-lg font-bold text-gray-900">권한 설정</h1>
+        <ShieldCheck size={18} className="text-gray-600" />
+        <h1 className="text-lg font-bold text-gray-700">권한 설정</h1>
         <span className="text-xs text-gray-400 ml-1">역할별 권한 정책</span>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* 현재 내 역할 */}
-          <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex items-center gap-3">
-            <Info size={16} className="text-indigo-500 flex-shrink-0" />
+          <div className="bg-primary-50 border border-gray-100 rounded-xl p-4 flex items-center gap-3">
+            <Info size={16} className="text-gray-600 flex-shrink-0" />
             <div>
-              <p className="text-sm font-semibold text-indigo-800">
+              <p className="text-sm font-semibold text-gray-600">
                 내 역할:
                 {myRole ? (
                   <span className="ml-1">
                     {ROLES.find((r) => r.key === myRole)?.label ?? myRole}
-                    {isGlobalAdmin && <span className="text-xs text-indigo-500 ml-1">(시스템 관리자)</span>}
+                    {isGlobalAdmin && <span className="text-xs text-gray-600 ml-1">(시스템 관리자)</span>}
                   </span>
                 ) : (
                   <span className="ml-1 text-gray-500">프로젝트 멤버 아님</span>
                 )}
               </p>
-              <p className="text-xs text-indigo-600 mt-0.5">시스템 관리자(ADMIN)는 모든 프로젝트에서 관리자 권한을 가집니다.</p>
+              <p className="text-xs text-gray-600 mt-0.5">시스템 관리자(ADMIN)는 모든 프로젝트에서 관리자 권한을 가집니다.</p>
             </div>
           </div>
 
@@ -121,14 +121,14 @@ export function PermissionsPage() {
                 className={cn(
                   'rounded-xl border p-4',
                   bg, border,
-                  myRole === key ? 'ring-2 ring-offset-1 ring-indigo-400' : '',
+                  myRole === key ? 'ring-2 ring-offset-1 ring-primary-400' : '',
                 )}
               >
                 <div className={cn('flex items-center gap-2 mb-2', color)}>
                   <Icon size={15} />
                   <span className="text-sm font-semibold">{label}</span>
                   {myRole === key && (
-                    <span className="ml-auto text-[10px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full font-bold">나</span>
+                    <span className="ml-auto text-[10px] bg-primary-600 text-white px-1.5 py-0.5 rounded-full font-bold">나</span>
                   )}
                 </div>
                 <p className="text-[11px] text-gray-500 leading-relaxed">
@@ -203,7 +203,7 @@ export function PermissionsPage() {
                   const Icon = roleCfg?.icon ?? Users;
                   return (
                     <div key={m.id} className="flex items-center gap-3 px-5 py-3">
-                      <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-bold text-indigo-700 flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-sm font-bold text-gray-800 flex-shrink-0">
                         {m.user.name[0]}
                       </div>
                       <div className="flex-1 min-w-0">

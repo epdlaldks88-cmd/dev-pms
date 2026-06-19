@@ -33,7 +33,7 @@ export function EmojiPickerButton({ open, onToggle, onSelect, placement = 'top' 
       <button
         type="button"
         onClick={onToggle}
-        className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
+        className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-primary-50 rounded-lg transition-colors"
         title="이모티콘"
       >
         <Smile size={17} />

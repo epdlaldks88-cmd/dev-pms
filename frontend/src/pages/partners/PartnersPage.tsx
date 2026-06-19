@@ -43,7 +43,7 @@ export function PartnersPage() {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">파트너사 관리</h1>
+          <h1 className="text-xl font-bold text-gray-700">파트너사 관리</h1>
           <p className="text-sm text-gray-500 mt-0.5">협력 업체와 인력 정보를 관리하세요.</p>
         </div>
         <Button variant="primary" size="md" onClick={() => setCreateOpen(true)}>
@@ -65,14 +65,14 @@ export function PartnersPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {(partners as Partner[]).map((p) => (
-            <div key={p.id} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all group">
+            <div key={p.id} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:border-gray-300 hover:shadow-md transition-all group">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
-                    <Building2 size={18} className="text-indigo-500" />
+                  <div className="w-10 h-10 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0">
+                    <Building2 size={18} className="text-gray-600" />
                   </div>
                   <div>
-                    <Link to={`/partners/${p.id}`} className="font-semibold text-sm text-gray-900 hover:text-indigo-600 transition-colors">
+                    <Link to={`/partners/${p.id}`} className="font-semibold text-sm text-gray-600 hover:text-red-600 transition-colors">
                       {p.name}
                     </Link>
                     <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
@@ -100,7 +100,7 @@ export function PartnersPage() {
                 )}
               </div>
 
-              <Link to={`/partners/${p.id}`} className="flex items-center justify-center gap-1 text-xs text-indigo-600 font-medium hover:text-indigo-800 pt-2 border-t border-gray-100">
+              <Link to={`/partners/${p.id}`} className="flex items-center justify-center gap-1 text-xs text-gray-600 font-medium hover:text-red-600 pt-2 border-t border-gray-100">
                 인력 관리 <ChevronRight size={13} />
               </Link>
             </div>
@@ -115,13 +115,13 @@ export function PartnersPage() {
         >
           <Input label="파트너사 이름 *" placeholder="(주)협력업체" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-gray-700">설명</label>
+            <label className="text-sm font-medium text-gray-600">설명</label>
             <textarea
               placeholder="사업 분야, 협력 내용 등"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               rows={2}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
             />
           </div>
           <Input label="담당자명" placeholder="홍길동" value={form.contactName} onChange={(e) => setForm({ ...form, contactName: e.target.value })} />

@@ -48,8 +48,8 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
       {...listeners}
       onClick={() => openTaskModal(task.id)}
       className={cn(
-        'bg-white rounded-lg border border-gray-200 p-3 cursor-pointer hover:border-indigo-300 hover:shadow-sm transition-all group select-none relative',
-        'outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400',
+        'bg-white rounded-lg border border-gray-200 p-3 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all group select-none relative',
+        'outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
         isDragging && 'opacity-40',
         overlay && 'shadow-xl rotate-1',
       )}
@@ -86,7 +86,7 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
         </div>
       )}
 
-      <p className="text-sm font-medium text-gray-900 leading-snug mb-2 group-hover:text-indigo-700 transition-colors pr-5">
+      <p className="text-sm font-medium text-gray-900 leading-snug mb-2 group-hover:text-red-600 transition-colors pr-5">
         {task.title}
       </p>
 

@@ -191,7 +191,7 @@ export function Header() {
             onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true); }}
             onFocus={() => setSearchOpen(true)}
             placeholder="태스크, 프로젝트 검색..."
-            className="w-full h-8 pl-9 pr-3 text-sm bg-gray-100 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-colors"
+            className="w-full h-8 pl-9 pr-3 text-sm bg-gray-100 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:bg-white transition-colors"
           />
           {searchQuery && (
             <button
@@ -328,11 +328,11 @@ export function Header() {
               <div className="fixed inset-0 z-30" onClick={() => setNotifOpen(false)} />
               <div className="absolute right-0 top-10 z-40 w-80 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                  <h3 className="font-semibold text-sm text-gray-900">알림</h3>
+                  <h3 className="font-semibold text-sm text-gray-700">알림</h3>
                   {(unread?.count ?? 0) > 0 && (
                     <button
                       onClick={() => markAll.mutate()}
-                      className="text-xs text-indigo-600 hover:text-indigo-800"
+                      className="text-xs text-gray-600 hover:text-red-600"
                     >
                       모두 읽음
                     </button>
@@ -347,7 +347,7 @@ export function Header() {
                         key={n.id}
                         className={cn(
                           'px-4 py-3 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors',
-                          !n.isRead && 'bg-indigo-50/50',
+                          !n.isRead && 'bg-primary-50/50',
                         )}
                         onClick={() => {
                           if (n.link) navigate(n.link);
@@ -355,7 +355,7 @@ export function Header() {
                         }}
                       >
                         <div className="flex items-start gap-3">
-                          {!n.isRead && <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full mt-1.5 flex-shrink-0" />}
+                          {!n.isRead && <span className="w-1.5 h-1.5 bg-primary-500 rounded-full mt-1.5 flex-shrink-0" />}
                           <div className={cn('flex-1', n.isRead && 'ml-4')}>
                             <p className="text-xs font-medium text-gray-900">{n.title}</p>
                             <p className="text-xs text-gray-500 mt-0.5">{n.message}</p>
@@ -378,7 +378,7 @@ export function Header() {
             className="flex items-center gap-1.5 rounded-lg px-1.5 py-1 hover:bg-gray-100 transition-colors"
           >
             <Avatar name={user?.name ?? ''} avatar={user?.avatar} size="sm" />
-            <span className="text-sm font-medium text-gray-700 max-w-[80px] truncate">{user?.name}님</span>
+            <span className="text-sm font-medium text-gray-600 max-w-[80px] truncate">{user?.name}님</span>
             <ChevronDown size={13} className={cn('text-gray-400 transition-transform', profileOpen && 'rotate-180')} />
           </button>
 
@@ -388,7 +388,7 @@ export function Header() {
               <div className="absolute right-0 top-11 z-40 w-56 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
                 {/* 유저 정보 */}
                 <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
+                  <p className="text-sm font-semibold text-gray-600 truncate">{user?.name}</p>
                   <p className="text-xs text-gray-400 truncate mt-0.5">
                     {user?.position ? `${user.position}${user.department ? ' · ' + user.department : ''}` : user?.email}
                   </p>
@@ -397,7 +397,7 @@ export function Header() {
                 <div className="py-1">
                   <button
                     onClick={() => { navigate('/settings/profile'); setProfileOpen(false); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
                   >
                     <Settings size={15} className="text-gray-400" />
                     프로필 설정

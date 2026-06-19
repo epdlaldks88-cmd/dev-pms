@@ -89,9 +89,9 @@ export function CreateTaskModal() {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleClose} />
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-br from-indigo-50 via-white to-violet-50 border-b border-gray-200">
-          <h2 className="font-semibold text-gray-900">새 태스크</h2>
-          <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
+        <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-red-500 to-red-600 border-b border-red-600">
+          <h2 className="font-semibold text-gray-700">새 태스크</h2>
+          <button onClick={handleClose} className="text-white/70 hover:text-white">
             <X size={18} />
           </button>
         </div>
@@ -105,21 +105,21 @@ export function CreateTaskModal() {
             required
           />
           <div>
-            <label className="text-sm font-medium text-gray-700 mb-1.5 block">설명</label>
+            <label className="text-sm font-medium text-gray-600 mb-1.5 block">설명</label>
             <textarea
               placeholder="태스크 설명 (선택)"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-700 mb-1.5 block">우선순위</label>
+            <label className="text-sm font-medium text-gray-600 mb-1.5 block">우선순위</label>
             <select
               value={priority}
               onChange={(e) => setPriority(e.target.value as Priority)}
-              className="w-full h-9 rounded-lg border border-gray-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full h-9 rounded-lg border border-gray-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               {PRIORITIES.map((p) => (
                 <option key={p.value} value={p.value}>{p.label}</option>
@@ -142,7 +142,7 @@ export function CreateTaskModal() {
           </div>
           {allUsers && allUsers.length > 0 && (
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1.5 block">담당자</label>
+              <label className="text-sm font-medium text-gray-600 mb-1.5 block">담당자</label>
               <div className="flex flex-wrap gap-1.5">
                 {allUsers.map((u: any) => (
                   <button
@@ -154,7 +154,7 @@ export function CreateTaskModal() {
                     className={cn(
                       'text-xs px-2.5 py-1 rounded-full border transition-colors',
                       assigneeIds.includes(u.id)
-                        ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                        ? 'bg-primary-50 border-gray-300 text-gray-800'
                         : 'border-gray-200 text-gray-600 hover:border-gray-300',
                     )}
                   >
@@ -167,7 +167,7 @@ export function CreateTaskModal() {
 
           {allPersonnel && allPersonnel.length > 0 && (
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1.5 block">파트너사 인력</label>
+              <label className="text-sm font-medium text-gray-600 mb-1.5 block">파트너사 인력</label>
               <div className="flex flex-wrap gap-1.5">
                 {allPersonnel.map((p) => (
                   <button

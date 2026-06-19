@@ -23,14 +23,14 @@ export function MentionPopup() {
     <div className="fixed bottom-6 right-6 z-[9999] w-80 animate-slide-up">
       <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
         {/* 상단 헤더 */}
-        <div className="flex items-center justify-between px-4 py-2.5 bg-indigo-600">
+        <div className="flex items-center justify-between px-4 py-2.5 bg-primary-600">
           <div className="flex items-center gap-2">
-            <AtSign size={14} className="text-indigo-200" />
+            <AtSign size={14} className="text-gray-300" />
             <span className="text-xs font-semibold text-white">멘션 알림</span>
           </div>
           <button
             onClick={hide}
-            className="text-indigo-200 hover:text-white transition-colors p-0.5 rounded"
+            className="text-gray-300 hover:text-white transition-colors p-0.5 rounded"
           >
             <X size={14} />
           </button>
@@ -47,14 +47,14 @@ export function MentionPopup() {
             hide();
           }}
         >
-          <p className="text-sm font-semibold text-gray-900 truncate">{popup.title}</p>
+          <p className="text-sm font-semibold text-gray-600 truncate">{popup.title}</p>
           <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{popup.message}</p>
-          {popup.link && <p className="text-[10px] text-indigo-500 mt-1">클릭하여 대화 열기</p>}
+          {popup.link && <p className="text-[10px] text-gray-600 mt-1">클릭하여 대화 열기</p>}
         </div>
 
         {/* 진행 바 */}
         <div className="h-0.5 bg-gray-100">
-          <div className="h-full bg-indigo-500 animate-shrink-width" />
+          <div className="h-full bg-primary-500 animate-shrink-width" />
         </div>
       </div>
     </div>

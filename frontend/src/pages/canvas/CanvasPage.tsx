@@ -21,7 +21,7 @@ import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
 import { cn } from '../../lib/utils';
 
-const RESIZER_STYLE = { borderColor: '#6366f1', borderWidth: 1 };
+const RESIZER_STYLE = { borderColor: '#e60012', borderWidth: 1 };
 
 // ── 노드 공통 오버레이: 잠금·담당자 ──────────────────
 function NodeOverlay({ data, selected }: { data: any; selected: boolean }) {
@@ -50,8 +50,8 @@ function NodeOverlay({ data, selected }: { data: any; selected: boolean }) {
   );
 }
 const HANDLE_STYLE = {
-  width: 10, height: 10, background: '#6366f1', border: '2px solid #fff',
-  borderRadius: '50%', boxShadow: '0 0 0 1px #6366f1',
+  width: 10, height: 10, background: '#e60012', border: '2px solid #fff',
+  borderRadius: '50%', boxShadow: '0 0 0 1px #e60012',
 };
 
 function NodeHandles() {
@@ -61,10 +61,10 @@ function NodeHandles() {
       <Handle id="b" type="target" position={Position.Bottom} style={HANDLE_STYLE} />
       <Handle id="l" type="target" position={Position.Left}   style={HANDLE_STYLE} />
       <Handle id="r" type="target" position={Position.Right}  style={HANDLE_STYLE} />
-      <Handle id="st" type="source" position={Position.Top}    style={{ ...HANDLE_STYLE, background: '#a5b4fc' }} />
-      <Handle id="sb" type="source" position={Position.Bottom} style={{ ...HANDLE_STYLE, background: '#a5b4fc' }} />
-      <Handle id="sl" type="source" position={Position.Left}   style={{ ...HANDLE_STYLE, background: '#a5b4fc' }} />
-      <Handle id="sr" type="source" position={Position.Right}  style={{ ...HANDLE_STYLE, background: '#a5b4fc' }} />
+      <Handle id="st" type="source" position={Position.Top}    style={{ ...HANDLE_STYLE, background: '#ff9090' }} />
+      <Handle id="sb" type="source" position={Position.Bottom} style={{ ...HANDLE_STYLE, background: '#ff9090' }} />
+      <Handle id="sl" type="source" position={Position.Left}   style={{ ...HANDLE_STYLE, background: '#ff9090' }} />
+      <Handle id="sr" type="source" position={Position.Right}  style={{ ...HANDLE_STYLE, background: '#ff9090' }} />
     </>
   );
 }
@@ -86,8 +86,8 @@ function RectNode({ id, data, selected }: any) {
       {!editing && <NodeHandles />}
       <NodeOverlay data={data} selected={selected} />
       <div
-        style={{ backgroundColor: data.bg ?? '#e0e7ff', borderColor: data.border ?? '#6366f1' }}
-        className={cn('w-full h-full rounded-lg border-2 flex items-center justify-center shadow-sm', selected && !editing && 'ring-2 ring-indigo-400 ring-offset-1')}
+        style={{ backgroundColor: data.bg ?? '#ffe0e0', borderColor: data.border ?? '#e60012' }}
+        className={cn('w-full h-full rounded-lg border-2 flex items-center justify-center shadow-sm', selected && !editing && 'ring-2 ring-primary-400 ring-offset-1')}
         onDoubleClick={(e) => { if (data.locked) return; e.stopPropagation(); setDraft(data.label ?? ''); setEditing(true); }}
       >
         {editing ? (
@@ -98,10 +98,10 @@ function RectNode({ id, data, selected }: any) {
             onBlur={commit}
             onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Escape') setEditing(false); if (e.key === 'Enter' && e.metaKey) commit(); }}
             className="nodrag nopan w-full h-full bg-transparent resize-none outline-none text-center p-2 text-sm font-medium"
-            style={{ color: data.color ?? '#3730a3', fontSize: data.fontSize ?? 13 }}
+            style={{ color: data.color ?? '#620007', fontSize: data.fontSize ?? 13 }}
           />
         ) : (
-          <span style={{ color: data.color ?? '#3730a3', fontSize: data.fontSize ?? 13 }} className="font-medium text-center px-2 break-words whitespace-pre-wrap w-full text-center leading-tight cursor-default select-none">
+          <span style={{ color: data.color ?? '#620007', fontSize: data.fontSize ?? 13 }} className="font-medium text-center px-2 break-words whitespace-pre-wrap w-full text-center leading-tight cursor-default select-none">
             {data.label}
           </span>
         )}
@@ -165,7 +165,7 @@ function DiamondNode({ id, data, selected }: any) {
       <div className="w-full h-full flex items-center justify-center"
         onDoubleClick={(e) => { if (data.locked) return; e.stopPropagation(); setDraft(data.label ?? ''); setEditing(true); }}>
         <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none"
-          style={{ filter: selected && !editing ? 'drop-shadow(0 0 0 2px #a5b4fc)' : undefined }}>
+          style={{ filter: selected && !editing ? 'drop-shadow(0 0 0 2px #ff9090)' : undefined }}>
           <polygon points="50,2 98,50 50,98 2,50" fill={data.bg ?? '#fef3c7'} stroke={data.border ?? '#f59e0b'} strokeWidth="3" />
         </svg>
         {editing ? (
@@ -201,7 +201,7 @@ function TextNode({ id, data, selected }: any) {
       <NodeResizer isVisible={selected && !editing && !data.locked} minWidth={40} minHeight={20} handleStyle={{ width: 8, height: 8, borderRadius: 2 }} lineStyle={RESIZER_STYLE} />
       {!editing && <NodeHandles />}
       <NodeOverlay data={data} selected={selected} />
-      <div className={cn('w-full h-full flex items-start px-2 py-1', selected && !editing && 'outline outline-2 outline-indigo-400 outline-offset-1 rounded')}>
+      <div className={cn('w-full h-full flex items-start px-2 py-1', selected && !editing && 'outline outline-2 outline-primary-400 outline-offset-1 rounded')}>
         {editing ? (
           <textarea ref={taRef} value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit}
             onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Escape') setEditing(false); if (e.key === 'Enter' && e.metaKey) commit(); }}
@@ -225,7 +225,7 @@ function EmojiNode({ data, selected }: any) {
     <>
       <NodeHandles />
       <NodeOverlay data={data} selected={selected} />
-      <div className={cn('cursor-default select-none', selected && 'outline outline-2 outline-indigo-400 rounded-full')}>
+      <div className={cn('cursor-default select-none', selected && 'outline outline-2 outline-primary-400 rounded-full')}>
         <span style={{ fontSize: data.fontSize ?? 40 }}>{data.label}</span>
       </div>
     </>
@@ -285,12 +285,12 @@ function ImageNode({ id, data, selected }: any) {
       <NodeHandles />
       <NodeOverlay data={data} selected={selected} />
       <div className={cn('w-full h-full rounded-lg overflow-hidden border-2 flex items-center justify-center bg-gray-50',
-        selected ? 'border-indigo-400 ring-2 ring-indigo-200' : 'border-gray-200')}>
+        selected ? 'border-primary-400 ring-2 ring-primary-200' : 'border-gray-200')}>
         {data.src ? (
           <img src={data.src} alt={data.label ?? ''} className="w-full h-full object-contain" />
         ) : (
           <button type="button" onClick={() => fileRef.current?.click()}
-            className="nodrag flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500 transition-colors p-4">
+            className="nodrag flex flex-col items-center gap-1 text-gray-400 hover:text-red-600 transition-colors p-4">
             <ImageIcon size={28} />
             <span className="text-xs">이미지 선택</span>
           </button>
@@ -319,7 +319,7 @@ const EMOJIS = ['😀','😎','🎉','🔥','✅','❌','⚠️','💡','🚀','
 
 // ── 색상 팔레트 ───────────────────────────────────
 const BG_COLORS = [
-  { bg: '#e0e7ff', border: '#6366f1', color: '#3730a3' },
+  { bg: '#ffe0e0', border: '#e60012', color: '#620007' },
   { bg: '#d1fae5', border: '#10b981', color: '#065f46' },
   { bg: '#fee2e2', border: '#ef4444', color: '#991b1b' },
   { bg: '#fef3c7', border: '#f59e0b', color: '#92400e' },
@@ -666,7 +666,7 @@ export function CanvasPage() {
     setEdges((eds) => addEdge({
       ...params,
       markerEnd: { type: MarkerType.ArrowClosed },
-      style: { stroke: '#6366f1', strokeWidth: 2 },
+      style: { stroke: '#e60012', strokeWidth: 2 },
       interactionWidth: 20,
     }, eds));
   }, [setEdges]);
@@ -843,7 +843,7 @@ export function CanvasPage() {
   if (dataLoading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-indigo-200 border-t-indigo-500 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-gray-200 border-t-primary-500 rounded-full animate-spin" />
       </div>
     );
   }
@@ -862,11 +862,11 @@ export function CanvasPage() {
       <div className="flex items-center gap-2 px-4 py-2 bg-white border-b border-gray-200 flex-shrink-0 shadow-sm">
         <button
           onClick={() => navigate(`/projects/${projectId}/canvas`)}
-          className="flex items-center gap-1 text-gray-400 hover:text-gray-700 transition-colors mr-1"
+          className="flex items-center gap-1 text-gray-400 hover:text-gray-600 transition-colors mr-1"
         >
           <ChevronLeft size={16} />
         </button>
-        <span className="text-sm font-bold text-gray-700 truncate max-w-[140px]" title={canvasData?.name}>
+        <span className="text-sm font-bold text-gray-600 truncate max-w-[140px]" title={canvasData?.name}>
           {canvasData?.name ?? '캔버스'}
         </span>
         <Save size={12} className={cn('ml-1 transition-opacity duration-200', saveCanvas.isPending ? 'text-gray-400 animate-pulse opacity-100' : 'opacity-0')} />
@@ -902,7 +902,7 @@ export function CanvasPage() {
               title={`${label} (${shortcut})`}
               className={cn(
                 'group relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
-                tool === id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+                tool === id ? 'bg-white text-gray-600 shadow-sm' : 'text-gray-500 hover:text-gray-600',
               )}
             >
               <Icon size={14} /> {label}
@@ -917,7 +917,7 @@ export function CanvasPage() {
             title="격자 스냅 (16px 단위로 정렬)"
             className={cn(
               'group relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
-              snapToGrid ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+              snapToGrid ? 'bg-white text-gray-600 shadow-sm' : 'text-gray-500 hover:text-gray-600',
             )}
           >
             <MagnetIcon size={14} /> 스냅
@@ -938,7 +938,7 @@ export function CanvasPage() {
               title={`${label} (${shortcut})`}
               className={cn(
                 'group relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
-                tool === id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+                tool === id ? 'bg-white text-gray-600 shadow-sm' : 'text-gray-500 hover:text-gray-600',
               )}
             >
               <Icon size={14} /> {label}
@@ -1027,13 +1027,13 @@ export function CanvasPage() {
             onClick={() => setCommentOpen((v) => !v)}
             className={cn(
               'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors',
-              commentOpen ? 'bg-indigo-50 border-indigo-300 text-indigo-600' : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700',
+              commentOpen ? 'bg-primary-50 border-gray-300 text-gray-600' : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-600',
             )}
           >
             <MessageSquare size={14} />
             댓글
             {comments.length > 0 && (
-              <span className="bg-indigo-100 text-indigo-600 rounded-full px-1.5 py-0.5 text-[10px] font-bold">{comments.length}</span>
+              <span className="bg-primary-100 text-gray-600 rounded-full px-1.5 py-0.5 text-[10px] font-bold">{comments.length}</span>
             )}
           </button>
         </div>
@@ -1073,10 +1073,10 @@ export function CanvasPage() {
           selectionMode={SelectionMode.Full}
           snapToGrid={snapToGrid}
           snapGrid={[16, 16]}
-          connectionLineStyle={{ stroke: '#6366f1', strokeWidth: 2 }}
+          connectionLineStyle={{ stroke: '#e60012', strokeWidth: 2 }}
           defaultEdgeOptions={{
             markerEnd: { type: MarkerType.ArrowClosed },
-            style: { stroke: '#6366f1', strokeWidth: 2 },
+            style: { stroke: '#e60012', strokeWidth: 2 },
           }}
         >
           <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#d1d5db" />
@@ -1113,7 +1113,7 @@ export function CanvasPage() {
                       <span className="text-xs font-semibold text-gray-800">{c.user.name}</span>
                       <span className="text-[10px] text-gray-400">{new Date(c.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
-                    <p className="text-xs text-gray-700 whitespace-pre-wrap break-words leading-relaxed">{c.content}</p>
+                    <p className="text-xs text-gray-600 whitespace-pre-wrap break-words leading-relaxed">{c.content}</p>
                   </div>
                   {user?.id === c.user.id && (
                     <button
@@ -1143,12 +1143,12 @@ export function CanvasPage() {
                 }}
                 placeholder="댓글 입력... (Enter로 전송)"
                 rows={2}
-                className="flex-1 text-xs border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                className="flex-1 text-xs border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent"
               />
               <button
                 onClick={() => { if (commentInput.trim()) addComment.mutate(commentInput.trim()); }}
                 disabled={!commentInput.trim() || addComment.isPending}
-                className="w-8 h-8 flex items-center justify-center bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-40 transition-colors flex-shrink-0"
+                className="w-8 h-8 flex items-center justify-center bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-40 transition-colors flex-shrink-0"
               >
                 <Send size={13} />
               </button>
@@ -1207,13 +1207,13 @@ export function CanvasPage() {
                 {/* 잠금 / 담당자 */}
                 <div className="border-t border-gray-100 my-1" />
                 <button onClick={() => toggleLock(contextMenu.nodeId!)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
                   {nodes.find((n) => n.id === contextMenu.nodeId)?.data?.locked
                     ? <><Unlock size={14} /> 잠금 해제</>
                     : <><Lock size={14} /> 잠금</>}
                 </button>
                 <button onClick={() => { setAssigneeNodeId(contextMenu.nodeId!); setContextMenu(null); }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
                   <UserPlus size={14} /> 담당자 지정
                 </button>
                 <div className="border-t border-gray-100 my-1" />
@@ -1226,7 +1226,7 @@ export function CanvasPage() {
                   const edge = edges.find((e) => e.id === contextMenu.edgeId);
                   setEdgeLabelEdit({ edgeId: contextMenu.edgeId!, label: String(edge?.label ?? '') });
                   setContextMenu(null);
-                }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
                   <Tag size={14} /> 라벨 편집
                 </button>
                 <div className="border-t border-gray-100 my-1" />
@@ -1257,7 +1257,7 @@ export function CanvasPage() {
                 onChange={(e) => setLabelInput(e.target.value)}
                 placeholder="내용을 입력하세요..."
                 rows={4}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
               />
             ) : (
               <input
@@ -1269,14 +1269,14 @@ export function CanvasPage() {
                   if (e.key === 'Escape') setShowLabelModal(false);
                 }}
                 placeholder="레이블 입력 (비워도 됩니다)"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             )}
             <div className="flex justify-end gap-2 mt-3">
-              <button onClick={() => setShowLabelModal(false)} className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700">취소</button>
+              <button onClick={() => setShowLabelModal(false)} className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-600">취소</button>
               <button
                 onClick={() => { addNode(pendingNode, labelInput); setShowLabelModal(false); }}
-                className="px-4 py-1.5 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                className="px-4 py-1.5 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700"
               >
                 추가
               </button>
@@ -1300,12 +1300,12 @@ export function CanvasPage() {
                 if (e.key === 'Escape') setEdgeLabelEdit(null);
               }}
               placeholder="라벨 입력 (비우면 제거)"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
             <div className="flex justify-end gap-2 mt-3">
-              <button onClick={() => setEdgeLabelEdit(null)} className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700">취소</button>
+              <button onClick={() => setEdgeLabelEdit(null)} className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-600">취소</button>
               <button onClick={() => commitEdgeLabel(edgeLabelEdit.edgeId, edgeLabelEdit.label)}
-                className="px-4 py-1.5 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">확인</button>
+                className="px-4 py-1.5 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700">확인</button>
             </div>
           </div>
         </div>
@@ -1327,13 +1327,13 @@ export function CanvasPage() {
                 return (
                   <button key={u.id} onClick={() => toggleAssignee(assigneeNodeId, u)}
                     className={cn('w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left',
-                      checked ? 'bg-indigo-50' : 'hover:bg-gray-50')}>
+                      checked ? 'bg-primary-50' : 'hover:bg-gray-50')}>
                     <Avatar name={u.name} avatar={u.avatar} size="sm" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{u.name}</p>
                       <p className="text-xs text-gray-400 truncate">{u.position || u.email}</p>
                     </div>
-                    {checked && <div className="w-4 h-4 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0">
+                    {checked && <div className="w-4 h-4 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0">
                       <svg viewBox="0 0 12 12" className="w-2.5 h-2.5 text-white fill-current"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
                     </div>}
                   </button>
@@ -1342,7 +1342,7 @@ export function CanvasPage() {
             </div>
             <div className="px-4 py-3 border-t border-gray-100">
               <button onClick={() => setAssigneeNodeId(null)}
-                className="w-full py-1.5 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">완료</button>
+                className="w-full py-1.5 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700">완료</button>
             </div>
           </div>
         </div>

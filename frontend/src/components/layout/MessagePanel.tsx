@@ -201,7 +201,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
         )}
       >
         {/* 헤더 */}
-        <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-200 bg-gradient-to-br from-indigo-50 via-white to-violet-50 flex-shrink-0">
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-200 bg-gradient-to-br from-primary-50 via-white to-primary-50 flex-shrink-0">
           <div className="flex items-center gap-2">
             {showBack && (
               <button
@@ -211,14 +211,14 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                 <ChevronLeft size={18} />
               </button>
             )}
-            <MessageSquare size={15} className="text-indigo-500" />
-            <h2 className="text-sm font-bold text-gray-900">{headerTitle}</h2>
+            <MessageSquare size={15} className="text-gray-600" />
+            <h2 className="text-sm font-bold text-gray-700">{headerTitle}</h2>
           </div>
           <div className="flex items-center gap-1">
             {view === 'list' && (
               <button
                 onClick={() => setView('new')}
-                className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 px-2.5 py-1.5 rounded-lg transition-colors"
+                className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:bg-primary-50 px-2.5 py-1.5 rounded-lg transition-colors"
               >
                 <Plus size={13} /> 새 멘션
               </button>
@@ -234,14 +234,14 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
           <div className="flex-1 overflow-y-auto">
             {!visibleConvs.length ? (
               <div className="flex flex-col items-center justify-center h-full text-center px-6">
-                <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center mb-3">
-                  <MessageSquare size={24} className="text-indigo-300" />
+                <div className="w-14 h-14 rounded-2xl bg-primary-50 flex items-center justify-center mb-3">
+                  <MessageSquare size={24} className="text-gray-400" />
                 </div>
                 <p className="text-sm font-semibold text-gray-600 mb-1">대화가 없습니다</p>
                 <p className="text-xs text-gray-400 mb-4">새 멘션을 보내 대화를 시작해보세요</p>
                 <button
                   onClick={() => setView('new')}
-                  className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-primary-50 hover:bg-primary-100 px-4 py-2 rounded-lg transition-colors"
                 >
                   <Plus size={13} /> 새 멘션 보내기
                 </button>
@@ -252,7 +252,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                   key={c.user.id}
                   className={cn(
                     'group flex items-center gap-3 px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer',
-                    c.unread > 0 && 'bg-indigo-50/40',
+                    c.unread > 0 && 'bg-primary-50/40',
                   )}
                   onClick={() => openChat(c.user.id)}
                 >
@@ -266,7 +266,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-0.5">
-                      <span className={cn('text-sm font-semibold truncate', c.unread > 0 ? 'text-gray-900' : 'text-gray-700')}>
+                      <span className={cn('text-sm font-semibold truncate', c.unread > 0 ? 'text-gray-600' : 'text-gray-600')}>
                         {c.user.name}
                       </span>
                       <span className="text-[10px] text-gray-400 flex-shrink-0">
@@ -305,7 +305,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
               <div className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 bg-gray-50/50 flex-shrink-0">
                 <Avatar name={activeUser.name} avatar={activeUser.avatar} size="sm" />
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">{activeUser.name}</p>
+                  <p className="text-sm font-semibold text-gray-600">{activeUser.name}</p>
                   {(activeUser.position || activeUser.department) && (
                     <p className="text-[11px] text-gray-400">
                       {[activeUser.position, activeUser.department].filter(Boolean).join(' · ')}
@@ -354,7 +354,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                         <div className={cn('max-w-[78%] group flex flex-col gap-0.5', isMine ? 'items-end' : 'items-start')}>
                           <div className={cn(
                             'px-3.5 py-2 rounded-2xl text-sm leading-relaxed break-words',
-                            isMine ? 'bg-indigo-600 text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm',
+                            isMine ? 'bg-primary-600 text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm',
                           )}>
                             {m.content}
                           </div>
@@ -371,7 +371,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
 
             {/* 입력창 */}
             <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0">
-              <div className="flex items-center gap-2 bg-gray-50 rounded-xl border border-gray-200 px-3 py-2 focus-within:border-indigo-400 focus-within:bg-white transition-colors">
+              <div className="flex items-center gap-2 bg-gray-50 rounded-xl border border-gray-200 px-3 py-2 focus-within:border-primary-400 focus-within:bg-white transition-colors">
                 <EmojiPickerButton
                   open={emojiOpen}
                   onToggle={() => setEmojiOpen((v) => !v)}
@@ -390,7 +390,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                 <button
                   onClick={handleSend}
                   disabled={!draft.trim() || sendMsg.isPending}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
                 >
                   <Send size={13} />
                 </button>
@@ -424,7 +424,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                 >
                   <Avatar name={u.name} avatar={u.avatar} size="md" />
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">{u.name}</p>
+                    <p className="text-sm font-semibold text-gray-600">{u.name}</p>
                     {(u.position || u.department) && (
                       <p className="text-[11px] text-gray-400">{[u.position, u.department].filter(Boolean).join(' · ')}</p>
                     )}
@@ -445,9 +445,9 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/30 backdrop-blur-[2px]">
               <div className="bg-white rounded-2xl shadow-2xl w-72 overflow-hidden mx-4">
                 <div className="px-5 py-4 border-b border-gray-100">
-                  <p className="text-sm font-bold text-gray-900">대화 삭제</p>
+                  <p className="text-sm font-bold text-gray-600">대화 삭제</p>
                   <p className="text-xs text-gray-500 mt-1.5">
-                    <span className="font-semibold text-gray-700">{target?.user.name ?? ''}</span>님과의 대화를 목록에서 삭제할까요?
+                    <span className="font-semibold text-gray-600">{target?.user.name ?? ''}</span>님과의 대화를 목록에서 삭제할까요?
                   </p>
                   <p className="text-[11px] text-gray-400 mt-1">새 메시지를 받으면 다시 나타납니다.</p>
                 </div>

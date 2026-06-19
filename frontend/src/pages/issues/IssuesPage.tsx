@@ -134,8 +134,8 @@ export function IssuesPage() {
   const resolvedCount = issues?.filter((i) => i.status === 'RESOLVED').length ?? 0;
 
   const IssueForm = (
-    <div className="bg-white border border-indigo-200 rounded-xl p-5 mb-4 shadow-sm">
-      <h3 className="text-sm font-semibold text-gray-900 mb-4">
+    <div className="bg-white border border-gray-200 rounded-xl p-5 mb-4 shadow-sm">
+      <h3 className="text-sm font-semibold text-gray-700 mb-4">
         {editingIssue ? '이슈 수정' : '새 이슈 등록'}
       </h3>
       <div className="space-y-3">
@@ -143,7 +143,7 @@ export function IssuesPage() {
           <label className="block text-xs font-medium text-gray-600 mb-1">제목 *</label>
           <input
             autoFocus
-            className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
             placeholder="이슈 제목을 입력하세요"
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
@@ -152,7 +152,7 @@ export function IssuesPage() {
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">설명</label>
           <textarea
-            className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+            className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
             rows={3}
             placeholder="이슈 상세 내용을 입력하세요"
             value={form.description}
@@ -163,7 +163,7 @@ export function IssuesPage() {
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">위험도</label>
             <select
-              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
               value={form.riskLevel}
               onChange={(e) => setForm((f) => ({ ...f, riskLevel: e.target.value as IssueRisk }))}
             >
@@ -175,7 +175,7 @@ export function IssuesPage() {
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">해결상태</label>
             <select
-              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
               value={form.status}
               onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as IssueStatus }))}
             >
@@ -187,7 +187,7 @@ export function IssuesPage() {
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">담당자</label>
             <select
-              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
               value={form.assigneeId}
               onChange={(e) => setForm((f) => ({ ...f, assigneeId: e.target.value }))}
             >
@@ -242,7 +242,7 @@ export function IssuesPage() {
                 onClick={() => setFilterStatus(k as any)}
                 className={cn(
                   'px-2.5 py-1 text-xs rounded-md font-medium transition-colors',
-                  filterStatus === k ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+                  filterStatus === k ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-600',
                 )}
               >
                 {label}
@@ -257,7 +257,7 @@ export function IssuesPage() {
                 onClick={() => setFilterRisk(k as any)}
                 className={cn(
                   'px-2.5 py-1 text-xs rounded-md font-medium transition-colors',
-                  filterRisk === k ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+                  filterRisk === k ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-600',
                 )}
               >
                 {label}
@@ -321,7 +321,7 @@ export function IssuesPage() {
                         onChange={(e) => changeStatus.mutate({ issueId: issue.id, status: e.target.value as IssueStatus })}
                         onClick={(e) => e.stopPropagation()}
                         className={cn(
-                          'text-xs font-medium px-2 py-0.5 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500',
+                          'text-xs font-medium px-2 py-0.5 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500',
                           status.color, status.bg,
                         )}
                       >
@@ -334,7 +334,7 @@ export function IssuesPage() {
                       {issue.assignee ? (
                         <div className="flex items-center gap-1.5">
                           <Avatar name={issue.assignee.name} avatar={issue.assignee.avatar} size="xs" />
-                          <span className="text-xs text-gray-700">{issue.assignee.name}</span>
+                          <span className="text-xs text-gray-600">{issue.assignee.name}</span>
                         </div>
                       ) : (
                         <span className="text-xs text-gray-400">없음</span>
@@ -347,7 +347,7 @@ export function IssuesPage() {
                       <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
                         <button
                           onClick={() => openEdit(issue)}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-primary-50 transition-colors"
                         >
                           <Pencil size={13} />
                         </button>

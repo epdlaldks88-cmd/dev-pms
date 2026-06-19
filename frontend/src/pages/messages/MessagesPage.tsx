@@ -111,10 +111,10 @@ export function MessagesPage() {
       {/* 좌: 대화 목록 */}
       <div className="w-72 flex-shrink-0 border-r border-gray-200 bg-white flex flex-col">
         <div className="flex items-center justify-between px-4 h-14 border-b border-gray-200 flex-shrink-0">
-          <h1 className="text-base font-bold text-gray-900">멘션</h1>
+          <h1 className="text-base font-bold text-gray-700">멘션</h1>
           <button
             onClick={() => { setShowPicker(true); setPickerSearch(''); }}
-            className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-lg transition-colors"
+            className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-red-600 bg-primary-50 hover:bg-primary-100 px-2 py-1 rounded-lg transition-colors"
           >
             <Plus size={13} /> 새 멘션
           </button>
@@ -132,13 +132,13 @@ export function MessagesPage() {
                 onClick={() => setActiveUserId(c.user.id)}
                 className={cn(
                   'w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-50',
-                  activeUserId === c.user.id && 'bg-indigo-50/60',
+                  activeUserId === c.user.id && 'bg-primary-50/60',
                 )}
               >
                 <Avatar name={c.user.name} avatar={c.user.avatar} size="sm" className="flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-semibold text-gray-900 truncate">{c.user.name}</span>
+                    <span className="text-sm font-semibold text-gray-600 truncate">{c.user.name}</span>
                     <span className="text-[10px] text-gray-400 flex-shrink-0">{formatRelativeTime(c.lastMessage.createdAt)}</span>
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-0.5">
@@ -146,7 +146,7 @@ export function MessagesPage() {
                       {c.lastMessage.senderId === me?.id && '나: '}{c.lastMessage.content}
                     </span>
                     {c.unread > 0 && (
-                      <span className="flex-shrink-0 min-w-[18px] h-[18px] bg-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                      <span className="flex-shrink-0 min-w-[18px] h-[18px] bg-primary-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
                         {c.unread > 9 ? '9+' : c.unread}
                       </span>
                     )}
@@ -174,7 +174,7 @@ export function MessagesPage() {
             <div className="flex items-center gap-3 px-6 h-14 border-b border-gray-200 bg-white flex-shrink-0">
               <Avatar name={thread?.user?.name ?? ''} avatar={thread?.user?.avatar} size="sm" />
               <div className="min-w-0">
-                <p className="text-sm font-bold text-gray-900 truncate">{thread?.user?.name ?? '...'}</p>
+                <p className="text-sm font-bold text-gray-600 truncate">{thread?.user?.name ?? '...'}</p>
                 {(thread?.user?.position || thread?.user?.department) && (
                   <p className="text-[11px] text-gray-400 truncate">
                     {[thread?.user?.position, thread?.user?.department].filter(Boolean).join(' · ')}
@@ -199,7 +199,7 @@ export function MessagesPage() {
                           className={cn(
                             'px-3.5 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words',
                             mine
-                              ? 'bg-indigo-600 text-white rounded-br-md'
+                              ? 'bg-primary-600 text-white rounded-br-md'
                               : 'bg-white text-gray-800 border border-gray-200 rounded-bl-md',
                           )}
                         >
@@ -232,12 +232,12 @@ export function MessagesPage() {
                   }}
                   placeholder="메시지를 입력하세요... (Enter 전송, Shift+Enter 줄바꿈)"
                   rows={1}
-                  className="flex-1 resize-none text-sm border border-gray-300 rounded-xl px-3.5 py-2.5 max-h-32 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="flex-1 resize-none text-sm border border-gray-300 rounded-xl px-3.5 py-2.5 max-h-32 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <button
                   onClick={handleSend}
                   disabled={!draft.trim() || sendMsg.isPending}
-                  className="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-40 transition-colors"
+                  className="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-40 transition-colors"
                 >
                   <Send size={16} />
                 </button>
@@ -253,7 +253,7 @@ export function MessagesPage() {
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowPicker(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[70vh] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
-              <h2 className="text-base font-bold text-gray-900">새 멘션 보내기</h2>
+              <h2 className="text-base font-bold text-gray-700">새 멘션 보내기</h2>
               <button onClick={() => setShowPicker(false)} className="text-gray-400 hover:text-gray-600 p-1"><X size={18} /></button>
             </div>
             <div className="px-5 py-3 border-b border-gray-100">
@@ -264,7 +264,7 @@ export function MessagesPage() {
                   value={pickerSearch}
                   onChange={(e) => setPickerSearch(e.target.value)}
                   placeholder="이름으로 검색..."
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
             </div>

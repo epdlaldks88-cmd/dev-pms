@@ -36,7 +36,7 @@ function GanttBar({ task, startDate, totalDays }: { task: Task; startDate: Date;
       onClick={() => openTaskModal(task.id)}
       className={cn(
         'absolute top-1.5 h-7 rounded-md flex items-center px-2 text-xs font-medium text-white shadow-sm hover:brightness-110 transition-all cursor-pointer truncate',
-        isOverdue ? 'bg-red-500' : 'bg-indigo-500',
+        isOverdue ? 'bg-red-500' : 'bg-primary-500',
       )}
       style={{
         left: `${leftPct}%`,
@@ -114,9 +114,9 @@ export function GanttPage() {
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center gap-1.5 text-sm text-gray-500">
-          <Link to="/projects" className="hover:text-gray-700">프로젝트</Link>
+          <Link to="/projects" className="hover:text-gray-600">프로젝트</Link>
           <ChevronRight size={14} />
-          <Link to={`/projects/${projectId}`} className="hover:text-gray-700">{project?.name}</Link>
+          <Link to={`/projects/${projectId}`} className="hover:text-gray-600">{project?.name}</Link>
           <ChevronRight size={14} />
           <span className="text-gray-900 font-medium">간트차트</span>
         </div>
@@ -180,7 +180,7 @@ export function GanttPage() {
                         key={i}
                         className={cn(
                           'border-r border-gray-100 flex items-center justify-center text-[10px] font-medium flex-shrink-0',
-                          isToday ? 'bg-indigo-50 text-indigo-600' : isSun || isSat ? 'bg-red-50/50 text-red-400' : 'text-gray-400',
+                          isToday ? 'bg-primary-50 text-gray-600' : isSun || isSat ? 'bg-red-50/50 text-red-400' : 'text-gray-400',
                         )}
                         style={{ width: colWidth + 'px' }}
                       >
@@ -216,7 +216,7 @@ export function GanttPage() {
                       {/* Today line */}
                       {todayOffset >= 0 && todayOffset < totalDays && (
                         <div
-                          className="absolute top-0 bottom-0 w-0.5 bg-indigo-400 z-10 pointer-events-none"
+                          className="absolute top-0 bottom-0 w-0.5 bg-primary-400 z-10 pointer-events-none"
                           style={{ left: `${todayOffset * colWidth + colWidth / 2}px` }}
                         />
                       )}

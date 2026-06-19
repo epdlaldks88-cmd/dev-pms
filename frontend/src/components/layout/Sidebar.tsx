@@ -54,14 +54,14 @@ export function Sidebar() {
       <div className="flex items-center justify-between px-3 h-14 border-b border-gray-800">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-indigo-500 rounded-lg flex items-center justify-center">
+            <div className="w-7 h-7 bg-primary-500 rounded-lg flex items-center justify-center">
               <Zap size={14} className="text-white" />
             </div>
             <span className="font-bold text-sm tracking-tight">L.PMS</span>
           </div>
         )}
         {collapsed && (
-          <div className="w-7 h-7 bg-indigo-500 rounded-lg flex items-center justify-center mx-auto">
+          <div className="w-7 h-7 bg-primary-500 rounded-lg flex items-center justify-center mx-auto">
             <Zap size={14} className="text-white" />
           </div>
         )}
@@ -84,7 +84,7 @@ export function Sidebar() {
               const active = to === '/canvas' ? (isActive || !!canvasDrawMatch) : isActive;
               return cn(
                 'flex items-center gap-3 px-2 py-2 rounded-lg text-sm font-medium transition-colors',
-                active ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800',
+                active ? 'bg-primary-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800',
                 collapsed && 'justify-center px-0',
               );
             }}
@@ -139,7 +139,7 @@ export function Sidebar() {
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-3 px-2 py-2 rounded-lg text-sm font-medium transition-colors',
-                isActive ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800',
+                isActive ? 'bg-primary-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800',
                 collapsed && 'justify-center px-0',
               )
             }
@@ -156,7 +156,7 @@ export function Sidebar() {
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-3 px-2 py-2 rounded-lg text-sm font-medium transition-colors',
-                isActive ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800',
+                isActive ? 'bg-primary-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800',
                 collapsed && 'justify-center px-0',
               )
             }
