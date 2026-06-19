@@ -1,4 +1,41 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <rect width="32" height="32" rx="8" fill="#6366f1"/>
-  <polygon points="18,4 10,18 16,18 14,28 22,14 16,14" fill="white"/>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff2828"/>
+      <stop offset="100%" stop-color="#a8000c"/>
+    </linearGradient>
+    <linearGradient id="face" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e8e8e8"/>
+    </linearGradient>
+    <linearGradient id="top" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#cccccc"/>
+    </linearGradient>
+    <linearGradient id="side" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#bbbbbb"/>
+      <stop offset="100%" stop-color="#888888"/>
+    </linearGradient>
+  </defs>
+
+  <!-- background -->
+  <rect width="32" height="32" rx="7" fill="url(#bg)"/>
+
+  <!-- L front face: vertical bar -->
+  <rect x="8" y="6" width="5.5" height="19" rx="0.5" fill="url(#face)"/>
+  <!-- L front face: horizontal bar -->
+  <rect x="8" y="19.5" width="14" height="5.5" rx="0.5" fill="url(#face)"/>
+
+  <!-- 3D top edge: vertical -->
+  <rect x="8" y="6" width="5.5" height="1.5" rx="0.5" fill="url(#top)"/>
+  <!-- 3D top edge: horizontal -->
+  <rect x="13.5" y="19.5" width="8.5" height="1.5" fill="url(#top)" opacity="0.8"/>
+
+  <!-- 3D right side: vertical -->
+  <rect x="13" y="7.5" width="1.5" height="12" fill="url(#side)"/>
+  <!-- 3D right side: horizontal -->
+  <rect x="21.5" y="21" width="1.5" height="4" rx="0.5" fill="url(#side)"/>
+
+  <!-- inner corner -->
+  <rect x="13" y="19.5" width="1.5" height="1.5" fill="#999999"/>
 </svg>

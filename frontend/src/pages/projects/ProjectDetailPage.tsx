@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Users, Activity, Calendar, Pencil, Megaphone, Pin, ChevronLeft, ChevronRight, ChevronDown, UserPlus, X, Crown, ShieldCheck, Eye, Search, ArrowRight, Trash2, MessageSquare } from 'lucide-react';
+import { Users, Activity, Calendar, Pencil, Megaphone, Pin, ChevronLeft, ChevronRight, ChevronDown, UserPlus, X, Crown, ShieldCheck, Eye, Search, ArrowRight, Trash2, MessageSquare, BarChart2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { NavLink } from 'react-router-dom';
 import { projectsApi } from '../../api/projects';
@@ -271,12 +271,12 @@ export function ProjectDetailPage() {
 
           {/* 공지사항 */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 bg-gradient-to-r from-primary-50/60 to-transparent">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-md bg-primary-100 flex items-center justify-center">
-                  <Megaphone size={13} className="text-gray-600" />
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 bg-gradient-to-r from-gray-200/80 via-gray-100/60 to-white">
+              <div className="flex items-center gap-2.5">
+                <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-sm flex-shrink-0">
+                  <Megaphone size={12} className="text-white" />
                 </div>
-                <span className="text-sm font-bold text-gray-600">공지사항</span>
+                <span className="text-xs font-semibold text-gray-600">공지사항</span>
                 {notices && notices.length > 0 && (
                   <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary-100 text-gray-800 text-[10px] font-bold">
                     {notices.length}
@@ -364,8 +364,14 @@ export function ProjectDetailPage() {
           </div>
 
           {/* 상태별 태스크 */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-            <h3 className="font-semibold text-sm text-gray-700 mb-4">상태별 태스크</h3>
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-gray-100 bg-gradient-to-r from-gray-200/80 via-gray-100/60 to-white flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-sm flex-shrink-0">
+                <BarChart2 size={12} className="text-white" />
+              </div>
+              <span className="text-xs font-semibold text-gray-600">상태별 태스크</span>
+            </div>
+            <div className="p-5">
             {stats?.byStatus?.length ? (
               <div className="space-y-2.5">
                 {stats.byStatus.map((s) => {
@@ -394,20 +400,24 @@ export function ProjectDetailPage() {
             ) : (
               <p className="text-sm text-gray-400">태스크가 없습니다.</p>
             )}
+            </div>
           </div>
 
           {/* 캘린더 */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Calendar size={15} className="text-gray-600" />
-                <h3 className="font-semibold text-sm text-gray-700">{calMonth.getFullYear()}년 {calMonth.getMonth() + 1}월</h3>
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 bg-gradient-to-r from-gray-200/80 via-gray-100/60 to-white">
+              <div className="flex items-center gap-2.5">
+                <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-sm flex-shrink-0">
+                  <Calendar size={12} className="text-white" />
+                </div>
+                <span className="text-xs font-semibold text-gray-600">{calMonth.getFullYear()}년 {calMonth.getMonth() + 1}월</span>
               </div>
               <div className="flex gap-1">
                 <button onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1))} className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-600 transition-colors"><ChevronLeft size={15} /></button>
                 <button onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1))} className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-600 transition-colors"><ChevronRight size={15} /></button>
               </div>
             </div>
+            <div className="p-5">
             <div className="grid grid-cols-7 mb-1">
               {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => (
                 <div key={d} className={cn('text-center text-[11px] font-medium py-1', i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-gray-400')}>{d}</div>
@@ -452,14 +462,19 @@ export function ProjectDetailPage() {
                 </div>
               ))}
             </div>
+            </div>
           </div>
 
           {/* Activity Feed */}
           {activity && activity.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-              <h3 className="font-semibold text-sm text-gray-700 mb-4 flex items-center gap-2">
-                <Activity size={16} /> 최근 활동
-              </h3>
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-gray-100 bg-gradient-to-r from-gray-200/80 via-gray-100/60 to-white flex items-center gap-2.5">
+                <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-sm flex-shrink-0">
+                  <Activity size={12} className="text-white" />
+                </div>
+                <span className="text-xs font-semibold text-gray-600">최근 활동</span>
+              </div>
+              <div className="p-5">
               <div className="space-y-3">
                 {(activity as ActivityLog[]).map((log) => (
                   <div key={log.id} className="flex items-start gap-3">
@@ -475,16 +490,19 @@ export function ProjectDetailPage() {
                 ))}
               </div>
             </div>
+            </div>
           )}
         </div>
 
         {/* ── 오른쪽 1열: 팀 멤버 (전체 높이) ── */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col">
           {/* 멤버 헤더 */}
-          <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100 flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <Users size={14} className="text-gray-600" />
-              <h3 className="font-semibold text-sm text-gray-700">팀 멤버</h3>
+          <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100 bg-gradient-to-r from-gray-200/80 via-gray-100/60 to-white flex-shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-sm flex-shrink-0">
+                <Users size={12} className="text-white" />
+              </div>
+              <span className="text-xs font-semibold text-gray-600">팀 멤버</span>
               <span className="text-[11px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{project.members.length}명</span>
             </div>
             {canManageMembers && (

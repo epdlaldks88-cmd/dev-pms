@@ -201,7 +201,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
         )}
       >
         {/* 헤더 */}
-        <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-200 bg-gradient-to-br from-primary-50 via-white to-primary-50 flex-shrink-0">
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-200 bg-gradient-to-br from-indigo-50 via-white to-indigo-50 flex-shrink-0">
           <div className="flex items-center gap-2">
             {showBack && (
               <button
@@ -218,7 +218,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
             {view === 'list' && (
               <button
                 onClick={() => setView('new')}
-                className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:bg-primary-50 px-2.5 py-1.5 rounded-lg transition-colors"
+                className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:bg-indigo-50 px-2.5 py-1.5 rounded-lg transition-colors"
               >
                 <Plus size={13} /> 새 멘션
               </button>
@@ -234,14 +234,14 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
           <div className="flex-1 overflow-y-auto">
             {!visibleConvs.length ? (
               <div className="flex flex-col items-center justify-center h-full text-center px-6">
-                <div className="w-14 h-14 rounded-2xl bg-primary-50 flex items-center justify-center mb-3">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center mb-3">
                   <MessageSquare size={24} className="text-gray-400" />
                 </div>
                 <p className="text-sm font-semibold text-gray-600 mb-1">대화가 없습니다</p>
                 <p className="text-xs text-gray-400 mb-4">새 멘션을 보내 대화를 시작해보세요</p>
                 <button
                   onClick={() => setView('new')}
-                  className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-primary-50 hover:bg-primary-100 px-4 py-2 rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-lg transition-colors"
                 >
                   <Plus size={13} /> 새 멘션 보내기
                 </button>
@@ -252,7 +252,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                   key={c.user.id}
                   className={cn(
                     'group flex items-center gap-3 px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer',
-                    c.unread > 0 && 'bg-primary-50/40',
+                    c.unread > 0 && 'bg-indigo-50/40',
                   )}
                   onClick={() => openChat(c.user.id)}
                 >
@@ -354,7 +354,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                         <div className={cn('max-w-[78%] group flex flex-col gap-0.5', isMine ? 'items-end' : 'items-start')}>
                           <div className={cn(
                             'px-3.5 py-2 rounded-2xl text-sm leading-relaxed break-words',
-                            isMine ? 'bg-primary-600 text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm',
+                            isMine ? 'bg-indigo-600 text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm',
                           )}>
                             {m.content}
                           </div>
@@ -371,7 +371,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
 
             {/* 입력창 */}
             <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0">
-              <div className="flex items-center gap-2 bg-gray-50 rounded-xl border border-gray-200 px-3 py-2 focus-within:border-primary-400 focus-within:bg-white transition-colors">
+              <div className="flex items-center gap-2 bg-gray-50 rounded-xl border border-gray-200 px-3 py-2 focus-within:border-indigo-400 focus-within:bg-white transition-colors">
                 <EmojiPickerButton
                   open={emojiOpen}
                   onToggle={() => setEmojiOpen((v) => !v)}
@@ -390,7 +390,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                 <button
                   onClick={handleSend}
                   disabled={!draft.trim() || sendMsg.isPending}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
                 >
                   <Send size={13} />
                 </button>

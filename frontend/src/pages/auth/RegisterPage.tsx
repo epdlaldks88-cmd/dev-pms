@@ -1,7 +1,38 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { Zap } from 'lucide-react';
+function Logo({ size = 40 }: { size?: number }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width={size} height={size}>
+      <defs>
+        <linearGradient id="rg-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#ff2828"/>
+          <stop offset="100%" stopColor="#a8000c"/>
+        </linearGradient>
+        <linearGradient id="rg-face" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff"/>
+          <stop offset="100%" stopColor="#e8e8e8"/>
+        </linearGradient>
+        <linearGradient id="rg-top" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff"/>
+          <stop offset="100%" stopColor="#cccccc"/>
+        </linearGradient>
+        <linearGradient id="rg-side" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#bbbbbb"/>
+          <stop offset="100%" stopColor="#888888"/>
+        </linearGradient>
+      </defs>
+      <rect width="32" height="32" rx="7" fill="url(#rg-bg)"/>
+      <rect x="8" y="6" width="5.5" height="19" rx="0.5" fill="url(#rg-face)"/>
+      <rect x="8" y="19.5" width="14" height="5.5" rx="0.5" fill="url(#rg-face)"/>
+      <rect x="8" y="6" width="5.5" height="1.5" rx="0.5" fill="url(#rg-top)"/>
+      <rect x="13.5" y="19.5" width="8.5" height="1.5" fill="url(#rg-top)" opacity="0.8"/>
+      <rect x="13" y="7.5" width="1.5" height="12" fill="url(#rg-side)"/>
+      <rect x="21.5" y="21" width="1.5" height="4" rx="0.5" fill="url(#rg-side)"/>
+      <rect x="13" y="19.5" width="1.5" height="1.5" fill="#999999"/>
+    </svg>
+  );
+}
 import toast from 'react-hot-toast';
 import { authApi } from '../../api/auth';
 import { useAuthStore } from '../../store/auth.store';
@@ -40,9 +71,7 @@ export function RegisterPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-primary-950 to-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/30">
-            <Zap size={20} className="text-white" />
-          </div>
+          <Logo size={44} />
           <span className="text-2xl font-bold text-white">L.PMS</span>
         </div>
 

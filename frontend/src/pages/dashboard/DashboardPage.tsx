@@ -71,7 +71,7 @@ function CardHeader({ icon, title, sub, right }: {
   icon: ReactNode; title: string; sub?: ReactNode; right?: ReactNode;
 }) {
   return (
-    <div className="relative px-4 py-3 bg-gradient-to-r from-gray-100/80 via-gray-50/60 to-white border-b border-gray-100 overflow-hidden">
+    <div className="relative px-4 py-3 bg-gradient-to-r from-gray-200/80 via-gray-100/60 to-white border-b border-gray-100 overflow-hidden">
       <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full bg-gradient-to-br from-gray-200/40 to-transparent blur-xl pointer-events-none" />
       <div className="relative flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
@@ -487,7 +487,7 @@ export function DashboardPage() {
       {/* 마감 임박 일감 */}
       <div className="rounded-xl border border-gray-100 shadow-sm overflow-hidden bg-white">
         {/* 그라데이션 헤더 */}
-        <div className="relative px-5 py-4 bg-gradient-to-r from-gray-100/80 via-gray-50/60 to-white border-b border-gray-100 overflow-hidden">
+        <div className="relative px-5 py-4 bg-gradient-to-r from-gray-200/80 via-gray-100/60 to-white border-b border-gray-100 overflow-hidden">
           {/* 배경 장식 원 */}
           <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br from-gray-200/40 to-transparent blur-xl pointer-events-none" />
           <div className="absolute right-16 -bottom-4 w-16 h-16 rounded-full bg-gradient-to-br from-gray-200/30 to-transparent blur-lg pointer-events-none" />
