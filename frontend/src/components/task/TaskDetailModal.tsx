@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   X, Calendar, MessageSquare, Paperclip,
@@ -31,6 +31,10 @@ export function TaskDetailModal() {
 
   const [comment, setComment] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    if (!taskModalOpen) setIsEditing(false);
+  }, [taskModalOpen]);
   const [editForm, setEditForm] = useState({
     title: '', description: '', priority: '', startDate: '', dueDate: '',
     assigneeIds: [] as string[], personnelIds: [] as string[], labelIds: [] as string[],
@@ -130,6 +134,7 @@ export function TaskDetailModal() {
     onSuccess: () => {
       invalidateTask();
       setIsEditing(false);
+      closeTaskModal();
       toast.success('변경사항이 저장되었습니다.');
     },
     onError: () => toast.error('저장에 실패했습니다.'),
@@ -290,11 +295,11 @@ export function TaskDetailModal() {
                         onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">우선순위</label>
                         <select
-                          className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          className="w-full text-sm border border-gray-300 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                           value={editForm.priority}
                           onChange={(e) => setEditForm((f) => ({ ...f, priority: e.target.value }))}
                         >
@@ -307,21 +312,21 @@ export function TaskDetailModal() {
                         <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">시작일</label>
                         <input
                           type="date"
-                          className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          className="w-full text-sm border border-gray-300 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                           value={editForm.startDate}
                           onChange={(e) => setEditForm((f) => ({ ...f, startDate: e.target.value }))}
                         />
                       </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">마감일</label>
-                      <input
-                        type="date"
-                        className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        value={editForm.dueDate}
-                        min={editForm.startDate || undefined}
-                        onChange={(e) => setEditForm((f) => ({ ...f, dueDate: e.target.value }))}
-                      />
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">종료일</label>
+                        <input
+                          type="date"
+                          className="w-full text-sm border border-gray-300 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          value={editForm.dueDate}
+                          min={editForm.startDate || undefined}
+                          onChange={(e) => setEditForm((f) => ({ ...f, dueDate: e.target.value }))}
+                        />
+                      </div>
                     </div>
 
                     {/* 레이블 */}
@@ -387,29 +392,41 @@ export function TaskDetailModal() {
                         {projectLabels?.map((label) => {
                           const selected = editForm.labelIds.includes(label.id);
                           return (
-                            <button
+                            <div
                               key={label.id}
-                              type="button"
-                              onClick={() => setEditForm((f) => ({
-                                ...f,
-                                labelIds: selected
-                                  ? f.labelIds.filter((id) => id !== label.id)
-                                  : [...f.labelIds, label.id],
-                              }))}
-                              className={cn(
-                                'group flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border transition-all',
-                                selected ? 'ring-2 ring-offset-1' : 'opacity-60 hover:opacity-100',
-                              )}
-                              style={{
-                                backgroundColor: label.color + '20',
-                                color: label.color,
-                                borderColor: label.color + '60',
-                                ringColor: label.color,
-                              }}
+                              className="group relative flex items-center"
                             >
-                              {selected && <Check size={10} />}
-                              {label.name}
-                            </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditForm((f) => ({
+                                  ...f,
+                                  labelIds: selected
+                                    ? f.labelIds.filter((id) => id !== label.id)
+                                    : [...f.labelIds, label.id],
+                                }))}
+                                className={cn(
+                                  'flex items-center gap-1 pl-2.5 pr-6 py-0.5 rounded-full text-xs font-medium border transition-all',
+                                  selected ? 'ring-2 ring-offset-1' : 'opacity-60 hover:opacity-100',
+                                )}
+                                style={{
+                                  backgroundColor: label.color + '20',
+                                  color: label.color,
+                                  borderColor: label.color + '60',
+                                }}
+                              >
+                                {selected && <Check size={10} />}
+                                {label.name}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); deleteLabel.mutate(label.id); }}
+                                className="absolute right-1.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-black/10 p-0.5"
+                                style={{ color: label.color }}
+                                title="레이블 삭제"
+                              >
+                                <X size={9} />
+                              </button>
+                            </div>
                           );
                         })}
                         {!projectLabels?.length && (
@@ -437,13 +454,12 @@ export function TaskDetailModal() {
                               className={cn(
                                 'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-colors',
                                 selected
-                                  ? 'bg-primary-600 text-white border-primary-600'
-                                  : 'bg-white text-gray-600 border-gray-300 hover:border-primary-400'
+                                  ? 'bg-primary-50 text-primary-700 border-primary-300'
+                                  : 'bg-white text-gray-600 border-gray-300 hover:border-primary-300'
                               )}
                             >
                               <Avatar name={u.name} avatar={u.avatar} size="xs" />
                               {u.name}
-                              {selected && <Check size={11} />}
                             </button>
                           );
                         })}
@@ -470,13 +486,12 @@ export function TaskDetailModal() {
                                 className={cn(
                                   'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-colors',
                                   selected
-                                    ? 'bg-emerald-600 text-white border-emerald-600'
-                                    : 'bg-white text-gray-600 border-gray-300 hover:border-emerald-400'
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                    : 'bg-white text-gray-600 border-gray-300 hover:border-emerald-300'
                                 )}
                               >
                                 {p.name}
                                 <span className="text-[10px] opacity-70">{p.partner?.name}</span>
-                                {selected && <Check size={11} />}
                               </button>
                             );
                           })}
@@ -777,6 +792,18 @@ export function TaskDetailModal() {
                 </select>
               </div>
 
+              {/* 시작일 */}
+              <div>
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">시작일</p>
+                <p className="text-xs text-gray-600">{task.startDate ? formatDate(task.startDate) : <span className="text-gray-300">-</span>}</p>
+              </div>
+
+              {/* 종료일 */}
+              <div>
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">종료일</p>
+                <p className="text-xs text-gray-600">{task.dueDate ? formatDate(task.dueDate) : <span className="text-gray-300">-</span>}</p>
+              </div>
+
               {/* Labels (read) */}
               <div>
                 <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">레이블</p>
@@ -803,11 +830,11 @@ export function TaskDetailModal() {
                 {task.assignees.length === 0 ? (
                   <p className="text-xs text-gray-400">없음</p>
                 ) : (
-                  <div className="space-y-1.5">
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
                     {task.assignees.map(({ user: u }: any) => (
-                      <div key={u.id} className="flex items-center gap-1.5">
+                      <div key={u.id} className="flex items-center gap-1.5 min-w-0">
                         <Avatar name={u.name} avatar={u.avatar} size="xs" />
-                        <span className="text-xs text-gray-600">{u.name}</span>
+                        <span className="text-xs text-gray-600 truncate">{u.name}</span>
                       </div>
                     ))}
                   </div>
@@ -834,26 +861,6 @@ export function TaskDetailModal() {
                 </div>
               )}
 
-              {/* Dates */}
-              {(task.startDate || task.dueDate) && (
-                <div>
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">날짜</p>
-                  <div className="space-y-1">
-                    {task.startDate && (
-                      <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                        <Calendar size={11} className="text-gray-400" />
-                        시작: {formatDate(task.startDate)}
-                      </div>
-                    )}
-                    {task.dueDate && (
-                      <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                        <Clock size={11} className="text-gray-400" />
-                        마감: {formatDate(task.dueDate)}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
 
               {/* Meta */}
               <div className="pt-2 border-t border-gray-200">

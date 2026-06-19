@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { X, Send, Search, Plus, MessageSquare, ChevronLeft, Trash2 } from 'lucide-react';
 import { EmojiPickerButton } from '../ui/EmojiPicker';
@@ -183,7 +184,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
     view === 'new' ? '새 멘션' : '멘션';
   const showBack = view === 'chat' || view === 'new';
 
-  return (
+  return createPortal(
     <>
       {/* 백드롭 — open일 때만 DOM에 올려서 backdrop-blur 상시 렌더 방지 */}
       {open && (
@@ -470,6 +471,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
           );
         })()}
       </div>
-    </>
+    </>,
+    document.body,
   );
 }

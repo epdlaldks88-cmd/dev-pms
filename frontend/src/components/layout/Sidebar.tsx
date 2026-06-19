@@ -88,7 +88,7 @@ export function Sidebar() {
         {!collapsed && (
           <div className="flex items-center gap-2">
             <Logo size={28} />
-            <span className="font-bold text-sm tracking-tight">L.PMS</span>
+            <span className="font-bold text-base tracking-tight">L.PMS</span>
           </div>
         )}
         {collapsed && (

@@ -20,6 +20,7 @@ export function Header() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const openTaskModal = useUiStore((s) => s.openTaskModal);
+  const openMessagePanel = useUiStore((s) => s.openMessagePanel);
   const messagePanelUserId = useUiStore((s) => s.messagePanelUserId);
   const closeMessagePanel = useUiStore((s) => s.closeMessagePanel);
 
@@ -167,6 +168,14 @@ export function Header() {
     },
   });
 
+  const markOne = useMutation({
+    mutationFn: (id: string) => notificationsApi.markRead(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+      qc.invalidateQueries({ queryKey: ['notifications', 'count'] });
+    },
+  });
+
   const handleSelectTask = (task: any) => {
     setSearchOpen(false);
     setSearchQuery('');
@@ -180,7 +189,7 @@ export function Header() {
   };
 
   return (
-    <header className="h-14 bg-white/80 backdrop-blur-md border-b border-white/60 shadow-[0_1px_0_rgba(0,0,0,0.04)] flex items-center px-6 gap-4 flex-shrink-0">
+    <header className="relative z-10 h-14 bg-white/80 backdrop-blur-md border-b border-white/60 shadow-[0_1px_0_rgba(0,0,0,0.04)] flex items-center px-6 gap-4 flex-shrink-0">
       {/* Search */}
       <div className="flex-1 max-w-md relative" ref={searchRef}>
         <div className="relative">
@@ -350,8 +359,13 @@ export function Header() {
                           !n.isRead && 'bg-primary-50/50',
                         )}
                         onClick={() => {
-                          if (n.link) navigate(n.link);
                           setNotifOpen(false);
+                          if (!n.isRead) markOne.mutate(n.id);
+                          if (n.type === 'MENTION' && n.link) {
+                            const userId = new URL(n.link, 'http://x').searchParams.get('to');
+                            if (userId) { openMessagePanel(userId); setMsgOpen(true); return; }
+                          }
+                          if (n.link) navigate(n.link);
                         }}
                       >
                         <div className="flex items-start gap-3">
