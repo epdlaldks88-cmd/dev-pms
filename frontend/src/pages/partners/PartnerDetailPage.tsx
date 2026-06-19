@@ -80,7 +80,7 @@ export function PartnerDetailPage() {
       </div>
 
       {/* Personnel list */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
         <div className="flex items-center gap-2 px-5 py-3 border-b border-gray-100">
           <Users size={15} className="text-gray-500" />
           <h2 className="font-semibold text-sm text-gray-700">인력 목록</h2>

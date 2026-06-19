@@ -235,7 +235,7 @@ export function TaskDetailModal() {
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-red-500 to-red-600 border-b border-red-600 flex-shrink-0">
+          <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
             <div className="flex items-center gap-2 flex-wrap">
               {task && <StatusBadge status={task.status} />}
               {task && <PriorityBadge priority={task.priority} />}
@@ -255,7 +255,7 @@ export function TaskDetailModal() {
                   <Pencil size={12} /> 편집
                 </button>
               )}
-              <button onClick={closeTaskModal} className="text-white/70 hover:text-white p-1">
+              <button onClick={closeTaskModal} className="text-gray-400 hover:text-gray-600 p-1">
                 <X size={18} />
               </button>
             </div>

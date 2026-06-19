@@ -321,7 +321,7 @@ export function MeetingsPage() {
           {(dateFrom || dateTo) && (
             <button
               onClick={() => { setDateFrom(''); setDateTo(''); }}
-              className="text-xs text-white/70 hover:text-white px-1.5 py-1 rounded hover:bg-gray-100 transition-colors"
+              className="text-xs text-gray-400 hover:text-gray-600 px-1.5 py-1 rounded hover:bg-gray-100 transition-colors"
             >
               초기화
             </button>
@@ -352,7 +352,7 @@ export function MeetingsPage() {
               <div
                 key={m.id}
                 onClick={() => setViewingMeeting(m)}
-                className="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all group"
+                className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 p-4 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all group"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
@@ -391,7 +391,7 @@ export function MeetingsPage() {
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
                     <button
                       onClick={(e) => { e.stopPropagation(); printMeeting(m); }}
-                      className="p-1.5 text-white/70 hover:text-white hover:bg-gray-100 rounded-lg transition-colors"
+                      className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                       title="인쇄"
                     >
                       <Printer size={13} />
@@ -432,9 +432,9 @@ export function MeetingsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowModal(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-red-500 to-red-600 border-b border-red-600 flex-shrink-0">
-              <h2 className="text-base font-bold text-gray-700">{editingId ? '회의록 수정' : '새 회의록'}</h2>
-              <button onClick={() => setShowModal(false)} className="text-white/70 hover:text-white p-1">
+            <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
+              <h2 className="text-base font-bold text-gray-800">{editingId ? '회의록 수정' : '새 회의록'}</h2>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 p-1">
                 <X size={18} />
               </button>
             </div>
@@ -548,9 +548,9 @@ export function MeetingsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setViewingMeeting(null)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-red-500 to-red-600 border-b border-red-600 flex-shrink-0">
+            <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-base font-bold text-gray-700">{viewingMeeting.title}</h2>
+                <h2 className="text-base font-bold text-gray-800">{viewingMeeting.title}</h2>
                 {viewingMeeting.project && (
                   <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary-50 text-gray-600">
                     {viewingMeeting.project.name}
@@ -583,7 +583,7 @@ export function MeetingsPage() {
                     <Trash2 size={14} />
                   </button>
                 )}
-                <button onClick={() => setViewingMeeting(null)} className="text-white/70 hover:text-white p-1.5 ml-1">
+                <button onClick={() => setViewingMeeting(null)} className="text-gray-400 hover:text-gray-600 p-1.5 ml-1">
                   <X size={18} />
                 </button>
               </div>

@@ -71,7 +71,7 @@ export function NoticesPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center gap-2">
           <Megaphone size={18} className="text-gray-600" />
           <h1 className="text-lg font-bold text-gray-700">공지사항</h1>
@@ -191,7 +191,7 @@ export function NoticesPage() {
                       <Pin size={9} /> 고정
                     </span>
                   )}
-                  <h2 className="text-base font-bold text-gray-700">{viewNotice.title}</h2>
+                  <h2 className="text-base font-bold text-gray-800">{viewNotice.title}</h2>
                 </div>
                 <p className="text-xs text-gray-400">
                   {viewNotice.createdBy.name} · {formatDate(viewNotice.createdAt)} 작성
@@ -220,7 +220,7 @@ export function NoticesPage() {
                     </button>
                   </>
                 )}
-                <button onClick={() => setViewNotice(null)} className="p-2 text-white/70 hover:text-white rounded-lg">
+                <button onClick={() => setViewNotice(null)} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg">
                   <X size={16} />
                 </button>
               </div>
@@ -294,9 +294,9 @@ function NoticeModal({ title, form, setForm, onClose, onSubmit, isPending, submi
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-red-500 to-red-600 border-b border-red-600">
-          <h2 className="text-base font-bold text-gray-700">{title}</h2>
-          <button onClick={onClose} className="text-white/70 hover:text-white p-1"><X size={18} /></button>
+        <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-200">
+          <h2 className="text-base font-bold text-gray-800">{title}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1"><X size={18} /></button>
         </div>
         <div className="p-6 space-y-4">
           <div>

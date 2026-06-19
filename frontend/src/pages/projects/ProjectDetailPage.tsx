@@ -256,7 +256,7 @@ export function ProjectDetailPage() {
           { label: '기한 초과', value: stats?.overdue ?? 0, color: 'text-red-600' },
           { label: '멤버', value: project.members.length, color: 'text-gray-600' },
         ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+          <div key={s.label} className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 p-4">
             <p className={cn('text-2xl font-bold', s.color)}>{s.value}</p>
             <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
           </div>
@@ -270,8 +270,8 @@ export function ProjectDetailPage() {
         <div className="lg:col-span-3 flex flex-col gap-6">
 
           {/* 공지사항 */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 bg-gradient-to-r from-gray-200/80 via-gray-100/60 to-white">
+          <div className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100/50">
               <div className="flex items-center gap-2.5">
                 <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-sm flex-shrink-0">
                   <Megaphone size={12} className="text-white" />
@@ -364,8 +364,8 @@ export function ProjectDetailPage() {
           </div>
 
           {/* 상태별 태스크 */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-gray-100 bg-gradient-to-r from-gray-200/80 via-gray-100/60 to-white flex items-center gap-2.5">
+          <div className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-gray-100/50 flex items-center gap-2.5">
               <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-sm flex-shrink-0">
                 <BarChart2 size={12} className="text-white" />
               </div>
@@ -404,8 +404,8 @@ export function ProjectDetailPage() {
           </div>
 
           {/* 캘린더 */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 bg-gradient-to-r from-gray-200/80 via-gray-100/60 to-white">
+          <div className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100/50">
               <div className="flex items-center gap-2.5">
                 <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-sm flex-shrink-0">
                   <Calendar size={12} className="text-white" />
@@ -467,8 +467,8 @@ export function ProjectDetailPage() {
 
           {/* Activity Feed */}
           {activity && activity.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="px-5 py-3.5 border-b border-gray-100 bg-gradient-to-r from-gray-200/80 via-gray-100/60 to-white flex items-center gap-2.5">
+            <div className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-gray-100/50 flex items-center gap-2.5">
                 <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-sm flex-shrink-0">
                   <Activity size={12} className="text-white" />
                 </div>
@@ -495,9 +495,9 @@ export function ProjectDetailPage() {
         </div>
 
         {/* ── 오른쪽 1열: 팀 멤버 (전체 높이) ── */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col">
+        <div className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 flex flex-col">
           {/* 멤버 헤더 */}
-          <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100 bg-gradient-to-r from-gray-200/80 via-gray-100/60 to-white flex-shrink-0">
+          <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100/50 flex-shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-sm flex-shrink-0">
                 <Users size={12} className="text-white" />

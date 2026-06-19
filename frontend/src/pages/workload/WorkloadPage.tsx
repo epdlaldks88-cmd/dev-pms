@@ -268,7 +268,7 @@ export function WorkloadPage() {
           {activeFilters > 0 && (
             <button
               onClick={() => { setFilterUser(''); setFilterStage(''); setFilterStart(''); setFilterEnd(''); }}
-              className="text-xs text-white/70 hover:text-white underline ml-1"
+              className="text-xs text-gray-400 hover:text-gray-600 underline ml-1"
             >
               초기화
             </button>
@@ -398,7 +398,7 @@ export function WorkloadPage() {
         )}
 
 
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
@@ -522,7 +522,7 @@ export function WorkloadPage() {
             <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
 
               {/* 헤더 */}
-              <div className="px-6 py-5 bg-gradient-to-r from-red-500 to-red-600 border-b border-red-600">
+              <div className="px-6 py-5 bg-gray-50 border-b border-gray-200">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
@@ -562,7 +562,7 @@ export function WorkloadPage() {
                         </button>
                       </>
                     )}
-                    <button onClick={() => setViewLog(null)} className="p-1.5 text-white/70 hover:text-white hover:bg-gray-100 rounded-lg ml-0.5 transition-colors">
+                    <button onClick={() => setViewLog(null)} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg ml-0.5 transition-colors">
                       <X size={16} />
                     </button>
                   </div>
@@ -642,9 +642,9 @@ export function WorkloadPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-red-500 to-red-600 border-b border-red-600">
-              <h2 className="text-base font-bold text-gray-700">일감 등록</h2>
-              <button onClick={() => setShowAddModal(false)} className="text-white/70 hover:text-white p-1"><X size={18} /></button>
+            <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-200">
+              <h2 className="text-base font-bold text-gray-800">일감 등록</h2>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600 p-1"><X size={18} /></button>
             </div>
             <div className="p-6 space-y-4">
               {!routeProjectId && (
@@ -731,9 +731,9 @@ export function WorkloadPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setEditLog(null)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-red-500 to-red-600 border-b border-red-600">
-              <h2 className="text-base font-bold text-gray-700">일감 수정</h2>
-              <button onClick={() => setEditLog(null)} className="text-white/70 hover:text-white p-1"><X size={18} /></button>
+            <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-200">
+              <h2 className="text-base font-bold text-gray-800">일감 수정</h2>
+              <button onClick={() => setEditLog(null)} className="text-gray-400 hover:text-gray-600 p-1"><X size={18} /></button>
             </div>
             <div className="p-6 space-y-4">
               {/* 태스크 정보 */}

@@ -215,7 +215,7 @@ export function MeetingCalendarPage() {
       {/* 좌: 캘린더 */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1">
               <button
@@ -236,7 +236,7 @@ export function MeetingCalendarPage() {
             </h1>
             <button
               onClick={() => setCalMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}
-              className="text-xs text-white/70 hover:text-white border border-gray-200 px-2 py-1 rounded-lg transition-colors"
+              className="text-xs text-gray-400 hover:text-gray-600 border border-gray-200 px-2 py-1 rounded-lg transition-colors"
             >
               오늘
             </button>
@@ -368,7 +368,7 @@ export function MeetingCalendarPage() {
               >
                 <Plus size={15} />
               </button>
-              <button onClick={() => setSelectedDay(null)} className="p-1.5 text-white/70 hover:text-white rounded-lg transition-colors">
+              <button onClick={() => setSelectedDay(null)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg transition-colors">
                 <X size={15} />
               </button>
             </div>
@@ -439,9 +439,9 @@ export function MeetingCalendarPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setShowForm(false); setEditMeeting(null); }} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-red-500 to-red-600 border-b border-red-600 flex-shrink-0">
-              <h2 className="text-base font-bold text-gray-700">{editMeeting ? '일정 수정' : '일정 추가'}</h2>
-              <button onClick={() => { setShowForm(false); setEditMeeting(null); }} className="text-white/70 hover:text-white p-1">
+            <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
+              <h2 className="text-base font-bold text-gray-800">{editMeeting ? '일정 수정' : '일정 추가'}</h2>
+              <button onClick={() => { setShowForm(false); setEditMeeting(null); }} className="text-gray-400 hover:text-gray-600 p-1">
                 <X size={18} />
               </button>
             </div>
@@ -607,9 +607,9 @@ export function MeetingCalendarPage() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowMinutes(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-red-500 to-red-600 border-b border-red-600 flex-shrink-0">
-              <h2 className="text-base font-bold text-gray-700">회의록 등록</h2>
-              <button onClick={() => setShowMinutes(false)} className="text-white/70 hover:text-white p-1"><X size={18} /></button>
+            <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
+              <h2 className="text-base font-bold text-gray-800">회의록 등록</h2>
+              <button onClick={() => setShowMinutes(false)} className="text-gray-400 hover:text-gray-600 p-1"><X size={18} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <div>
@@ -701,7 +701,7 @@ export function MeetingCalendarPage() {
               <div className="flex items-start gap-3">
                 <div className={cn('w-2 h-10 rounded-full flex-shrink-0 mt-0.5', colorForProject(viewMeeting.project?.id).split(' ')[0])} />
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-base font-bold text-gray-700">{viewMeeting.title}</h2>
+                  <h2 className="text-base font-bold text-gray-800">{viewMeeting.title}</h2>
                   {viewMeeting.project && (
                     <span className={cn('text-[11px] px-1.5 py-0.5 rounded-full border font-medium mt-1 inline-block', colorForProject(viewMeeting.project.id))}>
                       {viewMeeting.project.name}
@@ -729,7 +729,7 @@ export function MeetingCalendarPage() {
                       </button>
                     </>
                   )}
-                  <button onClick={() => setViewMeeting(null)} className="p-1.5 text-white/70 hover:text-white rounded-lg ml-1">
+                  <button onClick={() => setViewMeeting(null)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg ml-1">
                     <X size={16} />
                   </button>
                 </div>

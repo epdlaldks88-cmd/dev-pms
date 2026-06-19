@@ -27,7 +27,7 @@
     overflow-wrap: break-word;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: #f8f9fa;
+    background-color: transparent;
     color: #111827;
   }
 

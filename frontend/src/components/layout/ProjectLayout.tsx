@@ -28,7 +28,7 @@ export function ProjectLayout() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex-shrink-0 bg-white border-b border-gray-200">
+      <div className="flex-shrink-0 bg-white/80 backdrop-blur-md border-b border-white/60 shadow-[0_1px_0_rgba(0,0,0,0.04)]">
         {/* Breadcrumb */}
         <div className="px-6 pt-3 pb-0 flex items-center gap-1.5 text-xs text-gray-400">
           <Link to="/projects" className="hover:text-gray-600 transition-colors">프로젝트</Link>
@@ -79,7 +79,7 @@ export function ProjectLayout() {
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-hidden bg-gray-50">
+      <div className="flex-1 overflow-hidden">
         <Outlet />
       </div>
     </div>
