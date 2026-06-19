@@ -100,7 +100,7 @@ export function ProfilePage() {
         <div className="max-w-2xl mx-auto space-y-6">
 
           {/* Avatar + 이메일 */}
-          <div className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 p-6">
+          <div className={`relative bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 p-6 ${showEmojiPicker ? 'z-50' : ''}`}>
             <div className="flex items-center gap-4">
               {/* 아바타 + 이모지 선택 버튼 */}
               <div className="relative flex-shrink-0" ref={pickerRef}>
