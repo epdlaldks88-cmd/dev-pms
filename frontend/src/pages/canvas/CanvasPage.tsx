@@ -8,7 +8,7 @@ import {
   addEdge, useNodesState, useEdgesState,
   type Connection, type NodeTypes, type Node,
   Panel, BackgroundVariant, MarkerType, NodeResizer,
-  Handle, Position, useReactFlow, SelectionMode,
+  Handle, Position, useReactFlow, SelectionMode, PanOnScrollMode,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
@@ -353,6 +353,11 @@ export function CanvasPage() {
     mutationFn: (data: any) => canvasApi.save(projectId!, canvasId!, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['canvas', projectId, canvasId] });
+      // 저장 완료 후 pending 원격 변경이 있으면 최신 데이터 요청
+      if (pendingRemoteUpdate.current) {
+        pendingRemoteUpdate.current = false;
+        qc.invalidateQueries({ queryKey: ['canvas', projectId, canvasId] });
+      }
     },
   });
 
@@ -380,6 +385,8 @@ export function CanvasPage() {
   const [edges, setEdges, onEdgesChangeBase] = useEdgesState(EMPTY_EDGES);
   const [initialized, setInitialized] = useState(false);
   const isDirty = useRef(false); // 유저가 직접 조작했을 때만 true
+  const pendingRemoteUpdate = useRef(false); // 원격 변경이 왔는데 dirty라 바로 못 받았을 때
+  const lastServerUpdatedAt = useRef<string>(''); // 마지막으로 로드한 서버 updatedAt (중복 로드 방지)
 
   // 유저 상호작용 시에만 dirty 표시 (select 변경 제외)
   const onNodesChange = useCallback((changes: any[]) => {
@@ -393,16 +400,31 @@ export function CanvasPage() {
     onEdgesChangeBase(changes);
   }, [onEdgesChangeBase]);
 
-  // 서버에서 데이터 로드되면 노드/엣지 초기화 (dirty 건드리지 않음)
+  // 서버에서 데이터 로드되면 노드/엣지 초기화
   useEffect(() => {
-    if (!canvasData || initialized) return;
-    try {
-      const saved = typeof canvasData.data === 'string' ? JSON.parse(canvasData.data) : canvasData.data;
-      if (saved?.nodes) setNodes(saved.nodes);
-      if (saved?.edges) setEdges(saved.edges);
-    } catch {}
-    isDirty.current = false; // 서버 데이터 로드 후 초기화
-    setInitialized(true);
+    if (!canvasData) return;
+    const serverTime = canvasData.updatedAt ?? '';
+
+    const applyServerData = () => {
+      try {
+        const saved = typeof canvasData.data === 'string' ? JSON.parse(canvasData.data) : canvasData.data;
+        if (saved?.nodes) setNodes(saved.nodes);
+        if (saved?.edges) setEdges(saved.edges);
+      } catch {}
+      isDirty.current = false;
+      lastServerUpdatedAt.current = serverTime;
+    };
+
+    // 초기 로드
+    if (!initialized) {
+      applyServerData();
+      setInitialized(true);
+      return;
+    }
+    // 원격 변경 반영: idle 상태 + 서버 타임스탬프가 달라졌을 때
+    if (!isDirty.current && serverTime !== lastServerUpdatedAt.current) {
+      applyServerData();
+    }
   }, [canvasData, initialized, setNodes, setEdges]);
   const [tool, setTool] = useState<Tool>('pan');
   const [showEmoji, setShowEmoji] = useState(false);
@@ -447,9 +469,11 @@ export function CanvasPage() {
       if (payload.type === 'comment') {
         qc.invalidateQueries({ queryKey: ['canvas-comments', projectId, canvasId] });
       } else if (!isDirty.current) {
-        // 로컬 미저장 변경사항이 없을 때만 원격 업데이트 반영 (내 auto-save SSE 포함)
+        // idle 상태: 즉시 최신 데이터 요청 (로드 effect가 변경 감지 후 반영)
         qc.invalidateQueries({ queryKey: ['canvas', projectId, canvasId] });
-        setInitialized(false);
+      } else {
+        // 작업 중: 저장 완료 후 반영 예약
+        pendingRemoteUpdate.current = true;
       }
     };
     es.onerror = () => es.close();
@@ -1041,6 +1065,11 @@ export function CanvasPage() {
           multiSelectionKeyCode="Shift"
           selectionOnDrag={tool === 'select'}
           panOnDrag={tool === 'select' ? [1, 2] : true}
+          panOnScroll
+          panOnScrollMode={PanOnScrollMode.Free}
+          zoomOnScroll={false}
+          zoomOnPinch
+          zoomActivationKeyCode="Control"
           selectionMode={SelectionMode.Full}
           snapToGrid={snapToGrid}
           snapGrid={[16, 16]}
