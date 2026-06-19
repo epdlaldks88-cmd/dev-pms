@@ -128,14 +128,17 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
       const data = JSON.parse(e.data ?? '{}');
       qc.invalidateQueries({ queryKey: ['conversations'] });
       qc.invalidateQueries({ queryKey: ['messages', 'unread'] });
-      if (data.senderId) unhide(data.senderId);
-      if (activeUserId && data.senderId === activeUserId) {
-        qc.invalidateQueries({ queryKey: ['thread', activeUserId] });
+      if (data.senderId) {
+        unhide(data.senderId);
+        // 현재 그 대화를 보고 있지 않더라도 thread 캐시를 무효화한다.
+        // (staleTime 때문에 팝업 클릭 후 들어가면 옛 캐시가 보여 새 메시지가
+        //  누락되던 문제 방지 — 무효화하면 진입 시 최신으로 재요청됨)
+        qc.invalidateQueries({ queryKey: ['thread', data.senderId] });
       }
     };
     es.onerror = () => es.close();
     return () => es.close();
-  }, [me, qc, activeUserId]);
+  }, [me, qc]);
 
   const sendMsg = useMutation({
     mutationFn: () => messagesApi.send(activeUserId!, draft.trim()),
