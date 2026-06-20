@@ -953,7 +953,7 @@ export function WorkloadPage() {
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px]" onClick={() => setGraphOpen(false)}>
-            <div className="bg-white rounded-2xl shadow-2xl w-[780px] max-w-[95vw] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-2xl shadow-2xl w-[780px] max-w-[95vw] overflow-x-hidden" onClick={(e) => e.stopPropagation()}>
               {/* 헤더 */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                 <div className="flex items-center gap-3">
@@ -990,7 +990,8 @@ export function WorkloadPage() {
                 ) : (() => {
                     const LANE_H = 52;        // 레인 높이
                     const NAME_W = 88;        // 담당자 이름 열 너비
-                    const CHART_W = 620;      // 꺾은선 영역 너비
+                    const TOTAL_W = 56;       // 합계 열 너비
+                    const CHART_W = 580;      // 꺾은선 영역 너비 (780 모달 - px-6*2 - NAME_W - TOTAL_W)
                     const PAD = 12;           // 상하 여백
                     const n = visibleDates.length;
                     const step = n > 1 ? (CHART_W - PAD * 2) / (n - 1) : CHART_W / 2;
@@ -1001,19 +1002,20 @@ export function WorkloadPage() {
 
                     return (
                       <>
-                        {/* 날짜 축 헤더 */}
-                        <div className="flex border-b border-gray-100 mb-0" style={{ paddingLeft: NAME_W }}>
-                          <svg width={CHART_W} height={22}>
-                            {visibleDates.map((d, i) => (
-                              <text key={d} x={xOf(i)} y={14} textAnchor="middle"
-                                fontSize={9} fill="#9ca3af">{d.slice(5)}</text>
-                            ))}
-                          </svg>
-                          <div className="w-14 text-[10px] text-right text-gray-400 pr-2 self-end pb-1">합계</div>
-                        </div>
+                        {/* 날짜 헤더 + 담당자 레인: 같은 컨테이너에서 세로만 스크롤 */}
+                        <div className="overflow-y-auto overflow-x-hidden" style={{ maxHeight: 400 }}>
+                          {/* 날짜 축 헤더 — sticky로 위에 고정 */}
+                          <div className="flex border-b border-gray-100 sticky top-0 bg-white z-10" style={{ paddingLeft: NAME_W }}>
+                            <svg width={CHART_W} height={22}>
+                              {visibleDates.map((d, i) => (
+                                <text key={d} x={xOf(i)} y={14} textAnchor="middle"
+                                  fontSize={9} fill="#9ca3af">{d.slice(5)}</text>
+                              ))}
+                            </svg>
+                            <div style={{ width: TOTAL_W }} className="text-[10px] text-right text-gray-400 pr-2 self-end pb-1">합계</div>
+                          </div>
 
                         {/* 담당자 레인 */}
-                        <div className="overflow-y-auto" style={{ maxHeight: 360 }}>
                           {users.map((u) => {
                             const vals = visibleDates.map((d) => map[d]?.[u.id] ?? 0);
                             const maxV = Math.max(1, ...vals);
@@ -1065,8 +1067,8 @@ export function WorkloadPage() {
                                 </svg>
 
                                 {/* 합계 */}
-                                <div className="w-14 text-right pr-3 text-xs font-bold flex-shrink-0"
-                                  style={{ color: total > 0 ? u.color : '#d1d5db' }}>
+                                <div className="text-right pr-3 text-xs font-bold flex-shrink-0"
+                                  style={{ width: TOTAL_W, color: total > 0 ? u.color : '#d1d5db' }}>
                                   {total > 0 ? `${total}${graphTab === 'hours' ? 'h' : '건'}` : '—'}
                                 </div>
                               </div>
