@@ -25,6 +25,7 @@ import { CanvasPage } from './pages/canvas/CanvasPage';
 import { CanvasListPage } from './pages/canvas/CanvasListPage';
 import { SheetListPage } from './pages/sheets/SheetListPage';
 import { SheetEditorPage } from './pages/sheets/SheetEditorPage';
+import { TemplatesPage } from './pages/templates/TemplatesPage';
 import { MentionPopup } from './components/MentionPopup';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -88,6 +89,7 @@ export default function App() {
           <Route path="sheets" element={<SheetListPage />} />
           <Route path="projects/:projectId/sheet/:sheetId" element={<SheetEditorPage />} />
           <Route path="meeting-calendar" element={<MeetingCalendarPage />} />
+          <Route path="templates" element={<TemplatesPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="partners" element={<PartnersPage />} />
           <Route path="partners/:partnerId" element={<PartnerDetailPage />} />

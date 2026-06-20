@@ -205,3 +205,26 @@ export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
 }
+
+export interface TemplateFile {
+  id: string;
+  filename: string;
+  originalName: string;
+  mimetype: string;
+  size: number;
+  url: string;
+  createdAt: string;
+}
+
+export interface Template {
+  id: string;
+  title: string;
+  phase: string;
+  description?: string;
+  content?: string;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: Pick<User, 'id' | 'name' | 'avatar'>;
+  files: TemplateFile[];
+}
