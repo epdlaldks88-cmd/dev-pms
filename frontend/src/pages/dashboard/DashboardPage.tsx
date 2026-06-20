@@ -65,6 +65,19 @@ function StatusDonut({ counts, total }: { counts: Record<TaskStatus, number>; to
   );
 }
 
+// 프로젝트 D-day 계산
+function calcProjectDday(endDate: string | null | undefined, status: string) {
+  if (!endDate) return null;
+  if (status === 'COMPLETED') return { label: '완료', tier: 'done' as const };
+  if (status === 'CANCELLED') return { label: '취소', tier: 'cancelled' as const };
+  const diff = Math.ceil((new Date(endDate).setHours(0,0,0,0) - new Date().setHours(0,0,0,0)) / 86400000);
+  if (diff < 0)  return { label: `D+${Math.abs(diff)}`, tier: 'overdue' as const, diff };
+  if (diff === 0) return { label: 'D-Day', tier: 'today' as const, diff };
+  if (diff <= 7)  return { label: `D-${diff}`, tier: 'soon' as const, diff };
+  if (diff <= 30) return { label: `D-${diff}`, tier: 'normal' as const, diff };
+  return { label: `D-${diff}`, tier: 'far' as const, diff };
+}
+
 // 프로젝트 카드 — 가로로 넓은 레이아웃
 function ProjectCardWide({ project, stats }: { project: Project; stats: ProjectStats | undefined }) {
   const total = stats?.total ?? 0;
@@ -72,6 +85,19 @@ function ProjectCardWide({ project, stats }: { project: Project; stats: ProjectS
   const inProgress = stats?.byStatus.find(b => b.status === 'IN_PROGRESS')?._count ?? 0;
   const todo = stats?.byStatus.find(b => b.status === 'TODO')?._count ?? 0;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  const dday = calcProjectDday(project.endDate, project.status);
+
+  const ddayStyle: Record<string, { bg: string; text: string; border: string; glow?: string; pulse?: boolean; shimmer?: boolean }> = {
+    overdue: { bg: 'bg-rose-500', text: 'text-white', border: 'border-rose-400', glow: 'shadow-[0_0_12px_rgba(244,63,94,0.5)]', pulse: true },
+    today:   { bg: 'bg-orange-500', text: 'text-white', border: 'border-orange-400', glow: 'shadow-[0_0_10px_rgba(249,115,22,0.45)]', pulse: true },
+    soon:    { bg: 'bg-amber-400', text: 'text-white', border: 'border-amber-300', glow: 'shadow-[0_0_8px_rgba(251,191,36,0.4)]', shimmer: true },
+    normal:  { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200' },
+    far:     { bg: 'bg-gray-100', text: 'text-gray-400', border: 'border-gray-200' },
+    done:    { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-200' },
+    cancelled: { bg: 'bg-gray-100', text: 'text-gray-400', border: 'border-gray-200' },
+  };
+  const ds = dday ? ddayStyle[dday.tier] : null;
 
   const metrics = [
     { label: '전체 일감', value: total, color: '#64748b' },
@@ -82,7 +108,21 @@ function ProjectCardWide({ project, stats }: { project: Project; stats: ProjectS
 
   return (
     <Link to={`/projects/${project.id}`}
-      className="group relative block bg-white/90 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:shadow-[0_16px_40px_rgba(0,0,0,0.13)] hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+      className={cn(
+        'group relative block bg-white/90 backdrop-blur-md rounded-2xl border shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:shadow-[0_16px_40px_rgba(0,0,0,0.13)] hover:-translate-y-1 transition-all duration-300 overflow-hidden',
+        dday?.tier === 'overdue' ? 'border-rose-200/80' : dday?.tier === 'today' ? 'border-orange-200/80' : 'border-white/80',
+      )}>
+
+      {/* 마감 임박 상단 글로우 바 */}
+      {(dday?.tier === 'overdue' || dday?.tier === 'today' || dday?.tier === 'soon') && (
+        <div className={cn(
+          'absolute inset-x-0 top-0 h-0.5',
+          dday.tier === 'overdue' ? 'bg-gradient-to-r from-rose-400 via-rose-500 to-rose-400' :
+          dday.tier === 'today'   ? 'bg-gradient-to-r from-orange-400 via-orange-500 to-orange-400' :
+                                    'bg-gradient-to_r from-amber-300 via-amber-400 to-amber-300',
+        )} />
+      )}
+
       {/* 호버 글로우 */}
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
         style={{ background: `radial-gradient(ellipse at top left, ${project.color}0a 0%, transparent 55%)` }} />
@@ -121,7 +161,29 @@ function ProjectCardWide({ project, stats }: { project: Project; stats: ProjectS
                 )}
               </div>
             </div>
-            <ArrowUpRight size={18} className="text-gray-200 group-hover:text-primary-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all flex-shrink-0 mt-1" />
+            {/* D-day 뱃지 */}
+            {dday && ds && (
+              <div className={cn(
+                'relative flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all',
+                ds.bg, ds.text, ds.border, ds.glow,
+              )}>
+                {ds.pulse && (
+                  <span className="relative flex h-1.5 w-1.5 flex-shrink-0">
+                    <span className={cn(
+                      'animate-ping absolute inline-flex h-full w-full rounded-full opacity-75',
+                      dday.tier === 'overdue' ? 'bg-white' : 'bg-white',
+                    )} />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
+                  </span>
+                )}
+                <span className="tabular-nums tracking-tight">{dday.label}</span>
+                {ds.shimmer && (
+                  <span className="absolute inset-0 rounded-xl overflow-hidden pointer-events-none">
+                    <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full animate-[shimmer_2s_ease-in-out_infinite]" />
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {project.description && (
