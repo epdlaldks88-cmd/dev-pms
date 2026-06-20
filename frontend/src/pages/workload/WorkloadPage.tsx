@@ -1093,7 +1093,7 @@ export function WorkloadPage() {
                         )}
                       </>
                     );
-                  })()
+                  })()}
               </div>
             </div>
           </div>
