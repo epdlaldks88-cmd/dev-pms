@@ -46,13 +46,6 @@ export function ProfilePage() {
 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
-  const [pwForm, setPwForm] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-  });
-  const [showPw, setShowPw] = useState({ current: false, next: false, confirm: false });
-  const [pwChanged, setPwChanged] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -87,12 +80,9 @@ export function ProfilePage() {
     onError: () => toast.error('저장에 실패했습니다.'),
   });
 
-  const changePassword = useMutation({
-    mutationFn: () =>
-      usersApi.changePassword({
-        currentPassword: pwForm.currentPassword,
-        newPassword: pwForm.newPassword,
-      }),
+  const _changePassword = useMutation({
+    mutationFn: (_: { currentPassword: string; newPassword: string }) =>
+      usersApi.changePassword(_),
     onSuccess: () => {
       setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setPwChanged(true);
@@ -309,99 +299,6 @@ export function ProfilePage() {
             <div className="mt-4 flex justify-end">
               <Button variant="primary" onClick={() => updateProfile.mutate()} loading={updateProfile.isPending}>
                 <Save size={14} /> 저장
-              </Button>
-            </div>
-          </div>
-
-          {/* 비밀번호 변경 */}
-          <div className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 p-6">
-            <h2 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <Lock size={15} className="text-gray-600" /> 비밀번호 변경
-            </h2>
-
-            {pwChanged && (
-              <div className="flex items-center gap-2 mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
-                <CheckCircle size={15} /> 비밀번호가 성공적으로 변경되었습니다.
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">현재 비밀번호</label>
-                <div className="relative">
-                  <input
-                    type={showPw.current ? 'text' : 'password'}
-                    value={pwForm.currentPassword}
-                    onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 pr-10 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    placeholder="현재 비밀번호"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPw({ ...showPw, current: !showPw.current })}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPw.current ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">새 비밀번호 (6자 이상)</label>
-                <div className="relative">
-                  <input
-                    type={showPw.next ? 'text' : 'password'}
-                    value={pwForm.newPassword}
-                    onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 pr-10 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    placeholder="새 비밀번호"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPw({ ...showPw, next: !showPw.next })}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPw.next ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">새 비밀번호 확인</label>
-                <div className="relative">
-                  <input
-                    type={showPw.confirm ? 'text' : 'password'}
-                    value={pwForm.confirmPassword}
-                    onChange={(e) => setPwForm({ ...pwForm, confirmPassword: e.target.value })}
-                    className={`w-full text-sm border rounded-lg px-3 py-2.5 pr-10 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                      pwForm.confirmPassword && pwForm.newPassword !== pwForm.confirmPassword
-                        ? 'border-red-300'
-                        : 'border-gray-300'
-                    }`}
-                    placeholder="새 비밀번호 재입력"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPw({ ...showPw, confirm: !showPw.confirm })}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPw.confirm ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-                {pwForm.confirmPassword && pwForm.newPassword !== pwForm.confirmPassword && (
-                  <p className="text-xs text-red-500 mt-1">비밀번호가 일치하지 않습니다.</p>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-5 flex justify-end">
-              <Button
-                variant="primary"
-                onClick={() => changePassword.mutate()}
-                disabled={!pwValid}
-                loading={changePassword.isPending}
-              >
-                <Lock size={14} /> 비밀번호 변경
               </Button>
             </div>
           </div>
