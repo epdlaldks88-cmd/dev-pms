@@ -74,56 +74,68 @@ function ProjectCard({ project, stats }: { project: Project; stats: ProjectStats
 
   return (
     <Link to={`/projects/${project.id}`}
-      className="group block bg-white/85 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 p-5 hover:shadow-[0_12px_32px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.06)] hover:bg-white hover:-translate-y-1 transition-all duration-200">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-            style={{ backgroundColor: `${project.color}18`, border: `1.5px solid ${project.color}25` }}>
-            {project.icon ?? '📁'}
-          </div>
-          <div>
-            <p className="font-bold text-sm text-gray-900 group-hover:text-primary-600 transition-colors truncate max-w-[140px]">
-              {project.name}
-            </p>
-            <span className={cn(
-              'text-[11px] font-medium',
-              project.status === 'ACTIVE' ? 'text-emerald-500' :
-              project.status === 'COMPLETED' ? 'text-gray-400' : 'text-amber-500'
-            )}>
-              {project.status === 'ACTIVE' ? '● 진행 중' : project.status === 'COMPLETED' ? '완료' : project.status}
-            </span>
-          </div>
-        </div>
-        <ArrowUpRight size={15} className="text-gray-200 group-hover:text-primary-400 transition-colors flex-shrink-0 mt-0.5" />
-      </div>
+      className="group relative block bg-white/90 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:shadow-[0_16px_40px_rgba(0,0,0,0.13)] hover:-translate-y-1.5 transition-all duration-300 overflow-hidden">
+      {/* 좌측 컬러 바 */}
+      <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl transition-all duration-300 group-hover:w-1.5"
+        style={{ background: `linear-gradient(to bottom, ${project.color}, ${project.color}88)` }} />
+      {/* 호버 글로우 */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-2xl"
+        style={{ background: `radial-gradient(ellipse at top left, ${project.color}0a 0%, transparent 60%)` }} />
 
-      {/* 진행률 */}
-      <div className="mb-4">
-        <div className="flex justify-between text-xs mb-2">
-          <span className="text-gray-400">완료율</span>
-          <span className="font-bold text-gray-900">{pct}%</span>
-        </div>
-        <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-          <div className="h-full rounded-full transition-all duration-700"
-            style={{ width: `${pct}%`, background: project.color }} />
-        </div>
-      </div>
-
-      {/* 하단 */}
-      <div className="flex items-center justify-between">
-        <div className="flex -space-x-1.5">
-          {project.members.slice(0, 4).map(m => (
-            <Avatar key={m.id} name={m.user.name} avatar={m.user.avatar} size="xs" className="ring-2 ring-white" />
-          ))}
-          {project.members.length > 4 && (
-            <div className="w-6 h-6 rounded-full bg-gray-100 ring-2 ring-white flex items-center justify-center text-[10px] text-gray-500 font-medium">
-              +{project.members.length - 4}
+      <div className="pl-5 pr-5 pt-5 pb-5">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 shadow-sm transition-transform duration-200 group-hover:scale-110"
+              style={{ backgroundColor: `${project.color}15`, border: `1.5px solid ${project.color}30` }}>
+              {project.icon ?? '📁'}
             </div>
-          )}
+            <div>
+              <p className="font-bold text-sm text-gray-900 group-hover:text-primary-600 transition-colors truncate max-w-[140px]">
+                {project.name}
+              </p>
+              <span className={cn(
+                'text-[11px] font-medium',
+                project.status === 'ACTIVE' ? 'text-emerald-500' :
+                project.status === 'COMPLETED' ? 'text-gray-400' : 'text-amber-500'
+              )}>
+                {project.status === 'ACTIVE' ? '● 진행 중' : project.status === 'COMPLETED' ? '완료' : project.status}
+              </span>
+            </div>
+          </div>
+          <ArrowUpRight size={15} className="text-gray-200 group-hover:text-primary-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all flex-shrink-0 mt-0.5" />
         </div>
-        <div className="flex items-center gap-2 text-[11px] text-gray-400">
-          <span style={{ color: STATUS_HEX['IN_PROGRESS'] }}>● </span>
-          {inProgress}개 진행 중
+
+        {/* 진행률 */}
+        <div className="mb-4">
+          <div className="flex justify-between text-xs mb-2">
+            <span className="text-gray-400">완료율</span>
+            <span className="font-bold text-gray-900">{pct}%</span>
+          </div>
+          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-700 relative overflow-hidden"
+              style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${project.color}cc, ${project.color})` }}>
+              {/* shimmer */}
+              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+            </div>
+          </div>
+        </div>
+
+        {/* 하단 */}
+        <div className="flex items-center justify-between">
+          <div className="flex -space-x-1.5">
+            {project.members.slice(0, 4).map(m => (
+              <Avatar key={m.id} name={m.user.name} avatar={m.user.avatar} size="xs" className="ring-2 ring-white" />
+            ))}
+            {project.members.length > 4 && (
+              <div className="w-6 h-6 rounded-full bg-gray-100 ring-2 ring-white flex items-center justify-center text-[10px] text-gray-500 font-medium">
+                +{project.members.length - 4}
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: STATUS_HEX['IN_PROGRESS'] }} />
+            {inProgress}개 진행 중
+          </div>
         </div>
       </div>
     </Link>
@@ -299,13 +311,43 @@ export function DashboardPage() {
   const taskRows = [...taskMap.values()];
 
   return (
-    <div className="min-h-full bg-gradient-to-br from-slate-50 via-white to-rose-50/30 relative overflow-hidden">
-      {/* 배경 블롭 */}
+    <div className="min-h-full relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 40%, #fff1f2 100%)' }}>
+      {/* 배경 블롭 — 애니메이션 */}
+      <style>{`
+        @keyframes blob-drift {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(24px, -18px) scale(1.05); }
+          66% { transform: translate(-16px, 12px) scale(0.97); }
+        }
+        @keyframes blob-drift2 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(-20px, 16px) scale(1.04); }
+          66% { transform: translate(18px, -10px) scale(0.98); }
+        }
+        .dash-blob1 { animation: blob-drift 12s ease-in-out infinite; }
+        .dash-blob2 { animation: blob-drift2 15s ease-in-out infinite; }
+        .dash-blob3 { animation: blob-drift 18s ease-in-out infinite reverse; }
+        @keyframes shimmer-slide {
+          from { transform: translateX(-100%); }
+          to   { transform: translateX(200%); }
+        }
+        .shimmer-bar::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent);
+          animation: shimmer-slide 2.2s ease-in-out infinite;
+        }
+      `}</style>
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-primary-300/30 blur-3xl" />
-        <div className="absolute top-1/3 -right-32 w-80 h-80 rounded-full bg-rose-200/25 blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 w-72 h-72 rounded-full bg-slate-300/30 blur-3xl" />
+        <div className="dash-blob1 absolute -top-32 -left-32 w-[480px] h-[480px] rounded-full bg-primary-300/20 blur-3xl" />
+        <div className="dash-blob2 absolute top-1/3 -right-40 w-[360px] h-[360px] rounded-full bg-rose-300/18 blur-3xl" />
+        <div className="dash-blob3 absolute bottom-10 left-1/3 w-[320px] h-[320px] rounded-full bg-violet-200/15 blur-3xl" />
+        {/* 미세 그리드 패턴 */}
+        <div className="absolute inset-0 opacity-[0.018]"
+          style={{ backgroundImage: 'linear-gradient(#64748b 1px, transparent 1px), linear-gradient(90deg, #64748b 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
       </div>
+
       <div className="relative max-w-7xl mx-auto px-8 py-10 space-y-12">
 
         {/* ── Welcome ── */}
@@ -314,26 +356,27 @@ export function DashboardPage() {
             <p className="text-sm font-medium text-primary-500 mb-1">
               {now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
             </p>
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+            <h1 className="text-3xl font-extrabold tracking-tight"
+              style={{ background: 'linear-gradient(135deg, #111827 0%, #374151 60%, #be123c 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
               안녕하세요, {user?.name}님
             </h1>
             <p className="text-gray-400 mt-1.5">오늘도 팀과 함께 목표를 향해 나아가세요.</p>
           </div>
-          <div className="hidden lg:flex items-center gap-6 text-right bg-white/60 backdrop-blur-sm px-6 py-4 rounded-2xl border border-white/70 shadow-[0_4px_16px_rgba(0,0,0,0.06),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5">
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{weekLogs.length}<span className="text-sm font-normal text-gray-400 ml-1">건</span></p>
-              <p className="text-xs text-gray-400 mt-0.5">이번 주 일감</p>
-            </div>
-            <div className="w-px h-8 bg-gray-100" />
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{weekHours}<span className="text-sm font-normal text-gray-400 ml-1">h</span></p>
-              <p className="text-xs text-gray-400 mt-0.5">이번 주 공수</p>
-            </div>
-            <div className="w-px h-8 bg-gray-100" />
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{statusCounts['IN_PROGRESS']}<span className="text-sm font-normal text-gray-400 ml-1">건</span></p>
-              <p className="text-xs text-gray-400 mt-0.5">진행 중 태스크</p>
-            </div>
+          {/* 스탯 칩 3개 */}
+          <div className="hidden lg:flex items-center gap-3">
+            {[
+              { label: '이번 주 일감', value: weekLogs.length, unit: '건', from: '#6366f1', to: '#818cf8' },
+              { label: '이번 주 공수', value: weekHours, unit: 'h', from: '#0ea5e9', to: '#38bdf8' },
+              { label: '진행 중 태스크', value: statusCounts['IN_PROGRESS'], unit: '건', from: '#10b981', to: '#34d399' },
+            ].map(({ label, value, unit, from, to }) => (
+              <div key={label} className="flex flex-col items-center px-5 py-3.5 rounded-2xl text-white shadow-lg"
+                style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}>
+                <p className="text-2xl font-extrabold leading-none">
+                  {value}<span className="text-sm font-normal opacity-80 ml-0.5">{unit}</span>
+                </p>
+                <p className="text-[11px] opacity-75 mt-1">{label}</p>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -358,7 +401,8 @@ export function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* 이번 주 일감 */}
-          <div className="lg:col-span-2 bg-white/85 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
+          <div className="lg:col-span-2 bg-white/88 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.07)] ring-1 ring-gray-900/5 overflow-hidden">
+            <div className="h-0.5 w-full" style={{ background: 'linear-gradient(90deg, #6366f1, #a78bfa, transparent)' }} />
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div>
                 <h3 className="text-base font-bold text-gray-900">이번 주 일감</h3>
@@ -404,7 +448,8 @@ export function DashboardPage() {
           {/* 우측 */}
           <div className="flex flex-col gap-6">
             {/* 태스크 상태 */}
-            <div className="bg-white/85 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
+            <div className="bg-white/88 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.07)] ring-1 ring-gray-900/5 overflow-hidden">
+              <div className="h-0.5 w-full" style={{ background: 'linear-gradient(90deg, #10b981, #34d399, transparent)' }} />
               <div className="px-6 py-4 border-b border-gray-100">
                 <h3 className="text-base font-bold text-gray-900">태스크 현황</h3>
               </div>
@@ -418,7 +463,8 @@ export function DashboardPage() {
             </div>
 
             {/* 다가오는 일정 */}
-            <div className="bg-white/85 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden flex flex-col flex-1">
+            <div className="bg-white/88 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.07)] ring-1 ring-gray-900/5 overflow-hidden flex flex-col flex-1">
+              <div className="h-0.5 w-full" style={{ background: 'linear-gradient(90deg, #f59e0b, #fbbf24, transparent)' }} />
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                 <h3 className="text-base font-bold text-gray-900">다가오는 일정</h3>
                 <Link to="/meeting-calendar" className="text-xs text-gray-400 hover:text-primary-500 transition-colors flex items-center gap-0.5">
@@ -471,7 +517,8 @@ export function DashboardPage() {
               <span className="text-sm text-gray-400">{taskRows.filter(r => r.endDate).length}건</span>
             </div>
           </div>
-          <div className="bg-white/85 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
+          <div className="bg-white/88 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.07)] ring-1 ring-gray-900/5 overflow-hidden">
+            <div className="h-0.5 w-full" style={{ background: 'linear-gradient(90deg, #ef4444, #f87171, transparent)' }} />
             <DeadlineTable taskRows={taskRows} />
           </div>
         </section>
