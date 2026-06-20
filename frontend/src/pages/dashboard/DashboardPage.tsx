@@ -371,7 +371,7 @@ export function DashboardPage() {
                 <p className="text-2xl font-extrabold leading-none">
                   {value}<span className="text-sm font-normal opacity-80 ml-0.5">{unit}</span>
                 </p>
-                <p className="text-[11px] opacity-75 mt-1">{label}</p>
+                <p className="text-[11px] font-bold text-white mt-1">{label}</p>
               </div>
             ))}
           </div>
