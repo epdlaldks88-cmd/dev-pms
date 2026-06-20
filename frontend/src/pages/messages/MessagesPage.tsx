@@ -109,15 +109,22 @@ export function MessagesPage() {
   return (
     <div className="flex h-full">
       {/* 좌: 대화 목록 */}
-      <div className="w-72 flex-shrink-0 border-r border-gray-200 bg-white flex flex-col">
-        <div className="flex items-center justify-between px-4 h-14 border-b border-gray-200 flex-shrink-0">
-          <h1 className="text-base font-bold text-gray-700">멘션</h1>
-          <button
-            onClick={() => { setShowPicker(true); setPickerSearch(''); }}
-            className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-lg transition-colors"
-          >
-            <Plus size={13} /> 새 멘션
-          </button>
+      <div className="w-72 flex-shrink-0 border-r border-gray-100 bg-white flex flex-col">
+        <div className="px-4 pt-5 pb-4 border-b border-gray-100 flex-shrink-0 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center">
+                <MessageSquare size={13} className="text-white" />
+              </div>
+              <h1 className="text-base font-bold text-gray-900">멘션</h1>
+            </div>
+            <button
+              onClick={() => { setShowPicker(true); setPickerSearch(''); }}
+              className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg transition-colors"
+            >
+              <Plus size={13} /> 새 멘션
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -131,19 +138,28 @@ export function MessagesPage() {
                 key={c.user.id}
                 onClick={() => setActiveUserId(c.user.id)}
                 className={cn(
-                  'w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-50',
-                  activeUserId === c.user.id && 'bg-indigo-50/60',
+                  'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
+                  activeUserId === c.user.id
+                    ? 'bg-indigo-50 border-l-2 border-indigo-500'
+                    : 'hover:bg-gray-50 border-l-2 border-transparent',
                 )}
               >
-                <Avatar name={c.user.name} avatar={c.user.avatar} size="sm" className="flex-shrink-0" />
+                <div className="relative flex-shrink-0">
+                  <Avatar name={c.user.name} avatar={c.user.avatar} size="sm" />
+                  {c.unread > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-indigo-500 rounded-full border border-white" />
+                  )}
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-semibold text-gray-600 truncate">{c.user.name}</span>
+                    <span className={cn('text-sm truncate', activeUserId === c.user.id ? 'font-bold text-indigo-700' : 'font-semibold text-gray-800')}>
+                      {c.user.name}
+                    </span>
                     <span className="text-[10px] text-gray-400 flex-shrink-0">{formatRelativeTime(c.lastMessage.createdAt)}</span>
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-0.5">
-                    <span className={cn('text-xs truncate', c.unread > 0 ? 'text-gray-800 font-medium' : 'text-gray-400')}>
-                      {c.lastMessage.senderId === me?.id && '나: '}{c.lastMessage.content}
+                    <span className={cn('text-xs truncate', c.unread > 0 ? 'text-gray-700 font-medium' : 'text-gray-400')}>
+                      {c.lastMessage.senderId === me?.id && <span className="text-gray-400">나: </span>}{c.lastMessage.content}
                     </span>
                     {c.unread > 0 && (
                       <span className="flex-shrink-0 min-w-[18px] h-[18px] bg-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
@@ -171,15 +187,21 @@ export function MessagesPage() {
         ) : (
           <>
             {/* 스레드 헤더 */}
-            <div className="flex items-center gap-3 px-6 h-14 border-b border-gray-200 bg-white flex-shrink-0">
-              <Avatar name={thread?.user?.name ?? ''} avatar={thread?.user?.avatar} size="sm" />
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-gray-600 truncate">{thread?.user?.name ?? '...'}</p>
-                {(thread?.user?.position || thread?.user?.department) && (
-                  <p className="text-[11px] text-gray-400 truncate">
-                    {[thread?.user?.position, thread?.user?.department].filter(Boolean).join(' · ')}
+            <div className="flex items-center justify-between px-6 py-3.5 border-b border-gray-100 bg-white flex-shrink-0 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Avatar name={thread?.user?.name ?? ''} avatar={thread?.user?.avatar} size="md" />
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-white rounded-full" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-gray-900 truncate leading-tight">{thread?.user?.name ?? '...'}</p>
+                  <p className="text-[11px] text-gray-400 truncate mt-0.5">
+                    {[thread?.user?.position, thread?.user?.department].filter(Boolean).join(' · ') || '온라인'}
                   </p>
-                )}
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] font-medium text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full">온라인</span>
               </div>
             </div>
 
