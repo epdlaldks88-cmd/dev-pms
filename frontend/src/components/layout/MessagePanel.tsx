@@ -174,7 +174,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
   const activeConv = conversations?.find((c: any) => c.user.id === activeUserId);
   const activeUser = activeConv?.user ?? thread?.user;
   const activeRoom = roomData?.room;
-  const activeRoomMembers: any[] = roomData?.room?.members ?? [];
+  const activeRoomMembers: any[] = (roomData?.room?.members ?? []).map((m: any) => m.user ?? m);
 
   const pickerUsers = (allUsers ?? []).filter((u: any) => u.id !== me?.id && (!pickerSearch || u.name.toLowerCase().includes(pickerSearch.toLowerCase())));
   const newRoomPickerUsers = (allUsers ?? []).filter((u: any) => u.id !== me?.id && (!roomMemberSearch || u.name.toLowerCase().includes(roomMemberSearch.toLowerCase())));
