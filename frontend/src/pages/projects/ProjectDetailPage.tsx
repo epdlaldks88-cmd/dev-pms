@@ -583,10 +583,11 @@ export function ProjectDetailPage() {
                       {!isSelf && (
                         <button
                           onClick={() => openChat(m.user.id)}
-                          className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[10px] font-medium text-gray-600 bg-primary-50 hover:bg-primary-100 px-2 py-1 rounded-md transition-all flex-shrink-0"
+                          className="opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 flex items-center gap-1 text-[10px] font-bold text-white px-2.5 py-1 rounded-full shadow-sm hover:shadow-md hover:brightness-105 transition-all duration-200 flex-shrink-0"
+                          style={{ background: 'linear-gradient(135deg, #6366f1, #818cf8)' }}
                           title="멘션 보내기"
                         >
-                          <MessageSquare size={11} /> 멘션
+                          <MessageSquare size={11} strokeWidth={2.5} /> 멘션
                         </button>
                       )}
                     </div>
