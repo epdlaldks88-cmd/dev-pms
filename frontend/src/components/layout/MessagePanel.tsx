@@ -680,17 +680,21 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
           <div className="fixed inset-0 z-[60] bg-black/30 backdrop-blur-[2px]" onClick={() => setProfilePopup(null)} />
           <div className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-none">
             <div className="bg-white rounded-2xl shadow-2xl w-80 overflow-hidden pointer-events-auto">
-              {/* 커버 */}
-              <div className="h-20 relative" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
-                <button onClick={() => setProfilePopup(null)} className="absolute top-3 right-3 p-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors">
+              {/* 헤더 */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
+                    <User size={13} className="text-white" />
+                  </div>
+                  <span className="text-sm font-bold text-gray-800">프로필 정보</span>
+                </div>
+                <button onClick={() => setProfilePopup(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
                   <X size={14} />
                 </button>
               </div>
               {/* 아바타 */}
-              <div className="flex justify-center -mt-9 mb-3">
-                <div className="ring-4 ring-white rounded-full">
-                  <Avatar name={profilePopup.name} avatar={profilePopup.avatar} size="lg" />
-                </div>
+              <div className="flex justify-center mt-5 mb-3">
+                <Avatar name={profilePopup.name} avatar={profilePopup.avatar} size="lg" />
               </div>
               {/* 정보 */}
               <div className="text-center px-6 pb-5 space-y-1">
