@@ -9,6 +9,18 @@ import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 
+const STATUS_PRESETS = [
+  { emoji: '🟢', text: '업무 중' },
+  { emoji: '🔴', text: '자리 비움' },
+  { emoji: '🟡', text: '잠깐 자리 비움' },
+  { emoji: '🎯', text: '집중 중 — 방해 금지' },
+  { emoji: '📅', text: '미팅 중' },
+  { emoji: '🏠', text: '재택 근무' },
+  { emoji: '🌴', text: '휴가 중' },
+  { emoji: '🤒', text: '병가' },
+  { emoji: '⛔', text: '오프라인' },
+];
+
 const EMOJI_LIST = [
   '😀','😎','🥸','🤓','🥳','😇','🥰','🤩','😜','🤪','😏','🙃','🤔','🤠','🧐','😴','🤗','😈',
   '👻','🤖','👽','🤡','💀','👹','🧙','🧛','🧟','🧝','🦸','🧚','🧜','🧞',
@@ -28,6 +40,8 @@ export function ProfilePage() {
     department: user?.department ?? '',
     phone: user?.phone ?? '',
     avatar: user?.avatar ?? '',
+    statusEmoji: user?.statusEmoji ?? '🟢',
+    statusText: user?.statusText ?? '',
   });
 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -48,6 +62,8 @@ export function ProfilePage() {
         department: user.department ?? '',
         phone: user.phone ?? '',
         avatar: user.avatar ?? '',
+        statusEmoji: user.statusEmoji ?? '🟢',
+        statusText: user.statusText ?? '',
       });
     }
   }, [user]);
@@ -227,6 +243,71 @@ export function ProfilePage() {
                 disabled={!profile.name.trim()}
                 loading={updateProfile.isPending}
               >
+                <Save size={14} /> 저장
+              </Button>
+            </div>
+          </div>
+
+          {/* 내 상태 */}
+          <div className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 p-6">
+            <h2 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <Smile size={15} className="text-gray-600" /> 내 상태
+            </h2>
+
+            {/* 현재 상태 미리보기 */}
+            <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 rounded-xl border border-gray-100 mb-4">
+              <span className="text-xl leading-none">{profile.statusEmoji || '🟢'}</span>
+              <span className={`text-sm ${profile.statusText ? 'text-gray-700' : 'text-gray-400 italic'}`}>
+                {profile.statusText || '상태 메시지 없음'}
+              </span>
+            </div>
+
+            {/* 프리셋 */}
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {STATUS_PRESETS.map((p) => (
+                <button
+                  key={p.emoji + p.text}
+                  onClick={() => setProfile({ ...profile, statusEmoji: p.emoji, statusText: p.text })}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left text-xs transition-colors ${profile.statusEmoji === p.emoji && profile.statusText === p.text ? 'border-primary-400 bg-primary-50 text-primary-700' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-600'}`}
+                >
+                  <span className="text-base leading-none flex-shrink-0">{p.emoji}</span>
+                  <span className="truncate">{p.text}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* 직접 입력 */}
+            <div className="flex gap-2">
+              <div className="relative">
+                <button
+                  onClick={() => setShowEmojiPicker(v => !v)}
+                  className="w-10 h-10 flex items-center justify-center text-xl border border-gray-300 rounded-lg hover:border-gray-400 transition-colors bg-white"
+                >
+                  {profile.statusEmoji || '🟢'}
+                </button>
+                {showEmojiPicker && (
+                  <div ref={pickerRef} className="absolute left-0 top-12 z-50 bg-white rounded-xl shadow-xl border border-gray-200 p-2 w-48 grid grid-cols-6 gap-1">
+                    {['🟢','🟡','🔴','⛔','🎯','📅','🏠','🌴','🤒','💼','☕','🎉','✈️','💤','🔕','🤫'].map((e) => (
+                      <button key={e} onClick={() => { setProfile({ ...profile, statusEmoji: e }); setShowEmojiPicker(false); }}
+                        className="w-7 h-7 flex items-center justify-center text-base hover:bg-gray-100 rounded transition-colors">
+                        {e}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <input
+                type="text"
+                value={profile.statusText}
+                onChange={(e) => setProfile({ ...profile, statusText: e.target.value })}
+                maxLength={80}
+                placeholder="상태 메시지를 입력하세요"
+                className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+
+            <div className="mt-4 flex justify-end">
+              <Button variant="primary" onClick={() => updateProfile.mutate()} loading={updateProfile.isPending}>
                 <Save size={14} /> 저장
               </Button>
             </div>

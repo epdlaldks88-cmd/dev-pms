@@ -23,6 +23,8 @@ export interface User {
   position?: string;
   department?: string;
   phone?: string;
+  statusEmoji?: string;
+  statusText?: string;
   createdAt: string;
   updatedAt?: string;
 }

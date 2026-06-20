@@ -14,6 +14,8 @@ export const usersApi = {
     department?: string;
     phone?: string;
     avatar?: string;
+    statusEmoji?: string;
+    statusText?: string;
   }) =>
     api.patch<User>('/users/profile', data).then((r) => r.data),
 

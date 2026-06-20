@@ -422,8 +422,14 @@ export function DashboardPage() {
             <p className="text-sm font-medium text-primary-500 mb-1">
               {now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
             </p>
-            <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">
+            <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 flex items-center gap-3">
               안녕하세요, {user?.name}님
+              {(user?.statusEmoji || user?.statusText) && (
+                <span className="flex items-center gap-1.5 text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                  <span className="text-base leading-none">{user.statusEmoji || '🟢'}</span>
+                  {user.statusText && <span className="max-w-[180px] truncate">{user.statusText}</span>}
+                </span>
+              )}
             </h1>
             <p className="text-gray-400 mt-1.5">오늘도 팀과 함께 목표를 향해 나아가세요.</p>
           </div>
