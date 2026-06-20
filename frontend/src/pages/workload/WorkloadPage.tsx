@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Clock, Briefcase, Trash2, X, Pencil, CheckCircle2, Check, Filter, Download } from 'lucide-react';
+import { Plus, Clock, Briefcase, Trash2, X, Pencil, CheckCircle2, Check, Filter, Download, BarChart2, ChevronLeft, ChevronRight } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import { worklogsApi, STAGE_CONFIG, STAGE_ORDER, type WorkLogStage } from '../../api/worklogs';
@@ -82,6 +82,11 @@ export function WorkloadPage() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const toggleUser = (uid: string) =>
     setSelectedUserId((prev) => (prev === uid ? null : uid));
+
+  // ── 그래프 팝업 ─────────────────────────────────────
+  const [graphOpen, setGraphOpen] = useState(false);
+  const [graphTab, setGraphTab] = useState<'count' | 'hours'>('count');
+  const [graphWinStart, setGraphWinStart] = useState(0);
 
   // ── Queries ─────────────────────────────────────────────
   const { data: projects } = useQuery({ queryKey: ['projects'], queryFn: projectsApi.getAll });
@@ -188,6 +193,43 @@ export function WorkloadPage() {
     XLSX.writeFile(wb, filename);
   };
 
+  // ── 그래프 데이터 계산 ──────────────────────────────
+  const graphData = useMemo(() => {
+    const logs: any[] = worklogs ?? [];
+    // 날짜 목록 수집 (startDate 기준)
+    const dateSet = new Set<string>();
+    logs.forEach((log) => {
+      const d = (log.startDate ?? log.workDate ?? '').slice(0, 10);
+      if (d) dateSet.add(d);
+    });
+    const dates = [...dateSet].sort();
+
+    // 담당자 목록
+    const userMap: Record<string, { name: string; color: string }> = {};
+    const PALETTE = ['#f85032','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#84cc16'];
+    let ci = 0;
+    logs.forEach((log) => {
+      if (!userMap[log.user.id]) {
+        userMap[log.user.id] = { name: log.user.name, color: PALETTE[ci++ % PALETTE.length] };
+      }
+    });
+    const users = Object.entries(userMap).map(([id, v]) => ({ id, ...v }));
+
+    // 날짜×담당자 집계
+    const countMap: Record<string, Record<string, number>> = {};
+    const hoursMap: Record<string, Record<string, number>> = {};
+    dates.forEach((d) => { countMap[d] = {}; hoursMap[d] = {}; });
+    logs.forEach((log) => {
+      const d = (log.startDate ?? log.workDate ?? '').slice(0, 10);
+      if (!d) return;
+      const uid = log.user.id;
+      countMap[d][uid] = (countMap[d][uid] ?? 0) + 1;
+      hoursMap[d][uid] = (hoursMap[d][uid] ?? 0) + (log.hours ?? 0);
+    });
+
+    return { dates, users, countMap, hoursMap };
+  }, [worklogs]);
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -195,9 +237,14 @@ export function WorkloadPage() {
         title="워크로드"
         description="담당자별 일감 등록 및 공수 현황"
         actions={
-          <Button variant="primary" onClick={() => { setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', requester: '', startDate: today, endDate: today }); setShowAddModal(true); }}>
-            <Plus size={15} /> 일감 등록
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={() => { setGraphWinStart(Math.max(0, graphData.dates.length - 14)); setGraphOpen(true); }}>
+              <BarChart2 size={15} /> 그래프 보기
+            </Button>
+            <Button variant="primary" onClick={() => { setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', requester: '', startDate: today, endDate: today }); setShowAddModal(true); }}>
+              <Plus size={15} /> 일감 등록
+            </Button>
+          </div>
         }
       />
 
@@ -883,6 +930,170 @@ export function WorkloadPage() {
           </div>
         </div>
       )}
+
+      {/* ── 그래프 팝업 ── */}
+      {graphOpen && (() => {
+        const { dates, users, countMap, hoursMap } = graphData;
+        const map = graphTab === 'count' ? countMap : hoursMap;
+        const label = graphTab === 'count' ? '일감 건수' : '공수 (h)';
+
+        // 날짜 슬라이딩 윈도우 (최대 14일 표시)
+        const WIN = 14;
+        const winStart = graphWinStart;
+        const setWinStart = setGraphWinStart;
+        const visibleDates = dates.slice(winStart, winStart + WIN);
+        const canPrev = winStart > 0;
+        const canNext = winStart + WIN < dates.length;
+
+        // 막대 그래프 계산
+        const maxVal = Math.max(1, ...visibleDates.flatMap((d) => users.map((u) => map[d]?.[u.id] ?? 0)));
+        const BAR_H = 180;
+        const BAR_W = Math.max(24, Math.min(40, Math.floor((680 - 48) / Math.max(visibleDates.length, 1)) - 8));
+        const GROUP_W = BAR_W * users.length + 4;
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px]" onClick={() => setGraphOpen(false)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-[780px] max-w-[95vw] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              {/* 헤더 */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#f85032,#e73827)' }}>
+                    <BarChart2 size={16} className="text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-gray-800">워크로드 그래프</h2>
+                    <p className="text-xs text-gray-400">{filterStart || '전체'} {filterEnd ? `~ ${filterEnd}` : ''}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* 탭 */}
+                  <div className="flex bg-gray-100 rounded-lg p-0.5">
+                    {(['count', 'hours'] as const).map((t) => (
+                      <button key={t} onClick={() => setGraphTab(t)}
+                        className={cn('px-3 py-1.5 rounded-md text-xs font-semibold transition-colors', graphTab === t ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700')}>
+                        {t === 'count' ? '일감 건수' : '공수 (h)'}
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={() => setGraphOpen(false)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="px-6 py-5">
+                {!dates.length ? (
+                  <div className="flex flex-col items-center justify-center h-48 text-gray-400">
+                    <BarChart2 size={32} className="mb-2 opacity-30" />
+                    <p className="text-sm">조회된 데이터가 없습니다</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* 범례 */}
+                    <div className="flex flex-wrap gap-3 mb-4">
+                      {users.map((u) => (
+                        <div key={u.id} className="flex items-center gap-1.5 text-xs text-gray-600">
+                          <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: u.color }} />
+                          {u.name}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 차트 영역 */}
+                    <div className="relative">
+                      {/* Y축 가이드라인 */}
+                      <div className="absolute left-8 right-0 top-0" style={{ height: BAR_H }}>
+                        {[0,0.25,0.5,0.75,1].map((r) => (
+                          <div key={r} className="absolute w-full border-t border-gray-100 flex items-center" style={{ bottom: r * BAR_H }}>
+                            <span className="absolute -left-8 text-[10px] text-gray-400 w-7 text-right leading-none">
+                              {r === 0 ? '0' : Math.round(maxVal * r)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* 막대 */}
+                      <div className="ml-8 overflow-x-auto pb-2">
+                        <div className="flex items-end gap-1" style={{ height: BAR_H + 36, minWidth: visibleDates.length * (GROUP_W + 8) }}>
+                          {visibleDates.map((date) => (
+                            <div key={date} className="flex flex-col items-center gap-0 flex-shrink-0" style={{ width: GROUP_W }}>
+                              {/* 막대 그룹 */}
+                              <div className="flex items-end gap-px" style={{ height: BAR_H }}>
+                                {users.map((u) => {
+                                  const val = map[date]?.[u.id] ?? 0;
+                                  const h = val === 0 ? 2 : Math.max(4, Math.round((val / maxVal) * (BAR_H - 4)));
+                                  return (
+                                    <div key={u.id} className="relative group flex-shrink-0" style={{ width: BAR_W }}>
+                                      <div className="rounded-t-sm transition-all duration-300 cursor-default"
+                                        style={{ height: h, width: '100%', background: val === 0 ? '#f3f4f6' : u.color, opacity: val === 0 ? 0.3 : 1 }} />
+                                      {val > 0 && (
+                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                          <div className="bg-gray-800 text-white text-[10px] px-2 py-1 rounded-lg whitespace-nowrap shadow-lg">
+                                            {u.name}: {val}{graphTab === 'hours' ? 'h' : '건'}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              {/* X축 날짜 */}
+                              <div className="text-[10px] text-gray-400 mt-1.5 text-center whitespace-nowrap" style={{ width: GROUP_W }}>
+                                {date.slice(5)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 페이지 네비게이션 */}
+                    {dates.length > WIN && (
+                      <div className="flex items-center justify-center gap-3 mt-3">
+                        <button onClick={() => setWinStart(Math.max(0, winStart - WIN))} disabled={!canPrev}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors">
+                          <ChevronLeft size={16} />
+                        </button>
+                        <span className="text-xs text-gray-500">
+                          {dates[winStart]?.slice(5)} ~ {dates[Math.min(winStart + WIN - 1, dates.length - 1)]?.slice(5)}
+                          <span className="ml-2 text-gray-300">({dates.length}일)</span>
+                        </span>
+                        <button onClick={() => setWinStart(Math.min(dates.length - WIN, winStart + WIN))} disabled={!canNext}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors">
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* 합계 테이블 */}
+                    <div className="mt-5 border border-gray-100 rounded-xl overflow-hidden">
+                      <div className="grid text-xs font-semibold text-gray-500 bg-gray-50 px-4 py-2.5"
+                        style={{ gridTemplateColumns: `1fr repeat(${users.length}, 1fr) 1fr` }}>
+                        <span>날짜</span>
+                        {users.map((u) => <span key={u.id} style={{ color: u.color }}>{u.name}</span>)}
+                        <span className="text-gray-600">합계</span>
+                      </div>
+                      <div className="max-h-40 overflow-y-auto divide-y divide-gray-50">
+                        {visibleDates.map((date) => {
+                          const total = users.reduce((s, u) => s + (map[date]?.[u.id] ?? 0), 0);
+                          return (
+                            <div key={date} className="grid text-xs px-4 py-2 hover:bg-gray-50 transition-colors"
+                              style={{ gridTemplateColumns: `1fr repeat(${users.length}, 1fr) 1fr` }}>
+                              <span className="text-gray-500">{date.slice(5)}</span>
+                              {users.map((u) => <span key={u.id} className="text-gray-700">{map[date]?.[u.id] ?? 0}{graphTab === 'hours' ? 'h' : ''}</span>)}
+                              <span className="font-semibold text-gray-800">{total}{graphTab === 'hours' ? 'h' : '건'}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
