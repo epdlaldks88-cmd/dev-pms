@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { ChevronRight, Calendar, GripVertical } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { tasksApi } from '../../api/tasks';
 import { projectsApi } from '../../api/projects';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -86,7 +87,10 @@ export function GanttPage() {
 
   const reorder = useMutation({
     mutationFn: (taskIds: string[]) => tasksApi.reorderGantt(projectId!, taskIds),
-    onError: () => qc.invalidateQueries({ queryKey: ['gantt', projectId] }),
+    onError: () => {
+      toast.error('순서 저장에 실패했습니다.');
+      qc.invalidateQueries({ queryKey: ['gantt', projectId] });
+    },
   });
 
   const handleDrop = () => {
@@ -98,6 +102,8 @@ export function GanttPage() {
     const [moved] = next.splice(dragIndex, 1);
     next.splice(overIndex, 0, moved);
     setOrdered(next);
+    // 낙관적 캐시 갱신 — 재요청/ SSE refetch가 와도 순서 유지
+    qc.setQueryData(['gantt', projectId], next);
     reorder.mutate(next.map((t) => t.id));
     setDragIndex(null); setOverIndex(null);
   };
