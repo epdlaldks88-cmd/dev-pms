@@ -65,93 +65,7 @@ function StatusDonut({ counts, total }: { counts: Record<TaskStatus, number>; to
   );
 }
 
-// 프로젝트 카드
-function ProjectCard({ project, stats }: { project: Project; stats: ProjectStats | undefined }) {
-  const total = stats?.total ?? 0;
-  const done = stats?.byStatus.find(b => b.status === 'DONE')?._count ?? 0;
-  const inProgress = stats?.byStatus.find(b => b.status === 'IN_PROGRESS')?._count ?? 0;
-  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-
-  return (
-    <Link to={`/projects/${project.id}`}
-      className="group relative block bg-white/90 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:shadow-[0_16px_40px_rgba(0,0,0,0.13)] hover:-translate-y-1.5 transition-all duration-300 overflow-hidden">
-      {/* 호버 글로우 */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-2xl"
-        style={{ background: `radial-gradient(ellipse at top left, ${project.color}0a 0%, transparent 60%)` }} />
-
-      <div className="p-5">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 shadow-sm transition-transform duration-200 group-hover:scale-110"
-              style={{ backgroundColor: `${project.color}15`, border: `1.5px solid ${project.color}30` }}>
-              {project.icon ?? '📁'}
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="font-bold text-sm text-gray-900 group-hover:text-primary-600 transition-colors truncate max-w-[120px]">
-                  {project.name}
-                </p>
-                <span className={cn(
-                  'text-[11px] font-medium flex-shrink-0',
-                  project.status === 'ACTIVE' ? 'text-emerald-500' :
-                  project.status === 'COMPLETED' ? 'text-gray-400' : 'text-amber-500'
-                )}>
-                  {project.status === 'ACTIVE' ? '● 진행 중' : project.status === 'COMPLETED' ? '완료' : project.status}
-                </span>
-              </div>
-              {(project.startDate || project.endDate) && (
-                <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-0.5">
-                  <Calendar size={11} className="flex-shrink-0" />
-                  <span className="tabular-nums">
-                    {project.startDate ? formatDate(project.startDate, 'yy.MM.dd') : '미정'}
-                    {' ~ '}
-                    {project.endDate ? formatDate(project.endDate, 'yy.MM.dd') : '미정'}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-          <ArrowUpRight size={15} className="text-gray-200 group-hover:text-primary-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all flex-shrink-0 mt-0.5" />
-        </div>
-
-        {/* 진행률 */}
-        <div className="mb-4">
-          <div className="flex justify-between text-xs mb-2">
-            <span className="text-gray-400">완료율</span>
-            <span className="font-bold text-gray-900">{pct}%</span>
-          </div>
-          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full rounded-full transition-all duration-700 relative overflow-hidden"
-              style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${project.color}cc, ${project.color})` }}>
-              {/* shimmer */}
-              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-            </div>
-          </div>
-        </div>
-
-        {/* 하단 */}
-        <div className="flex items-center justify-between">
-          <div className="flex -space-x-1.5">
-            {project.members.slice(0, 4).map(m => (
-              <Avatar key={m.id} name={m.user.name} avatar={m.user.avatar} size="xs" className="ring-2 ring-white" />
-            ))}
-            {project.members.length > 4 && (
-              <div className="w-6 h-6 rounded-full bg-gray-100 ring-2 ring-white flex items-center justify-center text-[10px] text-gray-500 font-medium">
-                +{project.members.length - 4}
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: STATUS_HEX['IN_PROGRESS'] }} />
-            {inProgress}개 진행 중
-          </div>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
-// 프로젝트가 1개일 때 — 가로로 넓은 대표 카드
+// 프로젝트 카드 — 가로로 넓은 레이아웃
 function ProjectCardWide({ project, stats }: { project: Project; stats: ProjectStats | undefined }) {
   const total = stats?.total ?? 0;
   const done = stats?.byStatus.find(b => b.status === 'DONE')?._count ?? 0;
@@ -182,36 +96,36 @@ function ProjectCardWide({ project, stats }: { project: Project; stats: ProjectS
                 style={{ backgroundColor: `${project.color}15`, border: `1.5px solid ${project.color}30` }}>
                 {project.icon ?? '📁'}
               </div>
-              <div>
-                <p className="font-bold text-lg text-gray-900 group-hover:text-primary-600 transition-colors">
-                  {project.name}
-                </p>
-                <span className={cn(
-                  'text-xs font-medium',
-                  project.status === 'ACTIVE' ? 'text-emerald-500' :
-                  project.status === 'COMPLETED' ? 'text-gray-400' : 'text-amber-500'
-                )}>
-                  {project.status === 'ACTIVE' ? '● 진행 중' : project.status === 'COMPLETED' ? '완료' : project.status}
-                </span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2.5">
+                  <p className="font-bold text-lg text-gray-900 group-hover:text-primary-600 transition-colors truncate">
+                    {project.name}
+                  </p>
+                  <span className={cn(
+                    'text-xs font-medium flex-shrink-0',
+                    project.status === 'ACTIVE' ? 'text-emerald-500' :
+                    project.status === 'COMPLETED' ? 'text-gray-400' : 'text-amber-500'
+                  )}>
+                    {project.status === 'ACTIVE' ? '● 진행 중' : project.status === 'COMPLETED' ? '완료' : project.status}
+                  </span>
+                </div>
+                {(project.startDate || project.endDate) && (
+                  <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-1">
+                    <Calendar size={13} className="flex-shrink-0" />
+                    <span className="tabular-nums">
+                      {project.startDate ? formatDate(project.startDate) : '미정'}
+                      <span className="text-gray-300 mx-1">~</span>
+                      {project.endDate ? formatDate(project.endDate) : '미정'}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
             <ArrowUpRight size={18} className="text-gray-200 group-hover:text-primary-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all flex-shrink-0 mt-1" />
           </div>
 
           {project.description && (
-            <p className="text-sm text-gray-500 leading-relaxed mb-4 line-clamp-2">{project.description}</p>
-          )}
-
-          {/* 기간 */}
-          {(project.startDate || project.endDate) && (
-            <div className="flex items-center gap-2 text-xs text-gray-500 mb-5">
-              <Calendar size={14} className="flex-shrink-0 text-gray-400" />
-              <span className="tabular-nums">
-                {project.startDate ? formatDate(project.startDate) : '미정'}
-                <span className="text-gray-300 mx-1.5">~</span>
-                {project.endDate ? formatDate(project.endDate) : '미정'}
-              </span>
-            </div>
+            <p className="text-sm text-gray-500 leading-relaxed mb-5 line-clamp-2">{project.description}</p>
           )}
 
           {/* 진행률 */}
@@ -508,18 +422,11 @@ export function DashboardPage() {
                 전체 보기 <ChevronRight size={14} />
               </Link>
             </div>
-            {(projects ?? []).length === 1 ? (
-              <ProjectCardWide project={projects![0]} stats={statsQueries[0]?.data as ProjectStats | undefined} />
-            ) : (
-              <div className={cn(
-                'grid grid-cols-1 gap-4',
-                (projects ?? []).length === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-3',
-              )}>
-                {(projects ?? []).map((p, idx) => (
-                  <ProjectCard key={p.id} project={p} stats={statsQueries[idx]?.data as ProjectStats | undefined} />
-                ))}
-              </div>
-            )}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              {(projects ?? []).map((p, idx) => (
+                <ProjectCardWide key={p.id} project={p} stats={statsQueries[idx]?.data as ProjectStats | undefined} />
+              ))}
+            </div>
           </section>
         )}
 
