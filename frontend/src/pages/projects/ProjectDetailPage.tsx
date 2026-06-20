@@ -335,10 +335,10 @@ export function ProjectDetailPage() {
                 {notices.filter((n) => n.isPinned).slice(0, 1).map((n) => {
                   const isOpen = expandedNoticeId === n.id;
                   return (
-                    <div key={n.id} className="border-b border-gray-50 bg-primary-50/40">
+                    <div key={n.id} className="border-b border-gray-50">
                       <button
                         onClick={() => setExpandedNoticeId(isOpen ? null : n.id)}
-                        className="w-full flex items-start gap-3 px-5 py-3 hover:bg-primary-50/70 transition-colors group text-left"
+                        className="w-full flex items-start gap-3 px-5 py-3 hover:bg-gray-50 transition-colors group text-left"
                       >
                         <Pin size={12} className="text-gray-600 mt-1 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
