@@ -421,7 +421,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
             </div>
             <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0">
               <div className="flex items-center gap-2 bg-gray-50 rounded-xl border border-gray-200 px-3 py-2 focus-within:border-[#f85032] focus-within:bg-white transition-colors">
-                <EmojiPickerButton open={emojiOpen} onToggle={() => setEmojiOpen(v => !v)} onSelect={(e) => setDraft(d => d + e)} placement="top-right" />
+                <EmojiPickerButton open={emojiOpen} onToggle={() => setEmojiOpen(v => !v)} onSelect={(e) => { setDraft(d => d + e); setTimeout(() => inputRef.current?.focus(), 0); }} placement="top-right" />
                 <input ref={inputRef} type="text" value={draft} onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
                   placeholder="메시지를 입력하세요..." className="flex-1 text-sm bg-transparent outline-none text-gray-900 placeholder-gray-400" />
@@ -499,7 +499,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
 
             <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0">
               <div className="flex items-center gap-2 bg-gray-50 rounded-xl border border-gray-200 px-3 py-2 focus-within:border-[#f85032] focus-within:bg-white transition-colors">
-                <EmojiPickerButton open={emojiOpen} onToggle={() => setEmojiOpen(v => !v)} onSelect={(e) => setDraft(d => d + e)} placement="top-right" />
+                <EmojiPickerButton open={emojiOpen} onToggle={() => setEmojiOpen(v => !v)} onSelect={(e) => { setDraft(d => d + e); setTimeout(() => inputRef.current?.focus(), 0); }} placement="top-right" />
                 <input ref={inputRef} type="text" value={draft} onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
                   placeholder="메시지를 입력하세요..." className="flex-1 text-sm bg-transparent outline-none text-gray-900 placeholder-gray-400" />
