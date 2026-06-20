@@ -28,9 +28,9 @@ export function MentionPopup() {
 
   return (
     <div className="fixed bottom-6 right-6 z-[9999] w-[360px] animate-slide-up">
-      <div className="group relative overflow-hidden rounded-2xl bg-white/85 backdrop-blur-xl ring-1 ring-gray-900/5 border border-white/70 shadow-[0_12px_40px_-8px_rgba(79,70,229,0.35),0_4px_12px_rgba(0,0,0,0.06)]">
+      <div className="group relative overflow-hidden rounded-2xl bg-white/85 backdrop-blur-xl ring-1 ring-gray-900/5 border border-white/70 shadow-[0_12px_40px_-8px_rgba(231,56,39,0.35),0_4px_12px_rgba(0,0,0,0.06)]">
         {/* 왼쪽 컬러 액센트 바 */}
-        <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-500 via-violet-500 to-fuchsia-500" />
+        <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: 'linear-gradient(180deg, #f85032, #e73827)' }} />
 
         {/* 닫기 버튼 */}
         <button
@@ -47,7 +47,7 @@ export function MentionPopup() {
         >
           {/* 아이콘 배지 */}
           <div className="relative flex-shrink-0 mt-0.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg shadow-[#e73827]/30" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
               <MessageSquare size={16} className="text-white" />
             </div>
             <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white animate-pulse" />
@@ -55,11 +55,11 @@ export function MentionPopup() {
 
           {/* 텍스트 */}
           <div className="min-w-0 flex-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">새 멘션</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#e73827]">새 멘션</span>
             <p className="text-sm font-semibold text-gray-800 truncate leading-snug">{popup.title}</p>
             <p className="text-xs text-gray-500 mt-0.5 line-clamp-2 leading-relaxed">{popup.message}</p>
             {popup.link && (
-              <p className="inline-flex items-center gap-0.5 text-[11px] text-indigo-500 mt-1.5 font-semibold transition-transform group-hover:translate-x-0.5">
+              <p className="inline-flex items-center gap-0.5 text-[11px] text-[#e73827] mt-1.5 font-semibold transition-transform group-hover:translate-x-0.5">
                 대화 열기 <span aria-hidden>→</span>
               </p>
             )}
@@ -68,7 +68,7 @@ export function MentionPopup() {
 
         {/* 진행 바 */}
         <div className="h-1 bg-gray-100/70">
-          <div className="h-full bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 animate-shrink-width" />
+          <div className="h-full animate-shrink-width" style={{ background: 'linear-gradient(90deg, #f85032, #e73827)' }} />
         </div>
       </div>
     </div>
