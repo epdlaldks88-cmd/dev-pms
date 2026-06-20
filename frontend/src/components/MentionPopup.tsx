@@ -6,6 +6,7 @@ export function MentionPopup() {
   const popup = useUiStore((s) => s.mentionPopup);
   const hide = useUiStore((s) => s.hideMentionPopup);
   const openMessagePanel = useUiStore((s) => s.openMessagePanel);
+  const mentionPreview = useUiStore((s) => s.mentionPreview);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -56,8 +57,12 @@ export function MentionPopup() {
           {/* 텍스트 */}
           <div className="min-w-0 flex-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#e73827]">새 멘션</span>
-            <p className="text-sm font-semibold text-gray-800 truncate leading-snug">{popup.title}</p>
-            <p className="text-xs text-gray-500 mt-0.5 line-clamp-2 leading-relaxed">{popup.message}</p>
+            <p className="text-sm font-semibold text-gray-800 truncate leading-snug">
+              {mentionPreview ? popup.title : '새 멘션이 도착했습니다'}
+            </p>
+            {mentionPreview && (
+              <p className="text-xs text-gray-500 mt-0.5 line-clamp-2 leading-relaxed">{popup.message}</p>
+            )}
             {popup.link && (
               <p className="inline-flex items-center gap-0.5 text-[11px] text-[#e73827] mt-1.5 font-semibold transition-transform group-hover:translate-x-0.5">
                 대화 열기 <span aria-hidden>→</span>

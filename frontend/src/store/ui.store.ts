@@ -14,6 +14,8 @@ interface UiState {
   closeCreateTask: () => void;
   mentionAlarm: boolean;
   setMentionAlarm: (v: boolean) => void;
+  mentionPreview: boolean;
+  setMentionPreview: (v: boolean) => void;
   mentionPopup: { id: string; title: string; message: string; link?: string } | null;
   showMentionPopup: (n: { id: string; title: string; message: string; link?: string }) => void;
   hideMentionPopup: () => void;
@@ -37,6 +39,8 @@ export const useUiStore = create<UiState>()(
       closeCreateTask: () => set({ createTaskProjectId: null, createTaskStepId: null }),
       mentionAlarm: true,
       setMentionAlarm: (v) => set({ mentionAlarm: v }),
+      mentionPreview: true,
+      setMentionPreview: (v) => set({ mentionPreview: v }),
       mentionPopup: null,
       showMentionPopup: (n) => set({ mentionPopup: n }),
       hideMentionPopup: () => set({ mentionPopup: null }),
@@ -46,7 +50,7 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: 'ui-storage',
-      partialize: (s) => ({ sidebarCollapsed: s.sidebarCollapsed, mentionAlarm: s.mentionAlarm }),
+      partialize: (s) => ({ sidebarCollapsed: s.sidebarCollapsed, mentionAlarm: s.mentionAlarm, mentionPreview: s.mentionPreview }),
     },
   ),
 );

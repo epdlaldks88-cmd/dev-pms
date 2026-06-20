@@ -32,6 +32,8 @@ export function ProfilePage() {
   const { user, updateUser } = useAuthStore();
   const mentionAlarm = useUiStore((s) => s.mentionAlarm);
   const setMentionAlarm = useUiStore((s) => s.setMentionAlarm);
+  const mentionPreview = useUiStore((s) => s.mentionPreview);
+  const setMentionPreview = useUiStore((s) => s.setMentionPreview);
   const pickerRef = useRef<HTMLDivElement>(null);
 
   const [profile, setProfile] = useState({
@@ -345,6 +347,27 @@ export function ProfilePage() {
                 <span
                   className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform duration-200 ${
                     mentionAlarm ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* 미리보기 토글 — 멘션 알림이 켜져 있을 때만 활성 */}
+            <div className={`flex items-center justify-between py-2 border-t border-gray-100 mt-1 pt-3 transition-opacity ${mentionAlarm ? '' : 'opacity-40 pointer-events-none'}`}>
+              <div>
+                <p className="text-sm font-medium text-gray-800">멘션 내용 미리보기</p>
+                <p className="text-xs text-gray-400 mt-0.5">끄면 팝업에 보낸 사람·메시지 내용 없이 도착 사실만 표시됩니다</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMentionPreview(!mentionPreview)}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
+                  mentionPreview ? 'bg-primary-600' : 'bg-gray-200'
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform duration-200 ${
+                    mentionPreview ? 'translate-x-5' : 'translate-x-0'
                   }`}
                 />
               </button>
