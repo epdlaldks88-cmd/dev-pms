@@ -216,7 +216,7 @@ export function IssuesPage() {
   );
 
   return (
-    <div className="p-6 max-w-6xl mx-auto overflow-y-auto h-full">
+    <div className="p-6 overflow-y-auto h-full">
       {/* 상단 요약 카드 */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         {[
