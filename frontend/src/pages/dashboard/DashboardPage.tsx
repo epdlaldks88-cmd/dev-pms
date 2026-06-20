@@ -1,11 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useQuery, useQueries } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
-  Search, Clock, MapPin, Users as UsersIcon,
-  X, Calendar, Users, AlertTriangle, ArrowUpRight,
-  TrendingUp, FolderKanban, CalendarDays, CheckSquare,
-  ChevronRight,
+  Clock, CalendarDays, MapPin, Users as UsersIcon,
+  X, Calendar, Users, AlertTriangle, ChevronRight, ArrowUpRight,
 } from 'lucide-react';
 import { projectsApi } from '../../api/projects';
 import { worklogsApi } from '../../api/worklogs';
@@ -21,52 +19,44 @@ const STATUS_HEX: Record<TaskStatus, string> = {
 };
 const STATUS_ORDER: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED'];
 
-type SideTab = 'trending' | 'projects' | 'schedule' | 'tasks';
-
-const SIDE_TABS: { id: SideTab; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
-  { id: 'trending', label: '트렌딩', icon: TrendingUp },
-  { id: 'projects', label: '프로젝트', icon: FolderKanban },
-  { id: 'schedule', label: '일정', icon: CalendarDays },
-  { id: 'tasks', label: '태스크', icon: CheckSquare },
-];
-
 // 도넛 차트
 function StatusDonut({ counts, total }: { counts: Record<TaskStatus, number>; total: number }) {
-  const radius = 40, stroke = 10, circumference = 2 * Math.PI * radius;
+  const radius = 48, stroke = 14, circumference = 2 * Math.PI * radius;
   let offset = 0;
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-5">
       <div className="relative flex-shrink-0">
-        <svg width="96" height="96" viewBox="0 0 96 96">
-          <circle cx="48" cy="48" r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke} />
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r={radius} fill="none" stroke="#f1f5f9" strokeWidth={stroke} />
           {total > 0 && STATUS_ORDER.map((s) => {
             const v = counts[s] ?? 0;
             if (!v) return null;
             const dash = (v / total) * circumference;
             const seg = (
-              <circle key={s} cx="48" cy="48" r={radius} fill="none"
+              <circle key={s} cx="60" cy="60" r={radius} fill="none"
                 stroke={STATUS_HEX[s]} strokeWidth={stroke}
                 strokeDasharray={`${dash} ${circumference - dash}`}
-                strokeDashoffset={-offset} transform="rotate(-90 48 48)" opacity="0.9" />
+                strokeDashoffset={-offset} transform="rotate(-90 60 60)" />
             );
             offset += dash;
             return seg;
           })}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-xl font-bold text-white">{total}</span>
-          <span className="text-[9px] text-white/40 font-medium">전체</span>
+          <span className="text-2xl font-bold text-gray-900">{total}</span>
+          <span className="text-[10px] text-gray-400 font-medium">전체</span>
         </div>
       </div>
-      <div className="flex-1 space-y-1.5">
+      <div className="flex-1 space-y-2">
         {STATUS_ORDER.map((s) => {
           const v = counts[s] ?? 0;
-          if (!v) return null;
+          const pct = total > 0 ? Math.round((v / total) * 100) : 0;
           return (
             <div key={s} className="flex items-center gap-2 text-xs">
-              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: STATUS_HEX[s] }} />
-              <span className="text-white/50 flex-1">{STATUS_CONFIG[s].label}</span>
-              <span className="font-bold text-white/80">{v}</span>
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: STATUS_HEX[s] }} />
+              <span className="text-gray-500 flex-1">{STATUS_CONFIG[s].label}</span>
+              <span className="font-bold text-gray-800">{v}</span>
+              <span className="text-gray-300 w-8 text-right">{pct}%</span>
             </div>
           );
         })}
@@ -75,62 +65,175 @@ function StatusDonut({ counts, total }: { counts: Record<TaskStatus, number>; to
   );
 }
 
-// 프로젝트 아이콘 카드
-function ProjectIconCard({ project }: { project: Project }) {
+// 프로젝트 카드
+function ProjectCard({ project, stats }: { project: Project; stats: ProjectStats | undefined }) {
+  const total = stats?.total ?? 0;
+  const done = stats?.byStatus.find(b => b.status === 'DONE')?._count ?? 0;
+  const inProgress = stats?.byStatus.find(b => b.status === 'IN_PROGRESS')?._count ?? 0;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
   return (
     <Link to={`/projects/${project.id}`}
-      className="group flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-white/5 transition-all duration-200 cursor-pointer">
-      <div
-        className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-lg ring-1 ring-white/10 group-hover:ring-white/20 group-hover:scale-110 transition-all duration-200"
-        style={{ backgroundColor: `${project.color}22`, border: `1.5px solid ${project.color}40` }}
-      >
-        {project.icon ?? '📁'}
+      className="group block bg-white/85 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 p-5 hover:shadow-[0_12px_32px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.06)] hover:bg-white hover:-translate-y-1 transition-all duration-200">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+            style={{ backgroundColor: `${project.color}18`, border: `1.5px solid ${project.color}25` }}>
+            {project.icon ?? '📁'}
+          </div>
+          <div>
+            <p className="font-bold text-sm text-gray-900 group-hover:text-primary-600 transition-colors truncate max-w-[140px]">
+              {project.name}
+            </p>
+            <span className={cn(
+              'text-[11px] font-medium',
+              project.status === 'ACTIVE' ? 'text-emerald-500' :
+              project.status === 'COMPLETED' ? 'text-gray-400' : 'text-amber-500'
+            )}>
+              {project.status === 'ACTIVE' ? '● 진행 중' : project.status === 'COMPLETED' ? '완료' : project.status}
+            </span>
+          </div>
+        </div>
+        <ArrowUpRight size={15} className="text-gray-200 group-hover:text-primary-400 transition-colors flex-shrink-0 mt-0.5" />
       </div>
-      <span className="text-[11px] text-white/60 group-hover:text-white/90 text-center truncate w-full transition-colors leading-tight">
-        {project.name}
-      </span>
+
+      {/* 진행률 */}
+      <div className="mb-4">
+        <div className="flex justify-between text-xs mb-2">
+          <span className="text-gray-400">완료율</span>
+          <span className="font-bold text-gray-900">{pct}%</span>
+        </div>
+        <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-full rounded-full transition-all duration-700"
+            style={{ width: `${pct}%`, background: project.color }} />
+        </div>
+      </div>
+
+      {/* 하단 */}
+      <div className="flex items-center justify-between">
+        <div className="flex -space-x-1.5">
+          {project.members.slice(0, 4).map(m => (
+            <Avatar key={m.id} name={m.user.name} avatar={m.user.avatar} size="xs" className="ring-2 ring-white" />
+          ))}
+          {project.members.length > 4 && (
+            <div className="w-6 h-6 rounded-full bg-gray-100 ring-2 ring-white flex items-center justify-center text-[10px] text-gray-500 font-medium">
+              +{project.members.length - 4}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2 text-[11px] text-gray-400">
+          <span style={{ color: STATUS_HEX['IN_PROGRESS'] }}>● </span>
+          {inProgress}개 진행 중
+        </div>
+      </div>
     </Link>
   );
 }
 
-// 상태 스탯 카드
-function StatCard({
-  label, value, sub, color, icon: Icon,
-}: {
-  label: string; value: string | number; sub?: string;
-  color: string; icon: React.ComponentType<{ size?: number; className?: string }>;
-}) {
-  return (
-    <div
-      className="relative overflow-hidden rounded-2xl p-4 border border-white/8"
-      style={{ background: `linear-gradient(135deg, ${color}18 0%, ${color}08 100%)` }}
-    >
-      <div className="absolute top-3 right-3 opacity-30">
-        <Icon size={20} className="text-white" />
+// D-day 뱃지
+function getDdayConfig(endDate: string, status: string) {
+  if (status === 'DONE') return { label: '완료', bg: 'bg-emerald-50', text: 'text-emerald-600' };
+  if (status === 'CANCELLED') return { label: '취소', bg: 'bg-gray-100', text: 'text-gray-400' };
+  const diff = Math.ceil((new Date(endDate).setHours(0,0,0,0) - new Date().setHours(0,0,0,0)) / 86400000);
+  if (diff < 0)  return { label: `D+${Math.abs(diff)}`, bg: 'bg-rose-50', text: 'text-rose-600' };
+  if (diff === 0) return { label: 'D-day', bg: 'bg-orange-50', text: 'text-orange-600' };
+  if (diff <= 3)  return { label: `D-${diff}`, bg: 'bg-amber-50', text: 'text-amber-600' };
+  if (diff <= 7)  return { label: `D-${diff}`, bg: 'bg-blue-50', text: 'text-blue-600' };
+  return { label: `D-${diff}`, bg: 'bg-gray-100', text: 'text-gray-400' };
+}
+
+// 마감 임박 일감 테이블
+function DeadlineTable({ taskRows }: { taskRows: any[] }) {
+  const rows = taskRows
+    .filter(r => r.endDate)
+    .sort((a, b) => {
+      const aDone = a.status === 'DONE' || a.status === 'CANCELLED';
+      const bDone = b.status === 'DONE' || b.status === 'CANCELLED';
+      if (aDone !== bDone) return aDone ? 1 : -1;
+      return +new Date(a.endDate) - +new Date(b.endDate);
+    });
+
+  if (rows.length === 0) {
+    return (
+      <div className="py-16 text-center">
+        <p className="text-sm text-gray-300">마감일이 설정된 일감이 없습니다.</p>
       </div>
-      <p className="text-xs text-white/50 mb-1">{label}</p>
-      <p className="text-2xl font-bold text-white">{value}</p>
-      {sub && <p className="text-[11px] text-white/40 mt-1">{sub}</p>}
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-gray-100">
+            {['일감명', '프로젝트', '상태', '마감일', 'D-day'].map(h => (
+              <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold text-gray-300 tracking-widest uppercase first:pl-6 last:pr-6 last:text-right">
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-50">
+          {rows.map((row) => {
+            const dday = getDdayConfig(row.endDate, row.status);
+            const isDimmed = row.status === 'DONE' || row.status === 'CANCELLED';
+            const isUrgent = !isDimmed && (() => {
+              const diff = Math.ceil((new Date(row.endDate).setHours(0,0,0,0) - new Date().setHours(0,0,0,0)) / 86400000);
+              return diff <= 0;
+            })();
+
+            return (
+              <tr key={row.id} className={cn(
+                'group transition-colors hover:bg-gray-50/60',
+                isDimmed && 'opacity-40',
+                isUrgent && 'bg-rose-50/30'
+              )}>
+                <td className="pl-6 pr-4 py-3.5 relative">
+                  {isUrgent && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full bg-rose-400" />
+                  )}
+                  <p className="text-sm font-semibold text-gray-800 truncate max-w-[220px]">{row.title}</p>
+                  {row.description && (
+                    <p className="text-[11px] text-gray-400 truncate max-w-[220px] mt-0.5">{row.description}</p>
+                  )}
+                </td>
+                <td className="px-4 py-3.5">
+                  <span className="text-xs text-gray-400 truncate max-w-[100px] block">{row.project}</span>
+                </td>
+                <td className="px-4 py-3.5">
+                  <span className={cn(
+                    'inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-md',
+                    row.status === 'DONE' ? 'bg-emerald-50 text-emerald-600' :
+                    row.status === 'IN_PROGRESS' ? 'bg-blue-50 text-blue-600' :
+                    row.status === 'IN_REVIEW' ? 'bg-amber-50 text-amber-600' :
+                    row.status === 'CANCELLED' ? 'bg-gray-100 text-gray-400' :
+                    'bg-gray-100 text-gray-500'
+                  )}>
+                    {STATUS_CONFIG[row.status as TaskStatus]?.label ?? row.status}
+                  </span>
+                </td>
+                <td className="px-4 py-3.5">
+                  <span className="text-xs text-gray-500 tabular-nums">{formatDate(row.endDate)}</span>
+                </td>
+                <td className="pl-4 pr-6 py-3.5 text-right">
+                  <span className={cn(
+                    'inline-flex items-center justify-center min-w-[52px] px-2.5 py-1 rounded-lg text-xs font-bold',
+                    dday.bg, dday.text
+                  )}>
+                    {dday.label}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
 
-// D-day 배지
-function getDdayConfig(endDate: string, status: string) {
-  if (status === 'DONE') return { label: '완료', color: '#22c55e' };
-  if (status === 'CANCELLED') return { label: '취소', color: '#6b7280' };
-  const diff = Math.ceil((new Date(endDate).setHours(0,0,0,0) - new Date().setHours(0,0,0,0)) / 86400000);
-  if (diff < 0)  return { label: `D+${Math.abs(diff)}`, color: '#ef4444' };
-  if (diff === 0) return { label: 'D-day', color: '#f97316' };
-  if (diff <= 3)  return { label: `D-${diff}`, color: '#eab308' };
-  if (diff <= 7)  return { label: `D-${diff}`, color: '#3b82f6' };
-  return { label: `D-${diff}`, color: '#6b7280' };
-}
-
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
-  const [activeTab, setActiveTab] = useState<SideTab>('trending');
-  const [search, setSearch] = useState('');
   const [viewingMeeting, setViewingMeeting] = useState<any>(null);
 
   const { data: projects } = useQuery({ queryKey: ['projects'], queryFn: projectsApi.getAll });
@@ -170,12 +273,10 @@ export function DashboardPage() {
   const weekHours = weekLogs.reduce((s: number, l: any) => s + (l.hours ?? 0), 0);
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const upcomingMeetings = useMemo(() =>
-    (meetings ?? [])
-      .filter((m: any) => new Date(m.meetingDate) >= today)
-      .sort((a: any, b: any) => +new Date(a.meetingDate) - +new Date(b.meetingDate))
-      .slice(0, 6),
-  [meetings]);
+  const upcomingMeetings = (meetings ?? [])
+    .filter((m: any) => new Date(m.meetingDate) >= today)
+    .sort((a: any, b: any) => +new Date(a.meetingDate) - +new Date(b.meetingDate))
+    .slice(0, 5);
 
   const allLogs = myWorklogs ?? [];
   const taskMap = new Map<string, any>();
@@ -196,456 +297,239 @@ export function DashboardPage() {
     }
   });
   const taskRows = [...taskMap.values()];
-  const urgentTasks = taskRows.filter(r => r.endDate && r.status !== 'DONE' && r.status !== 'CANCELLED' && new Date(r.endDate) < new Date());
-
-  // 검색 필터
-  const filteredProjects = useMemo(() => {
-    if (!search.trim()) return projects ?? [];
-    const q = search.toLowerCase();
-    return (projects ?? []).filter(p => p.name.toLowerCase().includes(q));
-  }, [projects, search]);
-
-  // 사이드 패널 콘텐츠
-  function SidePanelContent() {
-    if (activeTab === 'trending') {
-      return (
-        <div className="space-y-2">
-          <p className="text-[11px] font-semibold text-white/30 uppercase tracking-widest px-2 mb-3">진행 중 프로젝트</p>
-          {(projects ?? []).filter(p => p.status === 'ACTIVE').slice(0, 6).map((p, idx) => {
-            const stats = statsQueries[(projects ?? []).indexOf(p)]?.data as ProjectStats | undefined;
-            const total = stats?.total ?? 0;
-            const done = stats?.byStatus.find(b => b.status === 'DONE')?._count ?? 0;
-            const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-            return (
-              <Link key={p.id} to={`/projects/${p.id}`}
-                className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-white/5 transition-colors group">
-                <span className="text-base">{p.icon ?? '📁'}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-white/80 truncate group-hover:text-white">{p.name}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className="flex-1 h-1 rounded-full bg-white/8 overflow-hidden">
-                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: p.color }} />
-                    </div>
-                    <span className="text-[10px] text-white/40 tabular-nums">{pct}%</span>
-                  </div>
-                </div>
-                <span className="text-[9px] text-white/30">#{idx + 1}</span>
-              </Link>
-            );
-          })}
-          {urgentTasks.length > 0 && (
-            <>
-              <p className="text-[11px] font-semibold text-rose-400/60 uppercase tracking-widest px-2 mb-3 mt-5">마감 초과</p>
-              {urgentTasks.slice(0, 4).map(t => (
-                <div key={t.id} className="flex items-center gap-3 px-2 py-2 rounded-xl bg-rose-500/5">
-                  <AlertTriangle size={12} className="text-rose-400 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-rose-300 truncate">{t.title}</p>
-                    <p className="text-[10px] text-rose-400/50">{t.project}</p>
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-      );
-    }
-
-    if (activeTab === 'projects') {
-      return (
-        <div className="space-y-1">
-          <p className="text-[11px] font-semibold text-white/30 uppercase tracking-widest px-2 mb-3">전체 프로젝트</p>
-          {(projects ?? []).map((p, idx) => {
-            const stats = statsQueries[idx]?.data as ProjectStats | undefined;
-            const total = stats?.total ?? 0;
-            return (
-              <Link key={p.id} to={`/projects/${p.id}`}
-                className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-white/5 transition-colors group">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
-                  style={{ backgroundColor: `${p.color}20` }}>
-                  {p.icon ?? '📁'}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-white/80 truncate group-hover:text-white">{p.name}</p>
-                  <p className="text-[10px] text-white/30">{total}개 태스크</p>
-                </div>
-                <span className={cn('text-[9px] font-medium px-1.5 py-0.5 rounded-md',
-                  p.status === 'ACTIVE' ? 'bg-emerald-500/15 text-emerald-400' :
-                  p.status === 'COMPLETED' ? 'bg-gray-500/20 text-gray-400' :
-                  'bg-amber-500/15 text-amber-400'
-                )}>
-                  {p.status === 'ACTIVE' ? '진행' : p.status === 'COMPLETED' ? '완료' : p.status}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
-      );
-    }
-
-    if (activeTab === 'schedule') {
-      return (
-        <div className="space-y-1">
-          <p className="text-[11px] font-semibold text-white/30 uppercase tracking-widest px-2 mb-3">다가오는 일정</p>
-          {upcomingMeetings.length === 0 && (
-            <p className="text-xs text-white/20 px-2 py-4">예정된 일정이 없습니다.</p>
-          )}
-          {upcomingMeetings.map((m: any) => (
-            <button key={m.id} onClick={() => setViewingMeeting(m)}
-              className="w-full flex items-start gap-3 px-2 py-2.5 rounded-xl hover:bg-white/5 transition-colors text-left group">
-              <div className="flex flex-col items-center w-8 flex-shrink-0 bg-white/5 rounded-lg py-1">
-                <span className="text-[9px] text-white/30">{formatDate(m.meetingDate, 'MM')}월</span>
-                <span className="text-sm font-bold text-white/80">{formatDate(m.meetingDate, 'dd')}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-white/80 truncate group-hover:text-white">{m.title}</p>
-                <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-white/30">
-                  {m.startTime && <span className="flex items-center gap-0.5"><Clock size={8} />{m.startTime}</span>}
-                  {m.location && <span className="flex items-center gap-0.5 truncate"><MapPin size={8} />{m.location}</span>}
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
-      );
-    }
-
-    if (activeTab === 'tasks') {
-      const sorted = taskRows
-        .filter(r => r.endDate)
-        .sort((a, b) => {
-          const aDone = a.status === 'DONE' || a.status === 'CANCELLED';
-          const bDone = b.status === 'DONE' || b.status === 'CANCELLED';
-          if (aDone !== bDone) return aDone ? 1 : -1;
-          return +new Date(a.endDate) - +new Date(b.endDate);
-        })
-        .slice(0, 10);
-      return (
-        <div className="space-y-1">
-          <p className="text-[11px] font-semibold text-white/30 uppercase tracking-widest px-2 mb-3">마감 임박 일감</p>
-          {sorted.length === 0 && (
-            <p className="text-xs text-white/20 px-2 py-4">마감일이 설정된 일감이 없습니다.</p>
-          )}
-          {sorted.map(t => {
-            const dday = getDdayConfig(t.endDate, t.status);
-            const isDone = t.status === 'DONE' || t.status === 'CANCELLED';
-            return (
-              <div key={t.id} className={cn('flex items-center gap-3 px-2 py-2 rounded-xl', isDone && 'opacity-40')}>
-                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: STATUS_HEX[t.status as TaskStatus] }} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-white/80 truncate">{t.title}</p>
-                  <p className="text-[10px] text-white/30 truncate">{t.project}</p>
-                </div>
-                <span className="text-[10px] font-bold tabular-nums" style={{ color: dday.color }}>{dday.label}</span>
-              </div>
-            );
-          })}
-        </div>
-      );
-    }
-
-    return null;
-  }
 
   return (
-    <div className="min-h-full bg-gray-950 flex flex-col">
-      {/* 배경 그라디언트 */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-primary-600/10 blur-[120px]" />
-        <div className="absolute top-1/2 -right-40 w-96 h-96 rounded-full bg-violet-600/8 blur-[100px]" />
-        <div className="absolute bottom-0 left-1/3 w-80 h-80 rounded-full bg-blue-600/6 blur-[100px]" />
+    <div className="min-h-full bg-gradient-to-br from-slate-50 via-white to-rose-50/30 relative overflow-hidden">
+      {/* 배경 블롭 */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-primary-300/30 blur-3xl" />
+        <div className="absolute top-1/3 -right-32 w-80 h-80 rounded-full bg-rose-200/25 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 w-72 h-72 rounded-full bg-slate-300/30 blur-3xl" />
       </div>
+      <div className="relative max-w-7xl mx-auto px-8 py-10 space-y-12">
 
-      <div className="relative flex-1 flex flex-col max-w-7xl mx-auto w-full px-6 py-8 gap-8">
-
-        {/* ── 검색바 헤더 ── */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
+        {/* ── Welcome ── */}
+        <div className="flex items-end justify-between">
+          <div>
+            <p className="text-sm font-medium text-primary-500 mb-1">
+              {now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
+            </p>
+            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+              안녕하세요, {user?.name}님
+            </h1>
+            <p className="text-gray-400 mt-1.5">오늘도 팀과 함께 목표를 향해 나아가세요.</p>
+          </div>
+          <div className="hidden lg:flex items-center gap-6 text-right bg-white/60 backdrop-blur-sm px-6 py-4 rounded-2xl border border-white/70 shadow-[0_4px_16px_rgba(0,0,0,0.06),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5">
             <div>
-              <h1 className="text-2xl font-bold text-white tracking-tight">
-                안녕하세요, {user?.name}님
-              </h1>
-              <p className="text-sm text-white/40 mt-0.5">
-                {now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
-              </p>
+              <p className="text-2xl font-bold text-gray-900">{weekLogs.length}<span className="text-sm font-normal text-gray-400 ml-1">건</span></p>
+              <p className="text-xs text-gray-400 mt-0.5">이번 주 일감</p>
+            </div>
+            <div className="w-px h-8 bg-gray-100" />
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{weekHours}<span className="text-sm font-normal text-gray-400 ml-1">h</span></p>
+              <p className="text-xs text-gray-400 mt-0.5">이번 주 공수</p>
+            </div>
+            <div className="w-px h-8 bg-gray-100" />
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{statusCounts['IN_PROGRESS']}<span className="text-sm font-normal text-gray-400 ml-1">건</span></p>
+              <p className="text-xs text-gray-400 mt-0.5">진행 중 태스크</p>
             </div>
           </div>
-
-          {/* 검색바 */}
-          <div className="relative">
-            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="프로젝트, 일감, 일정 검색..."
-              className="w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 pl-11 pr-4 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-1 focus:ring-white/20 focus:bg-white/8 transition-all backdrop-blur-sm"
-            />
-            {search && (
-              <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">
-                <X size={14} />
-              </button>
-            )}
-          </div>
         </div>
 
-        {/* ── 스탯 카드 4개 ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <StatCard label="진행 중 프로젝트" value={(projects ?? []).filter(p => p.status === 'ACTIVE').length} sub="개 프로젝트" color="#3b82f6" icon={FolderKanban} />
-          <StatCard label="이번 주 일감" value={weekLogs.length} sub={`${weekHours}h 공수`} color="#8b5cf6" icon={CheckSquare} />
-          <StatCard label="진행 중 태스크" value={statusCounts['IN_PROGRESS']} sub={`전체 ${totalTasks}건`} color="#22c55e" icon={TrendingUp} />
-          <StatCard label="다가오는 일정" value={upcomingMeetings.length} sub="예정된 미팅" color="#f59e0b" icon={CalendarDays} />
-        </div>
-
-        {/* ── 메인 레이아웃 (사이드 탭 + 콘텐츠) ── */}
-        <div className="flex gap-5 flex-1">
-
-          {/* 좌측 탭 패널 */}
-          <div className="w-56 flex-shrink-0 flex flex-col gap-1">
-            {/* 탭 */}
-            <div className="flex flex-col gap-0.5 mb-3">
-              {SIDE_TABS.map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => setActiveTab(id)}
-                  className={cn(
-                    'flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left',
-                    activeTab === id
-                      ? 'bg-white/10 text-white shadow-sm'
-                      : 'text-white/40 hover:text-white/70 hover:bg-white/5'
-                  )}
-                >
-                  <Icon size={15} className="flex-shrink-0" />
-                  {label}
-                </button>
+        {/* ── 프로젝트 현황 ── */}
+        {(projects ?? []).length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-xl font-bold text-gray-900">프로젝트 현황</h2>
+              <Link to="/projects" className="flex items-center gap-1 text-sm text-gray-400 hover:text-primary-500 transition-colors font-medium">
+                전체 보기 <ChevronRight size={14} />
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(projects ?? []).map((p, idx) => (
+                <ProjectCard key={p.id} project={p} stats={statsQueries[idx]?.data as ProjectStats | undefined} />
               ))}
             </div>
+          </section>
+        )}
 
-            {/* 탭 콘텐츠 */}
-            <div className="flex-1 overflow-y-auto scrollbar-none">
-              <SidePanelContent />
+        {/* ── 이번 주 일감 + 사이드 ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          {/* 이번 주 일감 */}
+          <div className="lg:col-span-2 bg-white/85 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">이번 주 일감</h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {weekStart.getMonth() + 1}/{weekStart.getDate()} – {new Date(weekEnd.getTime() - 1).getMonth() + 1}/{new Date(weekEnd.getTime() - 1).getDate()}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-gray-900">{weekLogs.length}건</span>
+                <Link to={user?.id ? `/workload?user=${user.id}` : '/workload'}
+                  className="text-xs text-gray-400 hover:text-primary-500 transition-colors flex items-center gap-0.5">
+                  전체 <ArrowUpRight size={12} />
+                </Link>
+              </div>
             </div>
-          </div>
-
-          {/* 우측 메인 콘텐츠 */}
-          <div className="flex-1 min-w-0 space-y-6">
-
-            {/* 프로젝트 아이콘 그리드 */}
-            {!search && (
-              <section>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-sm font-semibold text-white/60 uppercase tracking-widest">프로젝트</h2>
-                  <Link to="/projects" className="flex items-center gap-1 text-xs text-white/30 hover:text-white/60 transition-colors">
-                    전체 보기 <ChevronRight size={12} />
-                  </Link>
-                </div>
-                {(projects ?? []).length === 0 ? (
-                  <div className="rounded-2xl border border-white/6 bg-white/3 py-12 text-center">
-                    <p className="text-sm text-white/20">프로젝트가 없습니다.</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-5 sm:grid-cols-7 lg:grid-cols-9 gap-1">
-                    {(projects ?? []).map(p => (
-                      <ProjectIconCard key={p.id} project={p} />
-                    ))}
-                  </div>
-                )}
-              </section>
-            )}
-
-            {/* 검색 결과 */}
-            {search && (
-              <section>
-                <h2 className="text-sm font-semibold text-white/60 uppercase tracking-widest mb-4">
-                  "{search}" 검색 결과
-                </h2>
-                {filteredProjects.length === 0 ? (
-                  <p className="text-sm text-white/20">일치하는 프로젝트가 없습니다.</p>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {filteredProjects.map((p, idx) => {
-                      const stats = statsQueries[(projects ?? []).indexOf(p)]?.data as ProjectStats | undefined;
-                      const total = stats?.total ?? 0;
-                      const done = stats?.byStatus.find(b => b.status === 'DONE')?._count ?? 0;
-                      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-                      return (
-                        <Link key={p.id} to={`/projects/${p.id}`}
-                          className="flex items-center gap-3 bg-white/5 hover:bg-white/8 border border-white/8 rounded-2xl p-4 transition-all group">
-                          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                            style={{ backgroundColor: `${p.color}20` }}>
-                            {p.icon ?? '📁'}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-white/90 truncate">{p.name}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <div className="flex-1 h-0.5 rounded-full bg-white/8">
-                                <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: p.color }} />
-                              </div>
-                              <span className="text-[10px] text-white/30 tabular-nums">{pct}%</span>
-                            </div>
-                          </div>
-                          <ArrowUpRight size={14} className="text-white/20 group-hover:text-white/50 transition-colors" />
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
-            )}
-
-            {/* 프로젝트 상태 카드 그리드 */}
-            {!search && (
-              <section>
-                <h2 className="text-sm font-semibold text-white/60 uppercase tracking-widest mb-4">프로젝트 현황</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {(projects ?? []).slice(0, 6).map((p, idx) => {
-                    const stats = statsQueries[idx]?.data as ProjectStats | undefined;
-                    const total = stats?.total ?? 0;
-                    const done = stats?.byStatus.find(b => b.status === 'DONE')?._count ?? 0;
-                    const inProg = stats?.byStatus.find(b => b.status === 'IN_PROGRESS')?._count ?? 0;
-                    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-                    return (
-                      <Link key={p.id} to={`/projects/${p.id}`}
-                        className="group relative overflow-hidden bg-white/4 hover:bg-white/7 border border-white/8 hover:border-white/14 rounded-2xl p-4 transition-all duration-200">
-                        {/* 컬러 악센트 */}
-                        <div className="absolute top-0 left-0 right-0 h-0.5 rounded-t-2xl"
-                          style={{ backgroundColor: p.color, opacity: 0.6 }} />
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-base"
-                              style={{ backgroundColor: `${p.color}18` }}>
-                              {p.icon ?? '📁'}
-                            </div>
-                            <div>
-                              <p className="text-sm font-semibold text-white/90 truncate max-w-[120px] group-hover:text-white">{p.name}</p>
-                              <span className={cn('text-[10px] font-medium',
-                                p.status === 'ACTIVE' ? 'text-emerald-400' :
-                                p.status === 'COMPLETED' ? 'text-gray-500' : 'text-amber-400'
-                              )}>
-                                {p.status === 'ACTIVE' ? '● 진행 중' : p.status === 'COMPLETED' ? '완료' : p.status}
-                              </span>
-                            </div>
-                          </div>
-                          <ArrowUpRight size={13} className="text-white/15 group-hover:text-white/40 transition-colors mt-0.5" />
-                        </div>
-                        <div className="mb-3">
-                          <div className="flex justify-between text-[11px] mb-1.5">
-                            <span className="text-white/30">완료율</span>
-                            <span className="font-bold text-white/60">{pct}%</span>
-                          </div>
-                          <div className="h-1 bg-white/6 rounded-full overflow-hidden">
-                            <div className="h-full rounded-full transition-all duration-700"
-                              style={{ width: `${pct}%`, backgroundColor: p.color }} />
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex -space-x-1">
-                            {p.members.slice(0, 3).map(m => (
-                              <Avatar key={m.id} name={m.user.name} avatar={m.user.avatar} size="xs"
-                                className="ring-1 ring-gray-900" />
-                            ))}
-                            {p.members.length > 3 && (
-                              <div className="w-5 h-5 rounded-full bg-white/10 ring-1 ring-gray-900 flex items-center justify-center text-[9px] text-white/50">
-                                +{p.members.length - 3}
-                              </div>
-                            )}
-                          </div>
-                          <span className="text-[10px] text-white/30">{inProg}건 진행 중</span>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </section>
-            )}
-
-            {/* 하단 2컬럼: 태스크 현황 + 이번 주 일감 */}
-            {!search && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* 태스크 현황 도넛 */}
-                <div className="bg-white/4 border border-white/8 rounded-2xl p-5">
-                  <h3 className="text-sm font-semibold text-white/60 uppercase tracking-widest mb-4">태스크 현황</h3>
-                  {totalTasks === 0 ? (
-                    <p className="text-xs text-white/20 text-center py-8">태스크가 없습니다.</p>
-                  ) : (
-                    <StatusDonut counts={statusCounts} total={totalTasks} />
-                  )}
-                </div>
-
-                {/* 이번 주 일감 */}
-                <div className="bg-white/4 border border-white/8 rounded-2xl p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-semibold text-white/60 uppercase tracking-widest">이번 주 일감</h3>
-                    <Link to={user?.id ? `/workload?user=${user.id}` : '/workload'}
-                      className="flex items-center gap-0.5 text-xs text-white/25 hover:text-white/50 transition-colors">
-                      전체 <ArrowUpRight size={10} />
-                    </Link>
-                  </div>
-                  {weekLogs.length === 0 ? (
-                    <p className="text-xs text-white/20 text-center py-8">이번 주 일감이 없습니다.</p>
-                  ) : (
-                    <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-none">
-                      {weekLogs.map((l: any) => (
-                        <div key={l.id} className="flex items-center gap-3">
-                          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: l.task?.status ? STATUS_HEX[l.task.status as TaskStatus] : '#cbd5e1' }} />
-                          <p className="text-xs text-white/70 truncate flex-1">{l.taskTitle ?? l.task?.title ?? '일감'}</p>
-                          <span className="text-[10px] text-white/35 tabular-nums flex-shrink-0">{l.hours}h</span>
-                        </div>
-                      ))}
+            {weekLogs.length === 0 ? (
+              <div className="py-16 text-center">
+                <p className="text-sm text-gray-300">이번 주 등록된 일감이 없습니다.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {weekLogs.map((l: any) => (
+                  <div key={l.id} className="flex items-start gap-4 px-6 py-3.5 hover:bg-gray-50/60 transition-colors">
+                    <span className="mt-2 w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: l.task?.status ? STATUS_HEX[l.task.status as TaskStatus] : '#cbd5e1' }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{l.taskTitle ?? l.task?.title ?? '일감'}</p>
+                      {l.description && <p className="text-xs text-gray-400 truncate mt-0.5">{l.description}</p>}
                     </div>
-                  )}
-                </div>
+                    <div className="flex items-center gap-3 flex-shrink-0 text-xs text-gray-400">
+                      {l.task?.project?.name && (
+                        <span className="hidden sm:block truncate max-w-[80px]">{l.task.project.name}</span>
+                      )}
+                      <span className="font-bold text-gray-700 tabular-nums">{l.hours}h</span>
+                      <span className="tabular-nums">{formatDate(l.startDate ?? l.workDate, 'MM/dd')}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
+
+          {/* 우측 */}
+          <div className="flex flex-col gap-6">
+            {/* 태스크 상태 */}
+            <div className="bg-white/85 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100">
+                <h3 className="text-base font-bold text-gray-900">태스크 현황</h3>
+              </div>
+              <div className="p-6">
+                {totalTasks === 0 ? (
+                  <p className="text-xs text-gray-300 py-4 text-center">태스크가 없습니다.</p>
+                ) : (
+                  <StatusDonut counts={statusCounts} total={totalTasks} />
+                )}
+              </div>
+            </div>
+
+            {/* 다가오는 일정 */}
+            <div className="bg-white/85 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden flex flex-col flex-1">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <h3 className="text-base font-bold text-gray-900">다가오는 일정</h3>
+                <Link to="/meeting-calendar" className="text-xs text-gray-400 hover:text-primary-500 transition-colors flex items-center gap-0.5">
+                  달력 <ArrowUpRight size={12} />
+                </Link>
+              </div>
+              {upcomingMeetings.length === 0 ? (
+                <div className="py-12 text-center">
+                  <p className="text-sm text-gray-300">예정된 일정이 없습니다.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-50">
+                  {upcomingMeetings.map((m: any) => (
+                    <button key={m.id} onClick={() => setViewingMeeting(m)}
+                      className="w-full flex items-start gap-4 px-6 py-3.5 hover:bg-gray-50/60 transition-colors text-left">
+                      <div className="flex flex-col items-center w-8 flex-shrink-0 pt-0.5">
+                        <span className="text-[10px] text-gray-400 font-medium">{formatDate(m.meetingDate, 'MM')}월</span>
+                        <span className="text-base font-bold text-gray-900 leading-tight">{formatDate(m.meetingDate, 'dd')}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-800 truncate">{m.title}</p>
+                        <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-400">
+                          {m.startTime && <span className="flex items-center gap-0.5"><Clock size={9} /> {m.startTime}</span>}
+                          {m.location && <span className="flex items-center gap-0.5 truncate"><MapPin size={9} /> {m.location}</span>}
+                          {m.participants?.length > 0 && <span className="flex items-center gap-0.5"><UsersIcon size={9} /> {m.participants.length}</span>}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
+
+        {/* ── 마감 임박 일감 ── */}
+        <section>
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">마감 임박 일감</h2>
+              <p className="text-sm text-gray-400 mt-0.5">마감일 기준 오름차순 · 완료 건 하단 표시</p>
+            </div>
+            <div className="flex items-center gap-3">
+              {taskRows.filter(r => r.endDate && r.status !== 'DONE' && r.status !== 'CANCELLED' && new Date(r.endDate) < new Date()).length > 0 && (
+                <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-rose-50 text-rose-600">
+                  <AlertTriangle size={11} />
+                  초과 {taskRows.filter(r => r.endDate && r.status !== 'DONE' && r.status !== 'CANCELLED' && new Date(r.endDate) < new Date()).length}건
+                </span>
+              )}
+              <span className="text-sm text-gray-400">{taskRows.filter(r => r.endDate).length}건</span>
+            </div>
+          </div>
+          <div className="bg-white/85 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
+            <DeadlineTable taskRows={taskRows} />
+          </div>
+        </section>
+
       </div>
 
-      {/* 일정 상세 모달 */}
+      {/* ── 일정 상세 모달 ── */}
       {viewingMeeting && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setViewingMeeting(null)} />
-          <div className="relative bg-gray-900 border border-white/10 rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/8">
-              <h2 className="text-base font-bold text-white">{viewingMeeting.title}</h2>
-              <button onClick={() => setViewingMeeting(null)} className="text-white/30 hover:text-white/70 transition-colors p-1">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setViewingMeeting(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base font-bold text-gray-800">{viewingMeeting.title}</h2>
+                {viewingMeeting.project && (
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                    {viewingMeeting.project.name}
+                  </span>
+                )}
+              </div>
+              <button onClick={() => setViewingMeeting(null)} className="text-gray-400 hover:text-gray-600 transition-colors p-1.5">
                 <X size={18} />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-6">
-              <div className="flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-white/8">
+              <div className="flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-gray-100">
                 {viewingMeeting.meetingDate && (
-                  <span className="flex items-center gap-1.5 text-sm text-white/60">
-                    <Calendar size={13} className="text-white/30" />{formatDate(viewingMeeting.meetingDate)}
+                  <span className="flex items-center gap-1.5 text-sm text-gray-600">
+                    <Calendar size={14} className="text-gray-400" />{formatDate(viewingMeeting.meetingDate)}
                   </span>
                 )}
                 {(viewingMeeting.startTime || viewingMeeting.endTime) && (
-                  <span className="flex items-center gap-1 text-sm text-white/60">
-                    <Clock size={13} className="text-white/30" />
+                  <span className="flex items-center gap-1 text-sm text-gray-600">
+                    <Clock size={14} className="text-gray-400" />
                     {viewingMeeting.startTime ?? '?'}{viewingMeeting.endTime && <> ~ {viewingMeeting.endTime}</>}
                   </span>
                 )}
                 {viewingMeeting.location && (
-                  <span className="flex items-center gap-1.5 text-sm text-white/60">
-                    <MapPin size={13} className="text-white/30" />{viewingMeeting.location}
+                  <span className="flex items-center gap-1.5 text-sm text-gray-600">
+                    <MapPin size={14} className="text-gray-400" />{viewingMeeting.location}
                   </span>
                 )}
                 {viewingMeeting.attendees && (
-                  <span className="flex items-center gap-1.5 text-sm text-white/60">
-                    <Users size={13} className="text-white/30" />{viewingMeeting.attendees}
+                  <span className="flex items-center gap-1.5 text-sm text-gray-600">
+                    <Users size={14} className="text-gray-400" />{viewingMeeting.attendees}
                   </span>
                 )}
               </div>
               {viewingMeeting.content ? (
-                <div className="text-sm text-white/60 whitespace-pre-wrap leading-relaxed">{viewingMeeting.content}</div>
+                <div className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{viewingMeeting.content}</div>
               ) : (
-                <p className="text-sm text-white/25">내용이 없습니다.</p>
+                <p className="text-sm text-gray-400">내용이 없습니다.</p>
               )}
             </div>
             {viewingMeeting.createdBy && (
-              <div className="px-6 py-3 border-t border-white/8 flex items-center gap-2">
+              <div className="px-6 py-3 border-t border-gray-100 flex items-center gap-2 flex-shrink-0">
                 <Avatar name={viewingMeeting.createdBy.name ?? '?'} avatar={viewingMeeting.createdBy.avatar} size="xs" />
-                <span className="text-xs text-white/30">{viewingMeeting.createdBy.name}</span>
+                <span className="text-xs text-gray-400">{viewingMeeting.createdBy.name}</span>
               </div>
             )}
           </div>
