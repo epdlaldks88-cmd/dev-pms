@@ -1065,26 +1065,63 @@ export function WorkloadPage() {
                       </div>
                     )}
 
-                    {/* 합계 테이블 */}
+                    {/* 합계 테이블 — 담당자 행 × 날짜 열 */}
                     <div className="mt-5 border border-gray-100 rounded-xl overflow-hidden">
-                      <div className="grid text-xs font-semibold text-gray-500 bg-gray-50 px-4 py-2.5"
-                        style={{ gridTemplateColumns: `1fr repeat(${users.length}, 1fr) 1fr` }}>
-                        <span>날짜</span>
-                        {users.map((u) => <span key={u.id} style={{ color: u.color }}>{u.name}</span>)}
-                        <span className="text-gray-600">합계</span>
-                      </div>
-                      <div className="max-h-40 overflow-y-auto divide-y divide-gray-50">
-                        {visibleDates.map((date) => {
-                          const total = users.reduce((s, u) => s + (map[date]?.[u.id] ?? 0), 0);
-                          return (
-                            <div key={date} className="grid text-xs px-4 py-2 hover:bg-gray-50 transition-colors"
-                              style={{ gridTemplateColumns: `1fr repeat(${users.length}, 1fr) 1fr` }}>
-                              <span className="text-gray-500">{date.slice(5)}</span>
-                              {users.map((u) => <span key={u.id} className="text-gray-700">{map[date]?.[u.id] ?? 0}{graphTab === 'hours' ? 'h' : ''}</span>)}
-                              <span className="font-semibold text-gray-800">{total}{graphTab === 'hours' ? 'h' : '건'}</span>
-                            </div>
-                          );
-                        })}
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead>
+                            <tr className="bg-gray-50">
+                              <th className="text-left px-4 py-2.5 font-semibold text-gray-500 sticky left-0 bg-gray-50 z-10 whitespace-nowrap border-r border-gray-100">담당자</th>
+                              {visibleDates.map((d) => (
+                                <th key={d} className="px-2 py-2.5 font-semibold text-gray-400 whitespace-nowrap text-center min-w-[44px]">{d.slice(5)}</th>
+                              ))}
+                              <th className="px-3 py-2.5 font-semibold text-gray-600 whitespace-nowrap text-right border-l border-gray-100">합계</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {users.map((u) => {
+                              const total = visibleDates.reduce((s, d) => s + (map[d]?.[u.id] ?? 0), 0);
+                              return (
+                                <tr key={u.id} className="hover:bg-gray-50 transition-colors">
+                                  <td className="px-4 py-2 sticky left-0 bg-white hover:bg-gray-50 z-10 border-r border-gray-100">
+                                    <div className="flex items-center gap-1.5 whitespace-nowrap">
+                                      <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: u.color }} />
+                                      <span className="font-medium text-gray-700">{u.name}</span>
+                                    </div>
+                                  </td>
+                                  {visibleDates.map((d) => {
+                                    const val = map[d]?.[u.id] ?? 0;
+                                    return (
+                                      <td key={d} className="px-2 py-2 text-center">
+                                        {val > 0
+                                          ? <span className="font-semibold" style={{ color: u.color }}>{val}{graphTab === 'hours' ? 'h' : ''}</span>
+                                          : <span className="text-gray-200">—</span>}
+                                      </td>
+                                    );
+                                  })}
+                                  <td className="px-3 py-2 text-right font-bold text-gray-800 border-l border-gray-100 whitespace-nowrap">
+                                    {total > 0 ? `${total}${graphTab === 'hours' ? 'h' : '건'}` : <span className="text-gray-200 font-normal">—</span>}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            {/* 날짜별 합계 행 */}
+                            <tr className="bg-gray-50 border-t border-gray-200">
+                              <td className="px-4 py-2.5 sticky left-0 bg-gray-50 z-10 border-r border-gray-100 font-semibold text-gray-500">합계</td>
+                              {visibleDates.map((d) => {
+                                const total = users.reduce((s, u) => s + (map[d]?.[u.id] ?? 0), 0);
+                                return (
+                                  <td key={d} className="px-2 py-2.5 text-center font-semibold text-gray-700">
+                                    {total > 0 ? `${total}${graphTab === 'hours' ? 'h' : ''}` : <span className="text-gray-200 font-normal">—</span>}
+                                  </td>
+                                );
+                              })}
+                              <td className="px-3 py-2.5 text-right font-bold border-l border-gray-100" style={{ color: '#e73827' }}>
+                                {users.reduce((s, u) => s + visibleDates.reduce((ss, d) => ss + (map[d]?.[u.id] ?? 0), 0), 0)}{graphTab === 'hours' ? 'h' : '건'}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                   </>
