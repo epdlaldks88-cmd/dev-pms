@@ -102,6 +102,18 @@ function ProjectCard({ project, stats }: { project: Project; stats: ProjectStats
           <ArrowUpRight size={15} className="text-gray-200 group-hover:text-primary-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all flex-shrink-0 mt-0.5" />
         </div>
 
+        {/* 기간 */}
+        {(project.startDate || project.endDate) && (
+          <div className="flex items-center gap-1.5 text-[11px] text-gray-400 mb-3">
+            <Calendar size={12} className="flex-shrink-0" />
+            <span className="tabular-nums">
+              {project.startDate ? formatDate(project.startDate, 'yy.MM.dd') : '미정'}
+              {' ~ '}
+              {project.endDate ? formatDate(project.endDate, 'yy.MM.dd') : '미정'}
+            </span>
+          </div>
+        )}
+
         {/* 진행률 */}
         <div className="mb-4">
           <div className="flex justify-between text-xs mb-2">
@@ -187,7 +199,19 @@ function ProjectCardWide({ project, stats }: { project: Project; stats: ProjectS
           </div>
 
           {project.description && (
-            <p className="text-sm text-gray-500 leading-relaxed mb-5 line-clamp-2">{project.description}</p>
+            <p className="text-sm text-gray-500 leading-relaxed mb-4 line-clamp-2">{project.description}</p>
+          )}
+
+          {/* 기간 */}
+          {(project.startDate || project.endDate) && (
+            <div className="flex items-center gap-2 text-xs text-gray-500 mb-5">
+              <Calendar size={14} className="flex-shrink-0 text-gray-400" />
+              <span className="tabular-nums">
+                {project.startDate ? formatDate(project.startDate) : '미정'}
+                <span className="text-gray-300 mx-1.5">~</span>
+                {project.endDate ? formatDate(project.endDate) : '미정'}
+              </span>
+            </div>
           )}
 
           {/* 진행률 */}
