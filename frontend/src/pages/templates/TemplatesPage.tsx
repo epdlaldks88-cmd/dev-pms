@@ -8,6 +8,7 @@ import { templatesApi, type TemplateInput } from '../../api/templates';
 import type { Template } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { formatDate, formatFileSize, cn } from '../../lib/utils';
 
 // 기본 단계 프리셋 (사용자가 자유롭게 새 단계 추가 가능)
@@ -106,11 +107,10 @@ export function TemplatesPage() {
 
   const createTemplate = useMutation({
     mutationFn: () => templatesApi.create(form),
-    onSuccess: (created) => {
+    onSuccess: () => {
       invalidate();
-      // 생성 후 편집 모드로 전환해 파일을 첨부할 수 있게 한다
-      setEditing(created);
-      toast.success('템플릿이 저장되었습니다. 파일을 첨부할 수 있어요.');
+      closeModal();
+      toast.success('템플릿이 저장되었습니다. 파일은 수정에서 첨부할 수 있어요.');
     },
     onError: (e: any) => toast.error(e.response?.data?.message ?? '저장에 실패했습니다.'),
   });
@@ -202,62 +202,67 @@ export function TemplatesPage() {
   }, [filtered]);
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <FileText size={18} className="text-gray-600" />
-          <h1 className="text-lg font-bold text-gray-700">템플릿</h1>
-          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full ml-1">
-            {templates?.length ?? 0}개
-          </span>
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* 헤더 + 단계 필터 (캔버스/시트와 동일 레이아웃) */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h1 className="text-lg font-bold text-gray-700">템플릿</h1>
+            <p className="text-sm text-gray-400 mt-0.5">프로젝트 단계별로 사용할 양식을 관리하세요</p>
+          </div>
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-1.5 px-3 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            <Plus size={15} /> 새 템플릿
+          </button>
         </div>
-        <Button variant="primary" onClick={openCreate}>
-          <Plus size={15} /> 새 템플릿
-        </Button>
-      </div>
 
-      {/* 필터 바 */}
-      <div className="flex items-center gap-3 px-6 py-3 border-b border-gray-100 flex-shrink-0 bg-white">
-        <div className="flex items-center gap-1.5 flex-wrap">
+        {/* 단계 필터 + 검색 */}
+        <div className="flex items-center gap-2 flex-wrap">
           {['전체', ...allPhases].map((p) => (
             <button
               key={p}
               onClick={() => setPhaseFilter(p)}
               className={cn(
-                'text-xs font-medium px-2.5 py-1 rounded-full transition-colors',
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors border',
                 phaseFilter === p
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+                  ? 'bg-primary-600 text-white border-transparent'
+                  : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-600',
               )}
             >
               {p}
             </button>
           ))}
-        </div>
-        <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-2.5 py-1.5 ml-auto w-56">
-          <Search size={13} className="text-gray-400 flex-shrink-0" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="템플릿 검색..."
-            className="flex-1 text-xs bg-transparent outline-none text-gray-700"
-          />
+          <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-2.5 py-1.5 ml-auto w-56">
+            <Search size={13} className="text-gray-400 flex-shrink-0" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="템플릿 검색..."
+              className="flex-1 text-xs bg-transparent outline-none text-gray-700"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6">
+      {/* 목록 */}
+      <div className="flex-1 overflow-auto p-6">
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {[...Array(6)].map((_, i) => <div key={i} className="h-32 bg-gray-100 rounded-xl animate-pulse" />)}
-          </div>
+          <LoadingSpinner />
         ) : !filtered.length ? (
           <EmptyState
-            icon={<FileText size={36} />}
+            icon={<FileText size={32} />}
             title="템플릿이 없습니다"
             description="프로젝트 단계별로 사용할 양식을 등록해 보세요."
-            action={<Button variant="primary" onClick={openCreate}><Plus size={15} /> 새 템플릿</Button>}
+            action={
+              <button
+                onClick={openCreate}
+                className="flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors"
+              >
+                <Plus size={15} /> 새 템플릿 만들기
+              </button>
+            }
           />
         ) : (
           <div className="space-y-8">
@@ -268,35 +273,44 @@ export function TemplatesPage() {
                   <h2 className="text-sm font-bold text-gray-700">{phase}</h2>
                   <span className="text-[11px] text-gray-400">{items.length}</span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {items.map((t) => (
                     <div
                       key={t.id}
                       onClick={() => openEdit(t)}
-                      className="group relative bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer"
+                      className="group relative bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-sm font-semibold text-gray-800 line-clamp-1 flex-1">{t.title}</h3>
-                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                          <button onClick={() => openEdit(t)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
-                            <Pencil size={13} />
-                          </button>
-                          <button
-                            onClick={() => { if (confirm('이 템플릿을 삭제하시겠습니까?')) deleteTemplate.mutate(t.id); }}
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <Trash2 size={13} />
-                          </button>
+                      {/* 썸네일 */}
+                      <div className="h-28 bg-gradient-to-br from-indigo-50 via-indigo-50 to-white flex items-center justify-center">
+                        <FileText size={34} className="text-indigo-300" />
+                      </div>
+                      {/* 정보 */}
+                      <div className="px-3 py-2.5 border-t border-gray-100">
+                        <p className="text-sm font-medium text-gray-900 truncate">{t.title}</p>
+                        {t.description
+                          ? <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{t.description}</p>
+                          : <p className="text-xs text-gray-300 mt-0.5">설명 없음</p>}
+                        <div className="flex items-center gap-2 mt-1.5 text-[11px] text-gray-400">
+                          {t.files.length > 0 && (
+                            <span className="inline-flex items-center gap-1"><Paperclip size={11} /> {t.files.length}</span>
+                          )}
+                          <span className="ml-auto">{formatDate(t.updatedAt)}</span>
                         </div>
                       </div>
-                      {t.description && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{t.description}</p>}
-                      <div className="flex items-center gap-2 mt-3 text-[11px] text-gray-400">
-                        {t.files.length > 0 && (
-                          <span className="inline-flex items-center gap-1">
-                            <Paperclip size={11} /> {t.files.length}
-                          </span>
-                        )}
-                        <span className="ml-auto">{formatDate(t.updatedAt)}</span>
+                      {/* 액션 */}
+                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => openEdit(t)}
+                          className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow border border-gray-200 text-gray-500 hover:text-indigo-600 transition-colors"
+                        >
+                          <Pencil size={12} />
+                        </button>
+                        <button
+                          onClick={() => { if (confirm('이 템플릿을 삭제하시겠습니까?')) deleteTemplate.mutate(t.id); }}
+                          className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow border border-gray-200 text-gray-500 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 size={12} />
+                        </button>
                       </div>
                     </div>
                   ))}
