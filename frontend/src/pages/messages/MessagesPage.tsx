@@ -113,7 +113,7 @@ export function MessagesPage() {
         <div className="px-4 pt-5 pb-4 border-b border-gray-100 flex-shrink-0 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #6366f1, #818cf8)' }}>
                 <MessageSquare size={13} className="text-white" />
               </div>
               <h1 className="text-base font-bold text-gray-900">멘션</h1>
@@ -259,7 +259,8 @@ export function MessagesPage() {
                 <button
                   onClick={handleSend}
                   disabled={!draft.trim() || sendMsg.isPending}
-                  className="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-40 transition-colors"
+                  className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white rounded-xl disabled:opacity-40 transition-opacity"
+                  style={{ background: 'linear-gradient(135deg, #6366f1, #818cf8)' }}
                 >
                   <Send size={16} />
                 </button>
