@@ -988,143 +988,113 @@ export function WorkloadPage() {
                     <p className="text-sm">조회된 데이터가 없습니다</p>
                   </div>
                 ) : (
-                  <>
-                    {/* 범례 */}
-                    <div className="flex flex-wrap gap-3 mb-4">
-                      {users.map((u) => (
-                        <div key={u.id} className="flex items-center gap-1.5 text-xs text-gray-600">
-                          <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: u.color }} />
-                          {u.name}
-                        </div>
-                      ))}
-                    </div>
+                  {(() => {
+                    const LANE_H = 52;        // 레인 높이
+                    const NAME_W = 88;        // 담당자 이름 열 너비
+                    const CHART_W = 620;      // 꺾은선 영역 너비
+                    const PAD = 12;           // 상하 여백
+                    const n = visibleDates.length;
+                    const step = n > 1 ? (CHART_W - PAD * 2) / (n - 1) : CHART_W / 2;
 
-                    {/* 차트 영역 */}
-                    <div className="relative">
-                      {/* Y축 가이드라인 */}
-                      <div className="absolute left-8 right-0 top-0" style={{ height: BAR_H }}>
-                        {[0,0.25,0.5,0.75,1].map((r) => (
-                          <div key={r} className="absolute w-full border-t border-gray-100 flex items-center" style={{ bottom: r * BAR_H }}>
-                            <span className="absolute -left-8 text-[10px] text-gray-400 w-7 text-right leading-none">
-                              {r === 0 ? '0' : Math.round(maxVal * r)}
+                    const xOf = (i: number) => PAD + i * step;
+                    const yOf = (val: number, maxV: number) =>
+                      maxV === 0 ? LANE_H / 2 : PAD + (1 - val / maxV) * (LANE_H - PAD * 2);
+
+                    return (
+                      <>
+                        {/* 날짜 축 헤더 */}
+                        <div className="flex border-b border-gray-100 mb-0" style={{ paddingLeft: NAME_W }}>
+                          <svg width={CHART_W} height={22}>
+                            {visibleDates.map((d, i) => (
+                              <text key={d} x={xOf(i)} y={14} textAnchor="middle"
+                                fontSize={9} fill="#9ca3af">{d.slice(5)}</text>
+                            ))}
+                          </svg>
+                          <div className="w-14 text-[10px] text-right text-gray-400 pr-2 self-end pb-1">합계</div>
+                        </div>
+
+                        {/* 담당자 레인 */}
+                        <div className="overflow-y-auto" style={{ maxHeight: 360 }}>
+                          {users.map((u) => {
+                            const vals = visibleDates.map((d) => map[d]?.[u.id] ?? 0);
+                            const maxV = Math.max(1, ...vals);
+                            const total = vals.reduce((s, v) => s + v, 0);
+                            const points = vals.map((v, i) => `${xOf(i)},${yOf(v, maxV)}`).join(' ');
+                            const areaPoints = [
+                              `${xOf(0)},${LANE_H}`,
+                              ...vals.map((v, i) => `${xOf(i)},${yOf(v, maxV)}`),
+                              `${xOf(n - 1)},${LANE_H}`,
+                            ].join(' ');
+
+                            return (
+                              <div key={u.id} className="flex items-center border-b border-gray-50 hover:bg-gray-50/60 transition-colors group">
+                                {/* 담당자 이름 */}
+                                <div className="flex items-center gap-2 flex-shrink-0 px-3" style={{ width: NAME_W }}>
+                                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: u.color }} />
+                                  <span className="text-xs font-medium text-gray-700 truncate">{u.name}</span>
+                                </div>
+
+                                {/* 꺾은선 SVG */}
+                                <svg width={CHART_W} height={LANE_H} className="flex-shrink-0">
+                                  {/* 가이드라인 */}
+                                  <line x1={PAD} y1={LANE_H / 2} x2={CHART_W - PAD} y2={LANE_H / 2}
+                                    stroke="#f3f4f6" strokeWidth={1} />
+                                  {total === 0 ? (
+                                    <line x1={PAD} y1={LANE_H / 2} x2={CHART_W - PAD} y2={LANE_H / 2}
+                                      stroke="#e5e7eb" strokeWidth={1.5} strokeDasharray="4 3" />
+                                  ) : (
+                                    <>
+                                      {/* 면적 */}
+                                      <polygon points={areaPoints} fill={u.color} fillOpacity={0.08} />
+                                      {/* 꺾은선 */}
+                                      <polyline points={points} fill="none" stroke={u.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+                                      {/* 점 + 툴팁 */}
+                                      {vals.map((v, i) => v > 0 && (
+                                        <g key={i} className="group/dot">
+                                          <circle cx={xOf(i)} cy={yOf(v, maxV)} r={6} fill="transparent" />
+                                          <circle cx={xOf(i)} cy={yOf(v, maxV)} r={3} fill={u.color} stroke="white" strokeWidth={1.5} />
+                                          <g className="opacity-0 group-hover/dot:opacity-100" style={{ transition: 'opacity .15s' }}>
+                                            <rect x={xOf(i) - 18} y={yOf(v, maxV) - 22} width={36} height={16} rx={4} fill="#1f2937" />
+                                            <text x={xOf(i)} y={yOf(v, maxV) - 11} textAnchor="middle" fontSize={9} fill="white">
+                                              {v}{graphTab === 'hours' ? 'h' : '건'}
+                                            </text>
+                                          </g>
+                                        </g>
+                                      ))}
+                                    </>
+                                  )}
+                                </svg>
+
+                                {/* 합계 */}
+                                <div className="w-14 text-right pr-3 text-xs font-bold flex-shrink-0"
+                                  style={{ color: total > 0 ? u.color : '#d1d5db' }}>
+                                  {total > 0 ? `${total}${graphTab === 'hours' ? 'h' : '건'}` : '—'}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* 페이지 네비게이션 */}
+                        {dates.length > WIN && (
+                          <div className="flex items-center justify-center gap-3 mt-4">
+                            <button onClick={() => setWinStart(Math.max(0, winStart - WIN))} disabled={!canPrev}
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors">
+                              <ChevronLeft size={16} />
+                            </button>
+                            <span className="text-xs text-gray-500">
+                              {dates[winStart]?.slice(5)} ~ {dates[Math.min(winStart + WIN - 1, dates.length - 1)]?.slice(5)}
+                              <span className="ml-2 text-gray-300">({dates.length}일)</span>
                             </span>
+                            <button onClick={() => setWinStart(Math.min(dates.length - WIN, winStart + WIN))} disabled={!canNext}
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors">
+                              <ChevronRight size={16} />
+                            </button>
                           </div>
-                        ))}
-                      </div>
-
-                      {/* 막대 */}
-                      <div className="ml-8 overflow-x-auto pb-2">
-                        <div className="flex items-end gap-1" style={{ height: BAR_H + 36, minWidth: visibleDates.length * (GROUP_W + 8) }}>
-                          {visibleDates.map((date) => (
-                            <div key={date} className="flex flex-col items-center gap-0 flex-shrink-0" style={{ width: GROUP_W }}>
-                              {/* 막대 그룹 */}
-                              <div className="flex items-end gap-px" style={{ height: BAR_H }}>
-                                {users.map((u) => {
-                                  const val = map[date]?.[u.id] ?? 0;
-                                  const h = val === 0 ? 2 : Math.max(4, Math.round((val / maxVal) * (BAR_H - 4)));
-                                  return (
-                                    <div key={u.id} className="relative group flex-shrink-0" style={{ width: BAR_W }}>
-                                      <div className="rounded-t-sm transition-all duration-300 cursor-default"
-                                        style={{ height: h, width: '100%', background: val === 0 ? '#f3f4f6' : u.color, opacity: val === 0 ? 0.3 : 1 }} />
-                                      {val > 0 && (
-                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                                          <div className="bg-gray-800 text-white text-[10px] px-2 py-1 rounded-lg whitespace-nowrap shadow-lg">
-                                            {u.name}: {val}{graphTab === 'hours' ? 'h' : '건'}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                              {/* X축 날짜 */}
-                              <div className="text-[10px] text-gray-400 mt-1.5 text-center whitespace-nowrap" style={{ width: GROUP_W }}>
-                                {date.slice(5)}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 페이지 네비게이션 */}
-                    {dates.length > WIN && (
-                      <div className="flex items-center justify-center gap-3 mt-3">
-                        <button onClick={() => setWinStart(Math.max(0, winStart - WIN))} disabled={!canPrev}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors">
-                          <ChevronLeft size={16} />
-                        </button>
-                        <span className="text-xs text-gray-500">
-                          {dates[winStart]?.slice(5)} ~ {dates[Math.min(winStart + WIN - 1, dates.length - 1)]?.slice(5)}
-                          <span className="ml-2 text-gray-300">({dates.length}일)</span>
-                        </span>
-                        <button onClick={() => setWinStart(Math.min(dates.length - WIN, winStart + WIN))} disabled={!canNext}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors">
-                          <ChevronRight size={16} />
-                        </button>
-                      </div>
-                    )}
-
-                    {/* 합계 테이블 — 담당자 행 × 날짜 열 */}
-                    <div className="mt-5 border border-gray-100 rounded-xl overflow-hidden">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs border-collapse">
-                          <thead>
-                            <tr className="bg-gray-50">
-                              <th className="text-left px-4 py-2.5 font-semibold text-gray-500 sticky left-0 bg-gray-50 z-10 whitespace-nowrap border-r border-gray-100">담당자</th>
-                              {visibleDates.map((d) => (
-                                <th key={d} className="px-2 py-2.5 font-semibold text-gray-400 whitespace-nowrap text-center min-w-[44px]">{d.slice(5)}</th>
-                              ))}
-                              <th className="px-3 py-2.5 font-semibold text-gray-600 whitespace-nowrap text-right border-l border-gray-100">합계</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-50">
-                            {users.map((u) => {
-                              const total = visibleDates.reduce((s, d) => s + (map[d]?.[u.id] ?? 0), 0);
-                              return (
-                                <tr key={u.id} className="hover:bg-gray-50 transition-colors">
-                                  <td className="px-4 py-2 sticky left-0 bg-white hover:bg-gray-50 z-10 border-r border-gray-100">
-                                    <div className="flex items-center gap-1.5 whitespace-nowrap">
-                                      <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: u.color }} />
-                                      <span className="font-medium text-gray-700">{u.name}</span>
-                                    </div>
-                                  </td>
-                                  {visibleDates.map((d) => {
-                                    const val = map[d]?.[u.id] ?? 0;
-                                    return (
-                                      <td key={d} className="px-2 py-2 text-center">
-                                        {val > 0
-                                          ? <span className="font-semibold" style={{ color: u.color }}>{val}{graphTab === 'hours' ? 'h' : ''}</span>
-                                          : <span className="text-gray-200">—</span>}
-                                      </td>
-                                    );
-                                  })}
-                                  <td className="px-3 py-2 text-right font-bold text-gray-800 border-l border-gray-100 whitespace-nowrap">
-                                    {total > 0 ? `${total}${graphTab === 'hours' ? 'h' : '건'}` : <span className="text-gray-200 font-normal">—</span>}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                            {/* 날짜별 합계 행 */}
-                            <tr className="bg-gray-50 border-t border-gray-200">
-                              <td className="px-4 py-2.5 sticky left-0 bg-gray-50 z-10 border-r border-gray-100 font-semibold text-gray-500">합계</td>
-                              {visibleDates.map((d) => {
-                                const total = users.reduce((s, u) => s + (map[d]?.[u.id] ?? 0), 0);
-                                return (
-                                  <td key={d} className="px-2 py-2.5 text-center font-semibold text-gray-700">
-                                    {total > 0 ? `${total}${graphTab === 'hours' ? 'h' : ''}` : <span className="text-gray-200 font-normal">—</span>}
-                                  </td>
-                                );
-                              })}
-                              <td className="px-3 py-2.5 text-right font-bold border-l border-gray-100" style={{ color: '#e73827' }}>
-                                {users.reduce((s, u) => s + visibleDates.reduce((ss, d) => ss + (map[d]?.[u.id] ?? 0), 0), 0)}{graphTab === 'hours' ? 'h' : '건'}
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </>
+                        )}
+                      </>
+                    );
+                  })()}
                 )}
               </div>
             </div>
