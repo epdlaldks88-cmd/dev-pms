@@ -22,6 +22,7 @@ interface AddWorkLogForm {
   userId: string;
   hours: number;
   description: string;
+  requester: string;
   startDate: string;
   endDate: string;
 }
@@ -63,6 +64,7 @@ export function WorkloadPage() {
     userId: currentUser?.id ?? '',
     hours: 1,
     description: '',
+    requester: '',
     startDate: today,
     endDate: today,
   });
@@ -118,12 +120,13 @@ export function WorkloadPage() {
   const createWorklog = useMutation({
     mutationFn: () => worklogsApi.create({
       taskId: form.taskId, userId: form.userId, hours: form.hours,
-      description: form.description, startDate: form.startDate, endDate: form.endDate,
+      description: form.description, requester: form.requester || undefined,
+      startDate: form.startDate, endDate: form.endDate,
     }),
     onSuccess: () => {
       invalidate();
       setShowAddModal(false);
-      setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', startDate: today, endDate: today });
+      setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', requester: '', startDate: today, endDate: today });
       toast.success('일감이 등록되었습니다.');
     },
     onError: () => toast.error('등록에 실패했습니다.'),
@@ -173,6 +176,7 @@ export function WorkloadPage() {
       '담당자': log.user.name,
       '태스크': log.task?.title ?? log.taskTitle ?? '-',
       '프로젝트': log.task?.project?.name ?? log.projectName ?? '-',
+      '요청자': log.requester || '-',
       '업무 내용': log.description || '-',
       '공수(h)': log.hours,
       '단계': STAGE_CONFIG[log.stage as WorkLogStage]?.label ?? log.stage,
@@ -191,7 +195,7 @@ export function WorkloadPage() {
         title="워크로드"
         description="담당자별 일감 등록 및 공수 현황"
         actions={
-          <Button variant="primary" onClick={() => { setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', startDate: today, endDate: today }); setShowAddModal(true); }}>
+          <Button variant="primary" onClick={() => { setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', requester: '', startDate: today, endDate: today }); setShowAddModal(true); }}>
             <Plus size={15} /> 일감 등록
           </Button>
         }
@@ -455,7 +459,7 @@ export function WorkloadPage() {
                       title={selectedUserId ? '해당 담당자의 일감이 없습니다' : '등록된 일감이 없습니다'}
                       description={selectedUserId ? undefined : '작업한 일감을 등록해 공수를 기록하세요.'}
                       action={!selectedUserId ? (
-                        <Button variant="primary" onClick={() => { setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', startDate: today, endDate: today }); setShowAddModal(true); }}>
+                        <Button variant="primary" onClick={() => { setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', requester: '', startDate: today, endDate: today }); setShowAddModal(true); }}>
                           <Plus size={15} /> 일감 등록
                         </Button>
                       ) : undefined}
@@ -641,6 +645,11 @@ export function WorkloadPage() {
                     </div>
                   )}
                 </Row>
+                {viewLog.requester && (
+                  <Row label="요청자">
+                    <span className="text-sm text-gray-600">{viewLog.requester}</span>
+                  </Row>
+                )}
                 {viewLog.description && (
                   <Row label="작업 내용">
                     <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
@@ -703,6 +712,14 @@ export function WorkloadPage() {
                 >
                   {allUsers?.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">요청자</label>
+                <input type="text" value={form.requester}
+                  onChange={(e) => setForm({ ...form, requester: e.target.value })}
+                  placeholder="요청자를 입력하세요 (선택)"
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">공수 (시간) *</label>

@@ -17,6 +17,7 @@ export interface WorkLogCreateData {
   userId?: string;
   hours?: number;
   description?: string;
+  requester?: string;
   startDate?: string;
   endDate?: string;
 }
@@ -28,7 +29,7 @@ export const worklogsApi = {
     api.get('/worklogs/summary').then((r) => r.data),
   create: (data: WorkLogCreateData) =>
     api.post('/worklogs', data).then((r) => r.data),
-  update: (id: string, data: { hours?: number; description?: string; startDate?: string; endDate?: string; userId?: string; stage?: WorkLogStage }) =>
+  update: (id: string, data: { hours?: number; description?: string; requester?: string; startDate?: string; endDate?: string; userId?: string; stage?: WorkLogStage }) =>
     api.patch(`/worklogs/${id}`, data).then((r) => r.data),
   acknowledge: (id: string) =>
     api.patch(`/worklogs/${id}/acknowledge`, {}).then((r) => r.data),
