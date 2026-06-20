@@ -133,72 +133,77 @@ export function IssuesPage() {
   const criticalCount = issues?.filter((i) => i.riskLevel === 'CRITICAL' && i.status !== 'RESOLVED').length ?? 0;
   const resolvedCount = issues?.filter((i) => i.status === 'RESOLVED').length ?? 0;
 
-  const IssueForm = (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 mb-4 shadow-sm">
-      <h3 className="text-sm font-semibold text-gray-700 mb-4">
-        {editingIssue ? '이슈 수정' : '새 이슈 등록'}
-      </h3>
-      <div className="space-y-3">
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">제목 *</label>
-          <input
-            autoFocus
-            className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-            placeholder="이슈 제목을 입력하세요"
-            value={form.title}
-            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-          />
+  const IssueModal = (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={cancelForm} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-200">
+          <h2 className="text-base font-bold text-gray-800">{editingIssue ? '이슈 수정' : '새 이슈 등록'}</h2>
+          <button onClick={cancelForm} className="text-gray-400 hover:text-gray-600 p-1"><X size={18} /></button>
         </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">설명</label>
-          <textarea
-            className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
-            rows={3}
-            placeholder="이슈 상세 내용을 입력하세요"
-            value={form.description}
-            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-          />
-        </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="p-6 space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">위험도</label>
-            <select
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">제목 *</label>
+            <input
+              autoFocus
               className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              value={form.riskLevel}
-              onChange={(e) => setForm((f) => ({ ...f, riskLevel: e.target.value as IssueRisk }))}
-            >
-              {Object.entries(RISK_CONFIG).map(([k, v]) => (
-                <option key={k} value={k}>{v.label}</option>
-              ))}
-            </select>
+              placeholder="이슈 제목을 입력하세요"
+              value={form.title}
+              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+            />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">해결상태</label>
-            <select
-              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              value={form.status}
-              onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as IssueStatus }))}
-            >
-              {Object.entries(STATUS_CONFIG).map(([k, v]) => (
-                <option key={k} value={k}>{v.label}</option>
-              ))}
-            </select>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">설명</label>
+            <textarea
+              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+              rows={4}
+              placeholder="이슈 상세 내용을 입력하세요"
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">담당자</label>
-            <select
-              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              value={form.assigneeId}
-              onChange={(e) => setForm((f) => ({ ...f, assigneeId: e.target.value }))}
-            >
-              <option value="">없음</option>
-              {project?.members.map((m) => (
-                <option key={m.user.id} value={m.user.id}>{m.user.name}</option>
-              ))}
-            </select>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">위험도</label>
+              <select
+                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                value={form.riskLevel}
+                onChange={(e) => setForm((f) => ({ ...f, riskLevel: e.target.value as IssueRisk }))}
+              >
+                {Object.entries(RISK_CONFIG).map(([k, v]) => (
+                  <option key={k} value={k}>{v.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">해결상태</label>
+              <select
+                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                value={form.status}
+                onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as IssueStatus }))}
+              >
+                {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                  <option key={k} value={k}>{v.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">담당자</label>
+              <select
+                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                value={form.assigneeId}
+                onChange={(e) => setForm((f) => ({ ...f, assigneeId: e.target.value }))}
+              >
+                <option value="">없음</option>
+                {project?.members.map((m) => (
+                  <option key={m.user.id} value={m.user.id}>{m.user.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
-        <div className="flex gap-2 pt-1">
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
+          <Button variant="ghost" onClick={cancelForm}>취소</Button>
           <Button
             variant="primary"
             onClick={() => editingIssue ? updateIssue.mutate() : createIssue.mutate()}
@@ -206,9 +211,6 @@ export function IssuesPage() {
             loading={createIssue.isPending || updateIssue.isPending}
           >
             <Check size={14} /> {editingIssue ? '저장' : '등록'}
-          </Button>
-          <Button variant="secondary" onClick={cancelForm}>
-            <X size={14} /> 취소
           </Button>
         </div>
       </div>
@@ -269,9 +271,6 @@ export function IssuesPage() {
           <Plus size={15} /> 이슈 등록
         </Button>
       </div>
-
-      {/* 등록/수정 폼 */}
-      {(showForm || editingIssue) && IssueForm}
 
       {/* 이슈 목록 */}
       {isLoading ? (
@@ -370,6 +369,9 @@ export function IssuesPage() {
           </table>
         </div>
       )}
+
+      {/* 등록/수정 모달 */}
+      {(showForm || editingIssue) && IssueModal}
     </div>
   );
 }
