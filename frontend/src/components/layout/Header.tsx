@@ -337,13 +337,21 @@ export function Header() {
               <div className="fixed inset-0 z-30" onClick={() => setNotifOpen(false)} />
               <div className="absolute right-0 top-10 z-40 w-80 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                  <h3 className="font-semibold text-sm text-gray-700">알림</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-sm text-gray-800">알림</h3>
+                    {(unread?.count ?? 0) > 0 && (
+                      <span className="min-w-[18px] h-[18px] bg-primary-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                        {unread!.count > 9 ? '9+' : unread!.count}
+                      </span>
+                    )}
+                  </div>
                   {(unread?.count ?? 0) > 0 && (
                     <button
                       onClick={() => markAll.mutate()}
-                      className="text-xs text-gray-600 hover:text-red-600"
+                      disabled={markAll.isPending}
+                      className="flex items-center gap-1 text-xs font-medium text-primary-600 hover:text-primary-700 bg-primary-50 hover:bg-primary-100 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
                     >
-                      모두 읽음
+                      {markAll.isPending ? '처리 중...' : '모두 읽음'}
                     </button>
                   )}
                 </div>
