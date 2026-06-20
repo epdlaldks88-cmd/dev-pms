@@ -200,7 +200,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
       {/* 슬라이드 패널 */}
       <div
         className={cn(
-          'fixed top-0 right-0 bottom-0 z-50 w-[420px] flex flex-col bg-white shadow-2xl border-l border-gray-200 transition-transform duration-300 ease-in-out',
+          'fixed top-3 right-3 bottom-3 z-50 w-[420px] flex flex-col bg-white shadow-2xl rounded-2xl overflow-hidden transition-transform duration-300 ease-in-out',
           open ? 'translate-x-0' : 'translate-x-full',
         )}
       >
