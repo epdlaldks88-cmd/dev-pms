@@ -103,7 +103,7 @@ export function MeetingCalendarPage() {
 
   const updateMeeting = useMutation({
     mutationFn: () => meetingsApi.update(editMeeting.id, { ...form }),
-    onSuccess: () => { invalidate(); setEditMeeting(null); setViewMeeting(null); toast.success('일정이 수정되었습니다.'); },
+    onSuccess: () => { invalidate(); setShowForm(false); setEditMeeting(null); setViewMeeting(null); setForm(emptyForm()); toast.success('일정이 수정되었습니다.'); },
     onError: (e: any) => toast.error(e.response?.data?.message ?? '수정에 실패했습니다.'),
   });
 
