@@ -206,8 +206,8 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
       >
         {/* 헤더 */}
         <div
-          className="flex items-center justify-between px-4 py-3.5 border-b border-indigo-500/20 flex-shrink-0"
-          style={{ background: 'linear-gradient(135deg, #6366f1, #818cf8)' }}
+          className="flex items-center justify-between px-4 py-3.5 flex-shrink-0 z-10 relative"
+          style={{ background: 'linear-gradient(135deg, #6366f1, #818cf8)', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}
         >
           <div className="flex items-center gap-2">
             {showBack && (
