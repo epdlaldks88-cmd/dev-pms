@@ -205,29 +205,32 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
         )}
       >
         {/* 헤더 */}
-        <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-200 bg-gradient-to-br from-indigo-50 via-white to-indigo-50 flex-shrink-0">
+        <div
+          className="flex items-center justify-between px-4 py-3.5 border-b border-indigo-500/20 flex-shrink-0"
+          style={{ background: 'linear-gradient(135deg, #6366f1, #818cf8)' }}
+        >
           <div className="flex items-center gap-2">
             {showBack && (
               <button
                 onClick={() => { setView('list'); setActiveUserId(null); }}
-                className="p-1 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+                className="p-1 rounded-lg hover:bg-white/20 text-white/80 transition-colors"
               >
                 <ChevronLeft size={18} />
               </button>
             )}
-            <MessageSquare size={15} className="text-gray-600" />
-            <h2 className="text-sm font-bold text-gray-700">{headerTitle}</h2>
+            <MessageSquare size={15} className="text-white/80" />
+            <h2 className="text-sm font-bold text-white">{headerTitle}</h2>
           </div>
           <div className="flex items-center gap-1">
             {view === 'list' && (
               <button
                 onClick={() => setView('new')}
-                className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:bg-indigo-50 px-2.5 py-1.5 rounded-lg transition-colors"
+                className="flex items-center gap-1 text-xs font-medium text-white/90 hover:bg-white/20 px-2.5 py-1.5 rounded-lg transition-colors"
               >
                 <Plus size={13} /> 새 멘션
               </button>
             )}
-            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/20 text-white/80 transition-colors">
               <X size={16} />
             </button>
           </div>
