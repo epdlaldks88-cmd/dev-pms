@@ -1040,7 +1040,7 @@ export function CanvasPage() {
       {/* 툴바 */}
       <div className="flex items-center gap-2 px-4 py-2 bg-white border-b border-gray-200 flex-shrink-0 shadow-sm">
         <button
-          onClick={() => navigate(`/projects/${projectId}/canvas`)}
+          onClick={() => navigate('/canvas')}
           className="flex items-center gap-1 text-gray-400 hover:text-gray-600 transition-colors mr-1"
         >
           <ChevronLeft size={16} />
