@@ -435,6 +435,7 @@ export function WorkloadPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">작업 내용</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-14">공수</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">상태</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">요청자</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">사용자확인일</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-14">확인</th>
                 <th className="w-10" />
@@ -444,16 +445,16 @@ export function WorkloadPage() {
               {isLoading ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={i} className="border-b border-gray-100">
-                    {[...Array(10)].map((__, j) => (
+                    {[...Array(11)].map((__, j) => (
                       <td key={j} className="px-4 py-3"><div className="h-4 bg-gray-100 rounded animate-pulse" /></td>
                     ))}
                   </tr>
                 ))
               ) : isError ? (
-                <tr><td colSpan={10}><ErrorState onRetry={refetch} /></td></tr>
+                <tr><td colSpan={11}><ErrorState onRetry={refetch} /></td></tr>
               ) : !filteredLogs.length ? (
                 <tr>
-                  <td colSpan={10}>
+                  <td colSpan={11}>
                     <EmptyState
                       icon={<Briefcase size={36} />}
                       title={selectedUserId ? '해당 담당자의 일감이 없습니다' : '등록된 일감이 없습니다'}
@@ -500,6 +501,9 @@ export function WorkloadPage() {
                         <span className={cn('text-[11px] font-semibold px-2 py-0.5 rounded-full border', stageCfg.bg, stageCfg.color, stageCfg.border)}>
                           {stageCfg.label}
                         </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-500 truncate max-w-[80px]">
+                        {log.requester || '-'}
                       </td>
                       <td className="px-4 py-3 text-center text-[11px] text-gray-400">
                         {log.userConfirmedAt ? formatDate(log.userConfirmedAt) : '-'}

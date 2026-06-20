@@ -350,14 +350,6 @@ export function DashboardPage() {
         {/* 상단 색 워시 (커튼 윗단) — 다홍 톤 */}
         <div className="absolute inset-x-0 top-0 h-72"
           style={{ background: 'linear-gradient(180deg, rgba(248,80,50,0.09) 0%, rgba(230,0,18,0.04) 45%, transparent 100%)' }} />
-        {/* 커튼 주름 — 세로 색 띠 (연하게) */}
-        <div className="absolute inset-0"
-          style={{
-            backgroundImage: 'repeating-linear-gradient(90deg, rgba(230,0,18,0.025) 0px, rgba(230,0,18,0.025) 2px, transparent 2px, transparent 64px), repeating-linear-gradient(90deg, rgba(15,23,42,0.012) 0px, transparent 1px, transparent 128px)',
-          }} />
-        {/* 커튼 음영 — 은은한 좌우 그라디언트 결 */}
-        <div className="absolute inset-0 opacity-50"
-          style={{ background: 'repeating-linear-gradient(90deg, transparent 0px, rgba(15,23,42,0.008) 32px, transparent 64px)' }} />
       </div>
 
       <div className="relative max-w-7xl mx-auto px-8 py-10 space-y-12">
