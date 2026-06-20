@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { X, Send, Search, Plus, MessageSquare, ChevronLeft, Trash2, Users, LogOut, UserPlus } from 'lucide-react';
+import { X, Send, Search, Plus, MessageSquare, ChevronLeft, Trash2, Users, LogOut, UserPlus, User } from 'lucide-react';
 import { EmojiPickerButton } from '../ui/EmojiPicker';
 import toast from 'react-hot-toast';
 import { messagesApi } from '../../api/messages';
@@ -34,6 +34,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
   const [draft, setDraft] = useState('');
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
+  const [profilePopup, setProfilePopup] = useState<any | null>(null);
   const [confirmHideId, setConfirmHideId] = useState<string | null>(null);
   const [pendingCutoffIso, setPendingCutoffIso] = useState<string>('');
 
@@ -525,17 +526,25 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
             </div>
             <div className="flex-1 overflow-y-auto">
               {pickerUsers.map((u: any) => (
-                <button key={u.id} onClick={() => openChat(u.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left border-b border-gray-50">
-                  <Avatar name={u.name} avatar={u.avatar} size="md" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-600">{u.name}</p>
-                    {u.statusText
-                      ? <p className="text-[11px] text-gray-400 truncate">{u.statusText}</p>
-                      : (u.position || u.department) && <p className="text-[11px] text-gray-400">{[u.position, u.department].filter(Boolean).join(' · ')}</p>
-                    }
-                  </div>
-                </button>
+                <div key={u.id} className="group flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50">
+                  <button onClick={() => openChat(u.id)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                    <Avatar name={u.name} avatar={u.avatar} size="md" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-600">{u.name}</p>
+                      {u.statusText
+                        ? <p className="text-[11px] text-gray-400 truncate">{u.statusText}</p>
+                        : (u.position || u.department) && <p className="text-[11px] text-gray-400">{[u.position, u.department].filter(Boolean).join(' · ')}</p>
+                      }
+                    </div>
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setProfilePopup(u); }}
+                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-[11px] font-medium text-gray-400 hover:text-gray-600 bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-lg"
+                  >
+                    <User size={11} />
+                    프로필
+                  </button>
+                </div>
               ))}
               {!pickerUsers.length && <p className="text-sm text-gray-400 text-center py-10">검색 결과가 없습니다</p>}
             </div>
@@ -664,6 +673,54 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
           </div>
         )}
       </div>
+
+      {/* 프로필 팝업 */}
+      {profilePopup && (
+        <>
+          <div className="fixed inset-0 z-[60] bg-black/30 backdrop-blur-[2px]" onClick={() => setProfilePopup(null)} />
+          <div className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-none">
+            <div className="bg-white rounded-2xl shadow-2xl w-80 overflow-hidden pointer-events-auto">
+              {/* 커버 */}
+              <div className="h-20 relative" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
+                <button onClick={() => setProfilePopup(null)} className="absolute top-3 right-3 p-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors">
+                  <X size={14} />
+                </button>
+              </div>
+              {/* 아바타 */}
+              <div className="flex justify-center -mt-9 mb-3">
+                <div className="ring-4 ring-white rounded-full">
+                  <Avatar name={profilePopup.name} avatar={profilePopup.avatar} size="lg" />
+                </div>
+              </div>
+              {/* 정보 */}
+              <div className="text-center px-6 pb-5 space-y-1">
+                <p className="text-base font-bold text-gray-800">{profilePopup.name}</p>
+                {(profilePopup.statusEmoji || profilePopup.statusText) && (
+                  <p className="text-xs text-gray-400">{profilePopup.statusEmoji} {profilePopup.statusText}</p>
+                )}
+                {(profilePopup.position || profilePopup.department) && (
+                  <p className="text-xs text-gray-500">{[profilePopup.position, profilePopup.department].filter(Boolean).join(' · ')}</p>
+                )}
+                {profilePopup.email && (
+                  <p className="text-xs text-gray-400">{profilePopup.email}</p>
+                )}
+                {profilePopup.phone && (
+                  <p className="text-xs text-gray-400">{profilePopup.phone}</p>
+                )}
+                <div className="pt-3">
+                  <button
+                    onClick={() => { openChat(profilePopup.id); setProfilePopup(null); }}
+                    className="w-full py-2 text-sm font-semibold text-white rounded-xl transition-opacity hover:opacity-90"
+                    style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}
+                  >
+                    메시지 보내기
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </>,
     document.body,
   );
