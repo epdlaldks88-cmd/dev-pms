@@ -508,8 +508,7 @@ export function CanvasPage() {
   const saveCanvas = useMutation({
     mutationFn: (data: any) => canvasApi.save(projectId!, canvasId!, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['canvas', projectId, canvasId] });
-      // 저장 완료 후 pending 원격 변경이 있으면 최신 데이터 요청
+      // 저장 완료 후 pending 원격 변경이 있을 때만 refetch (무조건 invalidate 시 selected 상태 초기화됨)
       if (pendingRemoteUpdate.current) {
         pendingRemoteUpdate.current = false;
         qc.invalidateQueries({ queryKey: ['canvas', projectId, canvasId] });
