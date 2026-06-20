@@ -86,33 +86,33 @@ function ProjectCard({ project, stats }: { project: Project; stats: ProjectStats
               style={{ backgroundColor: `${project.color}15`, border: `1.5px solid ${project.color}30` }}>
               {project.icon ?? '📁'}
             </div>
-            <div>
-              <p className="font-bold text-sm text-gray-900 group-hover:text-primary-600 transition-colors truncate max-w-[140px]">
-                {project.name}
-              </p>
-              <span className={cn(
-                'text-[11px] font-medium',
-                project.status === 'ACTIVE' ? 'text-emerald-500' :
-                project.status === 'COMPLETED' ? 'text-gray-400' : 'text-amber-500'
-              )}>
-                {project.status === 'ACTIVE' ? '● 진행 중' : project.status === 'COMPLETED' ? '완료' : project.status}
-              </span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="font-bold text-sm text-gray-900 group-hover:text-primary-600 transition-colors truncate max-w-[120px]">
+                  {project.name}
+                </p>
+                <span className={cn(
+                  'text-[11px] font-medium flex-shrink-0',
+                  project.status === 'ACTIVE' ? 'text-emerald-500' :
+                  project.status === 'COMPLETED' ? 'text-gray-400' : 'text-amber-500'
+                )}>
+                  {project.status === 'ACTIVE' ? '● 진행 중' : project.status === 'COMPLETED' ? '완료' : project.status}
+                </span>
+              </div>
+              {(project.startDate || project.endDate) && (
+                <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-0.5">
+                  <Calendar size={11} className="flex-shrink-0" />
+                  <span className="tabular-nums">
+                    {project.startDate ? formatDate(project.startDate, 'yy.MM.dd') : '미정'}
+                    {' ~ '}
+                    {project.endDate ? formatDate(project.endDate, 'yy.MM.dd') : '미정'}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
           <ArrowUpRight size={15} className="text-gray-200 group-hover:text-primary-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all flex-shrink-0 mt-0.5" />
         </div>
-
-        {/* 기간 */}
-        {(project.startDate || project.endDate) && (
-          <div className="flex items-center gap-1.5 text-[11px] text-gray-400 mb-3">
-            <Calendar size={12} className="flex-shrink-0" />
-            <span className="tabular-nums">
-              {project.startDate ? formatDate(project.startDate, 'yy.MM.dd') : '미정'}
-              {' ~ '}
-              {project.endDate ? formatDate(project.endDate, 'yy.MM.dd') : '미정'}
-            </span>
-          </div>
-        )}
 
         {/* 진행률 */}
         <div className="mb-4">
