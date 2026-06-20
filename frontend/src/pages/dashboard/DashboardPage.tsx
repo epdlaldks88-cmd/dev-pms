@@ -344,41 +344,20 @@ export function DashboardPage() {
   const taskRows = [...taskMap.values()];
 
   return (
-    <div className="min-h-full relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 60%, #f8fafc 100%)' }}>
-      {/* 배경 블롭 — 애니메이션 */}
-      <style>{`
-        @keyframes blob-drift {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(24px, -18px) scale(1.05); }
-          66% { transform: translate(-16px, 12px) scale(0.97); }
-        }
-        @keyframes blob-drift2 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(-20px, 16px) scale(1.04); }
-          66% { transform: translate(18px, -10px) scale(0.98); }
-        }
-        .dash-blob1 { animation: blob-drift 12s ease-in-out infinite; }
-        .dash-blob2 { animation: blob-drift2 15s ease-in-out infinite; }
-        .dash-blob3 { animation: blob-drift 18s ease-in-out infinite reverse; }
-        @keyframes shimmer-slide {
-          from { transform: translateX(-100%); }
-          to   { transform: translateX(200%); }
-        }
-        .shimmer-bar::after {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent);
-          animation: shimmer-slide 2.2s ease-in-out infinite;
-        }
-      `}</style>
+    <div className="min-h-full relative overflow-hidden" style={{ background: 'linear-gradient(180deg, #f1f5f9 0%, #ffffff 55%, #f8fafc 100%)' }}>
+      {/* 커튼 배경 */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="dash-blob1 absolute -top-32 -left-32 w-[480px] h-[480px] rounded-full bg-primary-300/20 blur-3xl" />
-        <div className="dash-blob2 absolute top-1/3 -right-40 w-[360px] h-[360px] rounded-full bg-rose-300/18 blur-3xl" />
-        <div className="dash-blob3 absolute bottom-10 left-1/3 w-[320px] h-[320px] rounded-full bg-violet-200/15 blur-3xl" />
-        {/* 미세 그리드 패턴 */}
-        <div className="absolute inset-0 opacity-[0.018]"
-          style={{ backgroundImage: 'linear-gradient(#64748b 1px, transparent 1px), linear-gradient(90deg, #64748b 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+        {/* 상단 색 워시 (커튼 윗단) */}
+        <div className="absolute inset-x-0 top-0 h-72"
+          style={{ background: 'linear-gradient(180deg, rgba(99,102,241,0.10) 0%, rgba(56,189,248,0.05) 45%, transparent 100%)' }} />
+        {/* 커튼 주름 — 세로 색 띠 */}
+        <div className="absolute inset-0"
+          style={{
+            backgroundImage: 'repeating-linear-gradient(90deg, rgba(99,102,241,0.05) 0px, rgba(99,102,241,0.05) 2px, transparent 2px, transparent 64px), repeating-linear-gradient(90deg, rgba(15,23,42,0.025) 0px, transparent 1px, transparent 128px)',
+          }} />
+        {/* 커튼 음영 — 은은한 좌우 그라디언트 결 */}
+        <div className="absolute inset-0 opacity-60"
+          style={{ background: 'repeating-linear-gradient(90deg, transparent 0px, rgba(15,23,42,0.015) 32px, transparent 64px)' }} />
       </div>
 
       <div className="relative max-w-7xl mx-auto px-8 py-10 space-y-12">
