@@ -27,6 +27,7 @@ export function CreateTaskModal() {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [requester, setRequester] = useState('');
   const [priority, setPriority] = useState<Priority>('MEDIUM');
   const [startDate, setStartDate] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -60,6 +61,7 @@ export function CreateTaskModal() {
   const handleClose = () => {
     setTitle('');
     setDescription('');
+    setRequester('');
     setPriority('MEDIUM');
     setStartDate('');
     setDueDate('');
@@ -74,6 +76,7 @@ export function CreateTaskModal() {
     create.mutate({
       title: title.trim(),
       description: description.trim() || undefined,
+      requester: requester.trim() || undefined,
       priority,
       stepId: createTaskStepId ?? undefined,
       startDate: startDate || undefined,
@@ -114,6 +117,12 @@ export function CreateTaskModal() {
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
             />
           </div>
+          <Input
+            label="요청자"
+            placeholder="요청자를 입력하세요 (선택)"
+            value={requester}
+            onChange={(e) => setRequester(e.target.value)}
+          />
           <div>
             <label className="text-sm font-medium text-gray-600 mb-1.5 block">우선순위</label>
             <select

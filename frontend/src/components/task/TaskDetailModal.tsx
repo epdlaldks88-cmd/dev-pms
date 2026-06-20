@@ -841,6 +841,14 @@ export function TaskDetailModal() {
                 )}
               </div>
 
+              {/* Requester */}
+              {task.requester && (
+                <div>
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">요청자</p>
+                  <p className="text-xs text-gray-600">{task.requester}</p>
+                </div>
+              )}
+
               {/* Partner Personnel */}
               {task.personnel && task.personnel.length > 0 && (
                 <div>

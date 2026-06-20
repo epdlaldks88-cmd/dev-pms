@@ -74,6 +74,7 @@ export interface Task {
   id: string;
   title: string;
   description?: string;
+  requester?: string;
   priority: Priority;
   status: TaskStatus;
   startDate?: string;
