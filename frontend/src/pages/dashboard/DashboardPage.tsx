@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useQuery, useQueries } from '@tanstack/react-query';
+import { useState, useRef, useEffect } from 'react';
+import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
   Clock, CalendarDays, MapPin, Users as UsersIcon,
@@ -8,11 +8,25 @@ import {
 import { projectsApi } from '../../api/projects';
 import { worklogsApi } from '../../api/worklogs';
 import { meetingsApi } from '../../api/meetings';
+import { usersApi } from '../../api/users';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
 import { formatDate, STATUS_CONFIG } from '../../lib/utils';
 import { cn } from '../../lib/utils';
 import type { TaskStatus, ProjectStats, Project } from '../../types';
+import toast from 'react-hot-toast';
+
+const STATUS_PRESETS = [
+  { emoji: '🟢', text: '업무 중' },
+  { emoji: '🟡', text: '자리 비움' },
+  { emoji: '🎯', text: '집중 중' },
+  { emoji: '📅', text: '미팅 중' },
+  { emoji: '🏠', text: '재택 근무' },
+  { emoji: '🌴', text: '휴가 중' },
+  { emoji: '🤒', text: '병가' },
+  { emoji: '⛔', text: '오프라인' },
+  { emoji: '☕', text: '잠깐 자리 비움' },
+];
 
 const STATUS_HEX: Record<TaskStatus, string> = {
   TODO: '#9ca3af', IN_PROGRESS: '#3b82f6', IN_REVIEW: '#eab308', DONE: '#22c55e', CANCELLED: '#ef4444',
@@ -341,7 +355,42 @@ function DeadlineTable({ taskRows }: { taskRows: any[] }) {
 
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
+  const updateUser = useAuthStore((s) => s.updateUser);
+  const qc = useQueryClient();
   const [viewingMeeting, setViewingMeeting] = useState<any>(null);
+
+  // 상태 모달
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [statusForm, setStatusForm] = useState({ emoji: user?.statusEmoji ?? '🟢', text: user?.statusText ?? '' });
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const statusBtnRef = useRef<HTMLButtonElement>(null);
+  const statusModalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (statusOpen) setStatusForm({ emoji: user?.statusEmoji ?? '🟢', text: user?.statusText ?? '' });
+  }, [statusOpen]);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (statusModalRef.current && !statusModalRef.current.contains(e.target as Node) &&
+          statusBtnRef.current && !statusBtnRef.current.contains(e.target as Node)) {
+        setStatusOpen(false);
+        setShowEmojiPicker(false);
+      }
+    }
+    if (statusOpen) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [statusOpen]);
+
+  const saveStatus = useMutation({
+    mutationFn: () => usersApi.updateProfile({ statusEmoji: statusForm.emoji, statusText: statusForm.text }),
+    onSuccess: (updated) => {
+      if (user) updateUser({ ...user, statusEmoji: updated.statusEmoji, statusText: updated.statusText });
+      setStatusOpen(false);
+      toast.success('상태가 업데이트됐습니다.');
+    },
+    onError: () => toast.error('저장에 실패했습니다.'),
+  });
 
   const { data: projects } = useQuery({ queryKey: ['projects'], queryFn: projectsApi.getAll, refetchInterval: 60_000 });
   const { data: myWorklogs } = useQuery({
@@ -422,14 +471,115 @@ export function DashboardPage() {
             <p className="text-sm font-medium text-primary-500 mb-1">
               {now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
             </p>
-            <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 flex items-center gap-3">
+            <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 flex items-center gap-3 flex-wrap">
               안녕하세요, {user?.name}님
-              {(user?.statusEmoji || user?.statusText) && (
-                <span className="flex items-center gap-1.5 text-sm font-medium text-gray-400">
-                  <span className="text-base leading-none">{user.statusEmoji || '🟢'}</span>
-                  {user.statusText && <span className="max-w-[180px] truncate">{user.statusText}</span>}
-                </span>
-              )}
+              {/* 상태 뱃지 */}
+              <div className="relative">
+                <button
+                  ref={statusBtnRef}
+                  onClick={() => setStatusOpen((v) => !v)}
+                  className="flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-xl transition-all hover:scale-105 active:scale-95"
+                  style={{
+                    background: 'rgba(255,255,255,0.55)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(255,255,255,0.75)',
+                    boxShadow: '0 2px 12px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9)',
+                    color: '#374151',
+                  }}
+                >
+                  <span className="text-base leading-none">{user?.statusEmoji || '🟢'}</span>
+                  <span className="max-w-[160px] truncate">{user?.statusText || '상태 설정'}</span>
+                </button>
+
+                {/* 상태 편집 팝오버 */}
+                {statusOpen && (
+                  <div
+                    ref={statusModalRef}
+                    className="absolute left-0 top-full mt-2 z-50 w-76 rounded-2xl overflow-hidden"
+                    style={{
+                      width: 288,
+                      background: 'rgba(255,255,255,0.82)',
+                      backdropFilter: 'blur(20px)',
+                      WebkitBackdropFilter: 'blur(20px)',
+                      border: '1px solid rgba(255,255,255,0.8)',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)',
+                    }}
+                  >
+                    {/* 헤더 */}
+                    <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+                      <p className="text-xs font-bold text-gray-700 tracking-wide">내 상태</p>
+                      <button onClick={() => setStatusOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={14} /></button>
+                    </div>
+
+                    {/* 프리셋 */}
+                    <div className="p-3 space-y-0.5">
+                      {STATUS_PRESETS.map((p) => (
+                        <button
+                          key={p.emoji + p.text}
+                          onClick={() => setStatusForm({ emoji: p.emoji, text: p.text })}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-xs font-medium transition-all ${
+                            statusForm.emoji === p.emoji && statusForm.text === p.text
+                              ? 'bg-white/80 text-gray-800 shadow-sm'
+                              : 'hover:bg-white/60 text-gray-600'
+                          }`}
+                        >
+                          <span className="text-base leading-none flex-shrink-0">{p.emoji}</span>
+                          {p.text}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* 직접 입력 */}
+                    <div className="px-3 pb-3" style={{ borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: 10 }}>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">직접 입력</p>
+                      <div className="flex gap-2">
+                        <div className="relative flex-shrink-0">
+                          <button
+                            onClick={() => setShowEmojiPicker((v) => !v)}
+                            className="w-9 h-9 flex items-center justify-center text-lg rounded-lg transition-colors"
+                            style={{ background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.1)' }}
+                          >
+                            {statusForm.emoji || '🟢'}
+                          </button>
+                          {showEmojiPicker && (
+                            <div className="absolute left-0 bottom-full mb-2 z-50 rounded-xl p-2 grid grid-cols-6 gap-1"
+                              style={{ background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(12px)', border: '1px solid rgba(0,0,0,0.1)', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>
+                              {['🟢','🟡','🔴','⛔','🎯','📅','🏠','🌴','🤒','💼','☕','🎉','✈️','💤','🔕','🤫'].map((e) => (
+                                <button key={e} onClick={() => { setStatusForm(f => ({ ...f, emoji: e })); setShowEmojiPicker(false); }}
+                                  className="w-7 h-7 flex items-center justify-center text-base hover:bg-gray-100 rounded transition-colors">
+                                  {e}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          value={statusForm.text}
+                          onChange={(e) => setStatusForm(f => ({ ...f, text: e.target.value }))}
+                          maxLength={80}
+                          placeholder="상태 메시지"
+                          className="flex-1 text-xs rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400"
+                          style={{ background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.1)' }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* 저장 */}
+                    <div className="px-3 pb-3">
+                      <button
+                        onClick={() => saveStatus.mutate()}
+                        disabled={saveStatus.isPending}
+                        className="w-full py-2 text-xs font-bold text-white rounded-xl disabled:opacity-40 transition-opacity"
+                        style={{ background: 'linear-gradient(135deg, #f85032, #e73827)', boxShadow: '0 2px 8px rgba(248,80,50,0.35)' }}
+                      >
+                        {saveStatus.isPending ? '저장 중...' : '저장'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </h1>
             <p className="text-gray-400 mt-1.5">오늘도 팀과 함께 목표를 향해 나아가세요.</p>
           </div>
