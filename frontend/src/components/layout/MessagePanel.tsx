@@ -529,12 +529,11 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                   className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left border-b border-gray-50">
                   <Avatar name={u.name} avatar={u.avatar} size="md" />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-semibold text-gray-600">{u.name}</p>
-                      {u.statusEmoji && <span className="text-sm leading-none">{u.statusEmoji}</span>}
-                    </div>
-                    {u.statusText && <p className="text-[11px] text-gray-400 truncate">{u.statusText}</p>}
-                    {!u.statusText && (u.position || u.department) && <p className="text-[11px] text-gray-400">{[u.position, u.department].filter(Boolean).join(' · ')}</p>}
+                    <p className="text-sm font-semibold text-gray-600">{u.name}</p>
+                    {u.statusText
+                      ? <p className="text-[11px] text-gray-400 truncate">{u.statusText}</p>
+                      : (u.position || u.department) && <p className="text-[11px] text-gray-400">{[u.position, u.department].filter(Boolean).join(' · ')}</p>
+                    }
                   </div>
                 </button>
               ))}
@@ -587,10 +586,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                     className={cn('w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left border-b border-gray-50', checked ? 'bg-orange-50' : 'hover:bg-gray-50')}>
                     <Avatar name={u.name} avatar={u.avatar} size="sm" />
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-sm font-semibold text-gray-600">{u.name}</p>
-                        {u.statusEmoji && <span className="text-sm leading-none">{u.statusEmoji}</span>}
-                      </div>
+                      <p className="text-sm font-semibold text-gray-600">{u.name}</p>
                       {u.statusText ? <p className="text-[11px] text-gray-400 truncate">{u.statusText}</p>
                         : (u.position || u.department) && <p className="text-[11px] text-gray-400">{[u.position, u.department].filter(Boolean).join(' · ')}</p>}
                     </div>
@@ -656,10 +652,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                   className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left border-b border-gray-50">
                   <Avatar name={u.name} avatar={u.avatar} size="sm" />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-semibold text-gray-600">{u.name}</p>
-                      {u.statusEmoji && <span className="text-sm leading-none">{u.statusEmoji}</span>}
-                    </div>
+                    <p className="text-sm font-semibold text-gray-600">{u.name}</p>
                     {u.statusText ? <p className="text-[11px] text-gray-400 truncate">{u.statusText}</p>
                       : u.position && <p className="text-[11px] text-gray-400">{u.position}</p>}
                   </div>

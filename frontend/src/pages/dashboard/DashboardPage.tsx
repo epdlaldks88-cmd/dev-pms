@@ -425,7 +425,7 @@ export function DashboardPage() {
             <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 flex items-center gap-3">
               안녕하세요, {user?.name}님
               {(user?.statusEmoji || user?.statusText) && (
-                <span className="flex items-center gap-1.5 text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                <span className="flex items-center gap-1.5 text-sm font-medium text-gray-400">
                   <span className="text-base leading-none">{user.statusEmoji || '🟢'}</span>
                   {user.statusText && <span className="max-w-[180px] truncate">{user.statusText}</span>}
                 </span>
