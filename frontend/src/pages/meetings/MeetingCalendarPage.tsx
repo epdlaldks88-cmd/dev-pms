@@ -12,6 +12,7 @@ import { usersApi } from '../../api/users';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
+import { TimeSelect } from '../../components/ui/TimeSelect';
 import { formatDate, cn } from '../../lib/utils';
 
 const hd = new Holidays('KR');
@@ -473,20 +474,16 @@ export function MeetingCalendarPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">시작 시간</label>
-                  <input
-                    type="time"
+                  <TimeSelect
                     value={form.startTime}
-                    onChange={(e) => setForm({ ...form, startTime: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    onChange={(v) => setForm({ ...form, startTime: v })}
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">종료 시간</label>
-                  <input
-                    type="time"
+                  <TimeSelect
                     value={form.endTime}
-                    onChange={(e) => setForm({ ...form, endTime: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    onChange={(v) => setForm({ ...form, endTime: v })}
                   />
                 </div>
               </div>
@@ -649,11 +646,11 @@ export function MeetingCalendarPage() {
               <div className="flex gap-3">
                 <div className="flex-1">
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">시작 시간</label>
-                  <input type="time" value={minutesForm.startTime} onChange={(e) => setMinutesForm({ ...minutesForm, startTime: e.target.value })} className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  <TimeSelect value={minutesForm.startTime} onChange={(v) => setMinutesForm({ ...minutesForm, startTime: v })} />
                 </div>
                 <div className="flex-1">
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">종료 시간</label>
-                  <input type="time" value={minutesForm.endTime} onChange={(e) => setMinutesForm({ ...minutesForm, endTime: e.target.value })} className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  <TimeSelect value={minutesForm.endTime} onChange={(v) => setMinutesForm({ ...minutesForm, endTime: v })} />
                 </div>
               </div>
               <div>

@@ -369,7 +369,7 @@ export function TemplatesPage() {
                   onChange={(e) => setForm({ ...form, content: e.target.value })}
                   placeholder="템플릿 양식 본문을 입력하세요 (마크다운/텍스트)..."
                   rows={8}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none font-mono"
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                 />
               </div>
 
