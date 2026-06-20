@@ -281,7 +281,7 @@ export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const [viewingMeeting, setViewingMeeting] = useState<any>(null);
 
-  const { data: projects } = useQuery({ queryKey: ['projects'], queryFn: projectsApi.getAll });
+  const { data: projects } = useQuery({ queryKey: ['projects'], queryFn: projectsApi.getAll, refetchInterval: 60_000 });
   const { data: myWorklogs } = useQuery({
     queryKey: ['worklogs', 'me', user?.id],
     queryFn: () => worklogsApi.getAll({ userId: user!.id }),
