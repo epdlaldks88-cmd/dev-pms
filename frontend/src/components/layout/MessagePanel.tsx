@@ -11,6 +11,9 @@ import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../ui/Avatar';
 import { formatRelativeTime, formatMessageTime, cn } from '../../lib/utils';
 
+const EMOJI_ONLY_RE = /^(\p{Emoji_Presentation}|\p{Extended_Pictographic}|️|‍)+$/u;
+const isEmojiOnly = (text: string) => EMOJI_ONLY_RE.test(text.trim());
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -400,10 +403,14 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                       <div className={cn('flex items-end gap-2', isMine ? 'flex-row-reverse' : 'flex-row')}>
                         {!isMine && <Avatar name={activeUser?.name ?? ''} avatar={activeUser?.avatar} size="xs" className="flex-shrink-0 mb-0.5" />}
                         <div className={cn('max-w-[78%] flex flex-col gap-0.5', isMine ? 'items-end' : 'items-start')}>
-                          <div className={cn('px-3.5 py-2 rounded-2xl text-sm leading-relaxed break-words', isMine ? 'text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm')}
-                            style={isMine ? { background: 'linear-gradient(135deg, #f85032, #e73827)' } : undefined}>
-                            {m.content}
-                          </div>
+                          {isEmojiOnly(m.content) ? (
+                            <div className="text-4xl leading-none px-1 py-0.5 select-none">{m.content}</div>
+                          ) : (
+                            <div className={cn('px-3.5 py-2 rounded-2xl text-sm leading-relaxed break-words', isMine ? 'text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm')}
+                              style={isMine ? { background: 'linear-gradient(135deg, #f85032, #e73827)' } : undefined}>
+                              {m.content}
+                            </div>
+                          )}
                           <span className="text-[10px] text-gray-400 px-1 whitespace-nowrap">{formatMessageTime(m.createdAt)}</span>
                         </div>
                       </div>
@@ -473,10 +480,14 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                         )}
                         <div className={cn('max-w-[78%] flex flex-col gap-0.5', isMine ? 'items-end' : 'items-start')}>
                           {showSender && !isMine && <span className="text-[10px] text-gray-500 font-semibold px-1">{m.sender?.name}</span>}
-                          <div className={cn('px-3.5 py-2 rounded-2xl text-sm leading-relaxed break-words', isMine ? 'text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm')}
-                            style={isMine ? { background: 'linear-gradient(135deg, #f85032, #e73827)' } : undefined}>
-                            {m.content}
-                          </div>
+                          {isEmojiOnly(m.content) ? (
+                            <div className="text-4xl leading-none px-1 py-0.5 select-none">{m.content}</div>
+                          ) : (
+                            <div className={cn('px-3.5 py-2 rounded-2xl text-sm leading-relaxed break-words', isMine ? 'text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm')}
+                              style={isMine ? { background: 'linear-gradient(135deg, #f85032, #e73827)' } : undefined}>
+                              {m.content}
+                            </div>
+                          )}
                           <span className="text-[10px] text-gray-400 px-1 whitespace-nowrap">{formatMessageTime(m.createdAt)}</span>
                         </div>
                       </div>
