@@ -52,6 +52,10 @@ export function KanbanColumn({ column, projectId, canManage, currentUserId, isOw
     if (confirm(msg)) deleteStep.mutate();
   };
 
+  // status가 없거나(마이그레이션 전 데이터) 예상 밖 값이면 TODO로 폴백
+  const statusKey: TaskStatus = column.status && STATUS_CONFIG[column.status] ? column.status : 'TODO';
+  const statusCfg = { ...STATUS_CONFIG[statusKey], key: statusKey };
+
   return (
     <div className="flex flex-col w-72 flex-shrink-0">
       {/* Column Header */}
@@ -62,15 +66,15 @@ export function KanbanColumn({ column, projectId, canManage, currentUserId, isOw
           <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
             {column.tasks.length}
           </span>
-          {/* 이 컬럼에 들어온 카드가 갖게 될 상태 */}
+          {/* 이 컬럼에 들어온 카드가 갖게 될 상태 (status 미정 시 TODO로 폴백) */}
           {canManage ? (
             <select
-              value={column.status}
+              value={statusCfg.key}
               onChange={(e) => setStatus.mutate(e.target.value as TaskStatus)}
               title="이 단계의 진행 상태 (카드를 옮기면 이 상태가 됩니다)"
               className={cn(
                 'text-[10px] font-semibold border-0 rounded-full px-1.5 py-0.5 cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary-400 flex-shrink-0',
-                STATUS_CONFIG[column.status].bg, STATUS_CONFIG[column.status].color,
+                statusCfg.bg, statusCfg.color,
               )}
             >
               {STATUS_ORDER.map((s) => (
@@ -80,9 +84,9 @@ export function KanbanColumn({ column, projectId, canManage, currentUserId, isOw
           ) : (
             <span className={cn(
               'text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0',
-              STATUS_CONFIG[column.status].bg, STATUS_CONFIG[column.status].color,
+              statusCfg.bg, statusCfg.color,
             )}>
-              {STATUS_CONFIG[column.status].label}
+              {statusCfg.label}
             </span>
           )}
         </div>
