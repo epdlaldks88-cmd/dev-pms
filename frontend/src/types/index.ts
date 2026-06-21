@@ -59,7 +59,7 @@ export interface Step {
   name: string;
   order: number;
   color: string;
-  isDone: boolean;
+  status: TaskStatus;
   projectId: string;
   createdAt: string;
   _count?: { tasks: number };

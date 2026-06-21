@@ -116,10 +116,9 @@ export function TaskDetailModal() {
     });
   };
 
-  const handleStatusChange = (status: string) => {
-    const label = STATUS_CONFIG[status as TaskStatus]?.label;
-    const matchedStep = steps?.find((s: any) => s.name === label);
-    updateTask.mutate(matchedStep ? { status, stepId: matchedStep.id } : { status });
+  // 단계(컬럼)를 바꾸면 백엔드가 그 단계의 status를 자동 적용한다
+  const handleStepChange = (stepId: string) => {
+    updateTask.mutate({ stepId });
   };
 
   const invalidateTask = () => {
@@ -768,18 +767,24 @@ export function TaskDetailModal() {
                 </div>
               )}
 
-              {/* Status */}
+              {/* 단계 (status는 단계를 따라감) */}
               <div>
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">상태</p>
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">단계</p>
                 <select
-                  value={task.status}
-                  onChange={(e) => handleStatusChange(e.target.value)}
+                  value={task.stepId ?? ''}
+                  onChange={(e) => handleStepChange(e.target.value)}
                   className="w-full text-xs rounded-lg border border-gray-200 px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
                 >
-                  {Object.entries(STATUS_CONFIG).map(([k, v]) => (
-                    <option key={k} value={k}>{v.label}</option>
+                  {!task.stepId && <option value="">단계 미지정</option>}
+                  {steps?.map((s: any) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} · {STATUS_CONFIG[s.status as TaskStatus]?.label ?? s.status}
+                    </option>
                   ))}
                 </select>
+                <p className="text-[10px] text-gray-400 mt-1">
+                  현재 상태: {STATUS_CONFIG[task.status as TaskStatus]?.label ?? task.status} (단계에 따라 자동 설정)
+                </p>
               </div>
 
               {/* Priority */}

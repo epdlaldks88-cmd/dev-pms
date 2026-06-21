@@ -1,13 +1,15 @@
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { KanbanCard } from './KanbanCard';
 import { useUiStore } from '../../store/ui.store';
 import { stepsApi } from '../../api/notifications';
-import { cn } from '../../lib/utils';
-import type { KanbanColumn as KanbanColumnType } from '../../types';
+import { cn, STATUS_CONFIG } from '../../lib/utils';
+import type { KanbanColumn as KanbanColumnType, TaskStatus } from '../../types';
+
+const STATUS_ORDER: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED'];
 
 interface KanbanColumnProps {
   column: KanbanColumnType;
@@ -34,11 +36,11 @@ export function KanbanColumn({ column, projectId, canManage, currentUserId, isOw
     onError: (e: any) => toast.error(e.response?.data?.message ?? '삭제에 실패했습니다.'),
   });
 
-  const toggleDone = useMutation({
-    mutationFn: () => stepsApi.update(projectId, column.id, { isDone: !column.isDone }),
+  const setStatus = useMutation({
+    mutationFn: (status: TaskStatus) => stepsApi.update(projectId, column.id, { status }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['kanban', projectId] });
-      toast.success(column.isDone ? '완료 컬럼 해제되었습니다.' : '완료 컬럼으로 설정되었습니다.');
+      toast.success('단계 상태가 변경되었습니다.');
     },
     onError: () => toast.error('변경에 실패했습니다.'),
   });
@@ -54,19 +56,37 @@ export function KanbanColumn({ column, projectId, canManage, currentUserId, isOw
     <div className="flex flex-col w-72 flex-shrink-0">
       {/* Column Header */}
       <div className="flex items-center justify-between mb-2 px-1 group">
-        <div className="flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: column.color }} />
-          <span className="text-xs font-semibold text-gray-600">{column.name}</span>
-          <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full font-medium">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: column.color }} />
+          <span className="text-xs font-semibold text-gray-600 truncate">{column.name}</span>
+          <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
             {column.tasks.length}
           </span>
-          {column.isDone && (
-            <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
-              완료
+          {/* 이 컬럼에 들어온 카드가 갖게 될 상태 */}
+          {canManage ? (
+            <select
+              value={column.status}
+              onChange={(e) => setStatus.mutate(e.target.value as TaskStatus)}
+              title="이 단계의 진행 상태 (카드를 옮기면 이 상태가 됩니다)"
+              className={cn(
+                'text-[10px] font-semibold border-0 rounded-full px-1.5 py-0.5 cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary-400 flex-shrink-0',
+                STATUS_CONFIG[column.status].bg, STATUS_CONFIG[column.status].color,
+              )}
+            >
+              {STATUS_ORDER.map((s) => (
+                <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
+              ))}
+            </select>
+          ) : (
+            <span className={cn(
+              'text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0',
+              STATUS_CONFIG[column.status].bg, STATUS_CONFIG[column.status].color,
+            )}>
+              {STATUS_CONFIG[column.status].label}
             </span>
           )}
         </div>
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5 flex-shrink-0">
           <button
             onClick={() => openCreateTask(projectId, column.id)}
             className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100 transition-colors cursor-pointer"
@@ -75,27 +95,13 @@ export function KanbanColumn({ column, projectId, canManage, currentUserId, isOw
             <Plus size={14} />
           </button>
           {canManage && (
-            <>
-              <button
-                onClick={() => toggleDone.mutate()}
-                className={cn(
-                  'p-1 rounded transition-colors cursor-pointer opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto',
-                  column.isDone
-                    ? 'text-emerald-500 hover:text-gray-400 hover:bg-gray-100'
-                    : 'text-gray-400 hover:text-emerald-500 hover:bg-emerald-50',
-                )}
-                title={column.isDone ? '완료 컬럼 해제' : '완료 컬럼으로 설정'}
-              >
-                <CheckCircle2 size={13} />
-              </button>
-              <button
-                onClick={handleDelete}
-                className="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors cursor-pointer opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"
-                title="단계 삭제"
-              >
-                <Trash2 size={13} />
-              </button>
-            </>
+            <button
+              onClick={handleDelete}
+              className="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors cursor-pointer opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"
+              title="단계 삭제"
+            >
+              <Trash2 size={13} />
+            </button>
           )}
         </div>
       </div>
