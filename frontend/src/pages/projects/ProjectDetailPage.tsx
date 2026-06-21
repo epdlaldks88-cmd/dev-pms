@@ -523,7 +523,7 @@ export function ProjectDetailPage() {
           {/* 상태별 태스크 */}
           <div className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
             <div className="px-5 py-3.5 border-b border-gray-200/70 flex items-center gap-2.5">
-              <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-sm flex-shrink-0">
+              <div className="w-6 h-6 rounded-md flex items-center justify-center shadow-sm flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
                 <BarChart2 size={12} className="text-white" />
               </div>
               <span className="text-xs font-semibold text-gray-600">상태별 태스크</span>
@@ -564,7 +564,7 @@ export function ProjectDetailPage() {
           <div className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200/70">
               <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-sm flex-shrink-0">
+                <div className="w-6 h-6 rounded-md flex items-center justify-center shadow-sm flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
                   <Calendar size={12} className="text-white" />
                 </div>
                 <span className="text-xs font-semibold text-gray-600">{calMonth.getFullYear()}년 {calMonth.getMonth() + 1}월</span>
@@ -626,7 +626,7 @@ export function ProjectDetailPage() {
           {activity && activity.length > 0 && (
             <div className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
               <div className="px-5 py-3.5 border-b border-gray-200/70 flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-sm flex-shrink-0">
+                <div className="w-6 h-6 rounded-md flex items-center justify-center shadow-sm flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
                   <Activity size={12} className="text-white" />
                 </div>
                 <span className="text-xs font-semibold text-gray-600">최근 활동</span>
@@ -656,7 +656,7 @@ export function ProjectDetailPage() {
           {/* 멤버 헤더 */}
           <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-200/70 flex-shrink-0">
             <div className="flex items-center gap-2.5">
-              <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-sm flex-shrink-0">
+              <div className="w-6 h-6 rounded-md flex items-center justify-center shadow-sm flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
                 <Users size={12} className="text-white" />
               </div>
               <span className="text-xs font-semibold text-gray-600">팀 멤버</span>
