@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { X, Send, Search, Plus, MessageSquare, ChevronLeft, Trash2, Users, LogOut, UserPlus, User } from 'lucide-react';
+import { X, Send, Search, Plus, MessageSquare, ChevronLeft, Trash2, Users, LogOut, UserPlus, User, Pencil, Eye } from 'lucide-react';
 import { EmojiPickerButton } from '../ui/EmojiPicker';
 import toast from 'react-hot-toast';
 import { messagesApi } from '../../api/messages';
@@ -46,6 +46,12 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
   // 멤버 추가 (룸 안에서)
   const [showAddMember, setShowAddMember] = useState(false);
   const [addMemberSearch, setAddMemberSearch] = useState('');
+
+  // 그룹채팅 컨텍스트 메뉴
+  const [ctxMenu, setCtxMenu] = useState<{ room: any; x: number; y: number } | null>(null);
+  const [renameTarget, setRenameTarget] = useState<{ id: string; name: string } | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
+  const ctxRef = useRef<HTMLDivElement>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -154,6 +160,28 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['rooms'] }); setActiveRoomId(null); setView('list'); toast.success('채팅방을 나갔습니다.'); },
     onError: () => toast.error('실패했습니다.'),
   });
+
+  const leaveRoomById = useMutation({
+    mutationFn: (roomId: string) => roomsApi.leave(roomId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['rooms'] }); toast.success('채팅방을 나갔습니다.'); },
+    onError: () => toast.error('실패했습니다.'),
+  });
+
+  const renameRoom = useMutation({
+    mutationFn: ({ roomId, name }: { roomId: string; name: string }) => roomsApi.rename(roomId, name),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['rooms'] }); setRenameTarget(null); toast.success('채팅방 이름이 변경되었습니다.'); },
+    onError: () => toast.error('변경에 실패했습니다.'),
+  });
+
+  // 컨텍스트 메뉴 외부 클릭 닫기
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (ctxRef.current && !ctxRef.current.contains(e.target as Node)) setCtxMenu(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [ctxMenu]);
 
   // ── 자동 스크롤 ──
   useEffect(() => {
@@ -339,7 +367,8 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
               (rooms ?? []).map((r: any) => (
                 <div key={r.id}
                   className="group flex items-center gap-3 px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => openRoom(r.id)}>
+                  onClick={() => openRoom(r.id)}
+                  onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ room: r, x: e.clientX, y: e.clientY }); }}>
                   {/* 룸 아이콘 — 멤버 아바타 2개 겹쳐서 */}
                   <div className="relative flex-shrink-0 w-10 h-10">
                     {r.members.slice(0, 2).map((m: any, i: number) => (
@@ -744,6 +773,88 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                     style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}
                   >
                     메시지 보내기
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 그룹채팅 우클릭 컨텍스트 메뉴 */}
+      {ctxMenu && (
+        <div
+          ref={ctxRef}
+          className="fixed z-[9999] w-48 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden py-1 animate-slide-up"
+          style={{ top: ctxMenu.y, left: ctxMenu.x }}
+        >
+          <button
+            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            onClick={() => {
+              setRenameTarget({ id: ctxMenu.room.id, name: ctxMenu.room.name });
+              setRenameDraft(ctxMenu.room.name);
+              setCtxMenu(null);
+            }}
+          >
+            <Pencil size={14} className="text-gray-400" /> 채팅방 이름 수정
+          </button>
+          <button
+            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            onClick={() => { openRoom(ctxMenu.room.id); setCtxMenu(null); }}
+          >
+            <Eye size={14} className="text-gray-400" /> 멤버 확인
+          </button>
+          <div className="h-px bg-gray-100 mx-2 my-1" />
+          <button
+            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
+            onClick={() => {
+              if (confirm(`"${ctxMenu.room.name}" 채팅방을 나가시겠습니까?`)) {
+                leaveRoomById.mutate(ctxMenu.room.id);
+              }
+              setCtxMenu(null);
+            }}
+          >
+            <LogOut size={14} /> 채팅방 나가기
+          </button>
+        </div>
+      )}
+
+      {/* 이름 변경 모달 */}
+      {renameTarget && (
+        <>
+          <div className="fixed inset-0 z-[9999] bg-black/40 backdrop-blur-[2px]" onClick={() => setRenameTarget(null)} />
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none">
+            <div className="bg-white rounded-2xl shadow-2xl w-80 overflow-hidden pointer-events-auto animate-slide-up">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                <span className="text-sm font-bold text-gray-800">채팅방 이름 수정</span>
+                <button onClick={() => setRenameTarget(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="px-4 py-4 space-y-3">
+                <input
+                  autoFocus
+                  value={renameDraft}
+                  onChange={(e) => setRenameDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && renameDraft.trim()) renameRoom.mutate({ roomId: renameTarget.id, name: renameDraft.trim() });
+                    if (e.key === 'Escape') setRenameTarget(null);
+                  }}
+                  placeholder="채팅방 이름"
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#e73827] focus:ring-1 focus:ring-[#e73827]/30 transition-colors"
+                />
+                <div className="flex gap-2">
+                  <button onClick={() => setRenameTarget(null)}
+                    className="flex-1 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">
+                    취소
+                  </button>
+                  <button
+                    disabled={!renameDraft.trim() || renameRoom.isPending}
+                    onClick={() => renameRoom.mutate({ roomId: renameTarget.id, name: renameDraft.trim() })}
+                    className="flex-1 py-2 text-sm font-semibold text-white rounded-xl transition-opacity hover:opacity-90 disabled:opacity-40"
+                    style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}
+                  >
+                    변경
                   </button>
                 </div>
               </div>

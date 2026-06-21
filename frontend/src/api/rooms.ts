@@ -11,6 +11,9 @@ export const roomsApi = {
     api.post(`/rooms/${roomId}/messages`, { content }).then((r) => r.data),
   addMember: (roomId: string, userId: string) =>
     api.post(`/rooms/${roomId}/members`, { userId }).then((r) => r.data),
+  rename: (roomId: string, name: string) =>
+    api.patch(`/rooms/${roomId}/name`, { name }).then((r) => r.data),
+
   leave: (roomId: string) =>
     api.delete(`/rooms/${roomId}/members/me`).then((r) => r.data),
 };
