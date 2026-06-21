@@ -10,7 +10,6 @@ import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { PriorityBadge } from '../../components/ui/PriorityBadge';
 import { StatusBadge } from '../../components/ui/StatusBadge';
-import { Avatar } from '../../components/ui/Avatar';
 import { CreateTaskModal } from '../../components/task/CreateTaskModal';
 import { TaskDetailModal } from '../../components/task/TaskDetailModal';
 import { IssueEditModal } from '../../components/issue/IssueEditModal';
@@ -332,16 +331,9 @@ export function GanttPage() {
                   </span>
                   <StatusBadge status={task.status} />
                   <span className="text-sm text-gray-800 truncate flex-1">{task.title}</span>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <div className="flex -space-x-1">
-                      {task.assignees.slice(0, 2).map(({ user }) => (
-                        <Avatar key={user.id} name={user.name} avatar={user.avatar} size="xs" className="ring-1 ring-white" />
-                      ))}
-                    </div>
-                    {task._count.issues > 0 && (
-                      <GanttIssuesBadge task={task} projectId={projectId!} />
-                    )}
-                  </div>
+                  {task._count.issues > 0 && (
+                    <GanttIssuesBadge task={task} projectId={projectId!} />
+                  )}
                 </div>
               ))}
             </div>
