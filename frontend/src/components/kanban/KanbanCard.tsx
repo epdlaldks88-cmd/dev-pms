@@ -109,7 +109,7 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
                 e.stopPropagation();
                 if (confirm(`"${task.title}" 태스크를 삭제하시겠습니까?`)) deleteTask.mutate();
               }}
-              className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 hover:bg-red-50 p-1 rounded-md transition-all z-10"
+              className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto text-gray-300 hover:text-red-500 hover:bg-red-50 p-1 rounded-md transition-all z-10"
               title="태스크 삭제"
             >
               <Trash2 size={12} />
