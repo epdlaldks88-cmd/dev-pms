@@ -5,6 +5,7 @@ import { Plus, Pencil, Trash2, AlertTriangle, X, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { issuesApi } from '../../api/issues';
 import { projectsApi } from '../../api/projects';
+import { tasksApi } from '../../api/tasks';
 import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -27,7 +28,7 @@ const STATUS_CONFIG: Record<IssueStatus, { label: string; color: string; bg: str
 
 const EMPTY_FORM = {
   title: '', description: '', riskLevel: 'MEDIUM' as IssueRisk,
-  status: 'OPEN' as IssueStatus, assigneeId: '',
+  status: 'OPEN' as IssueStatus, assigneeId: '', taskId: '',
 };
 
 export function IssuesPage() {
@@ -52,6 +53,12 @@ export function IssuesPage() {
     enabled: !!projectId,
   });
 
+  const { data: tasks } = useQuery({
+    queryKey: ['tasks', projectId],
+    queryFn: () => tasksApi.getAll(projectId!),
+    enabled: !!projectId,
+  });
+
   const invalidate = () => qc.invalidateQueries({ queryKey: ['issues', projectId] });
 
   const createIssue = useMutation({
@@ -61,6 +68,7 @@ export function IssuesPage() {
       riskLevel: form.riskLevel,
       status: form.status,
       assigneeId: form.assigneeId || undefined,
+      taskId: form.taskId || undefined,
     }),
     onSuccess: () => {
       invalidate();
@@ -78,6 +86,7 @@ export function IssuesPage() {
       riskLevel: form.riskLevel,
       status: form.status,
       assigneeId: form.assigneeId || null,
+      taskId: form.taskId || null,
     }),
     onSuccess: () => {
       invalidate();
@@ -112,6 +121,7 @@ export function IssuesPage() {
       riskLevel: issue.riskLevel,
       status: issue.status,
       assigneeId: issue.assignee?.id ?? '',
+      taskId: issue.taskId ?? '',
     });
     setShowForm(false);
   };
@@ -161,6 +171,19 @@ export function IssuesPage() {
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
             />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">연결 태스크 (칸반보드)</label>
+            <select
+              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              value={form.taskId}
+              onChange={(e) => setForm((f) => ({ ...f, taskId: e.target.value }))}
+            >
+              <option value="">없음</option>
+              {tasks?.map((t) => (
+                <option key={t.id} value={t.id}>{t.title}</option>
+              ))}
+            </select>
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
@@ -289,6 +312,7 @@ export function IssuesPage() {
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/60">
                 <th className="text-left text-xs font-semibold text-gray-500 px-5 py-3">이슈</th>
+                <th className="text-left text-xs font-semibold text-gray-500 px-4 py-3 w-32">연결 태스크</th>
                 <th className="text-left text-xs font-semibold text-gray-500 px-4 py-3 w-24">위험도</th>
                 <th className="text-left text-xs font-semibold text-gray-500 px-4 py-3 w-28">해결상태</th>
                 <th className="text-left text-xs font-semibold text-gray-500 px-4 py-3 w-28">담당자</th>
@@ -306,6 +330,15 @@ export function IssuesPage() {
                       <p className="text-sm font-medium text-gray-900">{issue.title}</p>
                       {issue.description && (
                         <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{issue.description}</p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      {issue.task ? (
+                        <span className="inline-flex items-center text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full max-w-[110px] truncate block">
+                          {issue.task.title}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-300">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3.5">

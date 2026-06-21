@@ -75,7 +75,7 @@ export function WorkloadPage() {
   // ── 수정 모달 ───────────────────────────────────────────
   const [editLog, setEditLog] = useState<any>(null);
   const [editForm, setEditForm] = useState({
-    hours: 1, description: '', startDate: '', endDate: '', userId: '', stage: '' as WorkLogStage | '',
+    hours: 1, description: '', startDate: '', endDate: '', userId: '', stage: '' as WorkLogStage | '', requester: '',
   });
 
   // ── 담당자 카드 선택 필터 ─────────────────────────────
@@ -623,6 +623,7 @@ export function WorkloadPage() {
                               endDate: viewLog.endDate ? viewLog.endDate.slice(0, 10) : viewLog.workDate?.slice(0, 10) ?? '',
                               userId: viewLog.user.id,
                               stage: viewLog.stage ?? '',
+                              requester: viewLog.requester ?? '',
                             });
                           }}
                           className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -881,6 +882,18 @@ export function WorkloadPage() {
                 </select>
               </div>
 
+              {/* 요청자 */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">요청자</label>
+                <input
+                  type="text"
+                  value={editForm.requester}
+                  onChange={(e) => setEditForm({ ...editForm, requester: e.target.value })}
+                  placeholder="요청자를 입력하세요 (선택)"
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+
               {/* 공수 */}
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">공수 (시간) *</label>
@@ -920,7 +933,7 @@ export function WorkloadPage() {
               <Button variant="ghost" onClick={() => setEditLog(null)}>닫기</Button>
               <Button
                 variant="primary"
-                onClick={() => updateWorklog.mutate({ id: editLog.id, patch: { hours: editForm.hours, description: editForm.description, startDate: editForm.startDate, endDate: editForm.endDate, userId: editForm.userId, ...(editForm.stage && { stage: editForm.stage }) } })}
+                onClick={() => updateWorklog.mutate({ id: editLog.id, patch: { hours: editForm.hours, description: editForm.description, startDate: editForm.startDate, endDate: editForm.endDate, userId: editForm.userId, requester: editForm.requester || undefined, ...(editForm.stage && { stage: editForm.stage }) } })}
                 disabled={editForm.hours <= 0}
                 loading={updateWorklog.isPending}
               >

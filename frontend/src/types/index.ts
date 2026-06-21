@@ -95,7 +95,7 @@ export interface Task {
   subTasks?: Task[];
   comments?: Comment[];
   attachments?: Attachment[];
-  _count: { comments: number; attachments: number; subTasks: number };
+  _count: { comments: number; attachments: number; subTasks: number; issues: number };
 }
 
 export interface KanbanColumn extends Step {
@@ -192,6 +192,8 @@ export interface Issue {
   createdAt: string;
   updatedAt: string;
   projectId: string;
+  taskId?: string | null;
+  task?: { id: string; title: string } | null;
   createdBy: Pick<User, 'id' | 'name' | 'avatar'>;
   assignee?: Pick<User, 'id' | 'name' | 'avatar'> | null;
 }

@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { MessageSquare, Paperclip, CalendarDays, GitBranch, Trash2 } from 'lucide-react';
+import { MessageSquare, Paperclip, CalendarDays, GitBranch, Trash2, AlertTriangle } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Avatar } from '../ui/Avatar';
@@ -30,6 +30,7 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
   };
 
   const isOverdue = isDueDateOverdue(task.dueDate);
+  const hasIssue = task._count.issues > 0;
 
   const deleteTask = useMutation({
     mutationFn: () => tasksApi.delete(task.projectId, task.id),
@@ -48,8 +49,11 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
       {...listeners}
       onClick={() => openTaskModal(task.id)}
       className={cn(
-        'bg-white rounded-lg border border-gray-200 p-3 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all group select-none relative',
+        'rounded-lg border p-3 cursor-pointer hover:shadow-sm transition-all group select-none relative',
         'outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
+        hasIssue
+          ? 'bg-red-50/70 border-red-200 hover:border-red-300 animate-issue-pulse'
+          : 'bg-white border-gray-200 hover:border-gray-300',
         isDragging && 'opacity-40',
         overlay && 'shadow-xl rotate-1',
       )}
@@ -114,6 +118,11 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
+          {hasIssue && (
+            <span className="flex items-center gap-0.5 text-[11px] font-semibold text-red-500">
+              <AlertTriangle size={10} /> {task._count.issues}
+            </span>
+          )}
           {task._count.comments > 0 && (
             <span className="flex items-center gap-0.5 text-[11px] text-gray-400">
               <MessageSquare size={10} /> {task._count.comments}
