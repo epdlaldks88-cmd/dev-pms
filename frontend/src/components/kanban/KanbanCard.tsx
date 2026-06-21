@@ -44,6 +44,7 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
   const isOverdue = isDueDateOverdue(task.dueDate);
   const hasIssue = task._count.issues > 0;
   const issues = task.issues ?? [];
+  const hasUnresolvedIssue = issues.some((i) => i.status !== 'RESOLVED');
 
   const [issuePopover, setIssuePopover] = useState(false);
   const [editingIssue, setEditingIssue] = useState<IssueEditTarget | null>(null);
@@ -93,7 +94,9 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
           'transition-all duration-200',
           'outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
           hasIssue
-            ? 'border-red-200 animate-issue-glow hover:border-red-300'
+            ? hasUnresolvedIssue
+              ? 'border-red-200 animate-issue-glow hover:border-red-300'
+              : 'border-emerald-200 hover:border-emerald-300'
             : 'border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300',
           isDragging && 'opacity-40',
           overlay && 'shadow-xl rotate-1',
