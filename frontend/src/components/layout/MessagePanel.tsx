@@ -186,7 +186,6 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
 
   // ── 헤더 타이틀 ──
   const headerTitle =
-    view === 'chat' && activeUser ? activeUser.name :
     view === 'room' && activeRoom ? activeRoom.name :
     view === 'new' ? '새 채팅' :
     view === 'new-room' ? '그룹채팅 만들기' :
@@ -366,12 +365,21 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
         {view === 'chat' && (
           <div className="flex-1 flex flex-col min-h-0">
             {activeUser && (
-              <div className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 bg-gray-50/50 flex-shrink-0">
-                <Avatar name={activeUser.name} avatar={activeUser.avatar} size="sm" />
-                <div>
-                  <p className="text-sm font-semibold text-gray-600">{activeUser.name}</p>
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-gray-50/50 flex-shrink-0">
+                <div className="relative flex-shrink-0">
+                  <Avatar name={activeUser.name} avatar={activeUser.avatar} size="sm" />
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border-2 border-white rounded-full" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-gray-700 truncate">{activeUser.name}</p>
+                    <span className="flex-shrink-0 flex items-center gap-1 text-[10px] font-semibold text-green-600 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded-full">
+                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                      온라인
+                    </span>
+                  </div>
                   {(activeUser.position || activeUser.department) && (
-                    <p className="text-[11px] text-gray-400">{[activeUser.position, activeUser.department].filter(Boolean).join(' · ')}</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">{[activeUser.position, activeUser.department].filter(Boolean).join(' · ')}</p>
                   )}
                 </div>
               </div>
