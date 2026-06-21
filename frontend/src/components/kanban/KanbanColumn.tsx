@@ -9,7 +9,7 @@ import { stepsApi } from '../../api/notifications';
 import { cn, STATUS_CONFIG } from '../../lib/utils';
 import type { KanbanColumn as KanbanColumnType, TaskStatus } from '../../types';
 
-const STATUS_ORDER: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED'];
+const STATUS_ORDER: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'ON_HOLD', 'CANCELLED'];
 
 interface KanbanColumnProps {
   column: KanbanColumnType;

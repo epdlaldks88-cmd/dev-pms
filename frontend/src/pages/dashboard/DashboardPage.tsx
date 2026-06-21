@@ -29,9 +29,9 @@ const STATUS_PRESETS = [
 ];
 
 const STATUS_HEX: Record<TaskStatus, string> = {
-  TODO: '#9ca3af', IN_PROGRESS: '#3b82f6', IN_REVIEW: '#eab308', DONE: '#22c55e', CANCELLED: '#ef4444',
+  TODO: '#9ca3af', IN_PROGRESS: '#3b82f6', IN_REVIEW: '#eab308', DONE: '#22c55e', ON_HOLD: '#8b5cf6', CANCELLED: '#ef4444',
 };
-const STATUS_ORDER: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED'];
+const STATUS_ORDER: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'ON_HOLD', 'CANCELLED'];
 
 // 도넛 차트
 function StatusDonut({ counts, total }: { counts: Record<TaskStatus, number>; total: number }) {
@@ -408,7 +408,7 @@ export function DashboardPage() {
     })),
   });
 
-  const statusCounts: Record<TaskStatus, number> = { TODO: 0, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 0, CANCELLED: 0 };
+  const statusCounts: Record<TaskStatus, number> = { TODO: 0, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 0, ON_HOLD: 0, CANCELLED: 0 };
   (projects ?? []).forEach((p, idx) => {
     const stats = statsQueries[idx]?.data as ProjectStats | undefined;
     if (stats) stats.byStatus.forEach((b) => { statusCounts[b.status] += b._count; });

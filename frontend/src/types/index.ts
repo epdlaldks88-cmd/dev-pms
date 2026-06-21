@@ -2,7 +2,7 @@ export type Role = 'ADMIN' | 'MEMBER';
 export type ProjectRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
 export type ProjectStatus = 'ACTIVE' | 'COMPLETED' | 'ARCHIVED' | 'ON_HOLD';
 export type Priority = 'URGENT' | 'HIGH' | 'MEDIUM' | 'LOW';
-export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'CANCELLED';
+export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'ON_HOLD' | 'CANCELLED';
 export type NotificationType =
   | 'TASK_ASSIGNED'
   | 'TASK_UPDATED'

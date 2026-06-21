@@ -46,6 +46,7 @@ export const STATUS_CONFIG: Record<TaskStatus, { label: string; color: string; b
   IN_PROGRESS: { label: '진행 중', color: 'text-blue-600', bg: 'bg-blue-100' },
   IN_REVIEW: { label: '검토 중', color: 'text-yellow-600', bg: 'bg-yellow-100' },
   DONE: { label: '완료', color: 'text-green-600', bg: 'bg-green-100' },
+  ON_HOLD: { label: '보류', color: 'text-violet-600', bg: 'bg-violet-100' },
   CANCELLED: { label: '취소', color: 'text-red-600', bg: 'bg-red-100' },
 };
 
