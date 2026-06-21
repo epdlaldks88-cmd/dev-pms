@@ -93,10 +93,8 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
           'rounded-xl border bg-white p-3 cursor-pointer select-none relative',
           'transition-all duration-200',
           'outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
-          hasIssue
-            ? hasUnresolvedIssue
-              ? 'border-red-200 animate-issue-glow hover:border-red-300'
-              : 'border-emerald-200 hover:border-emerald-300'
+          hasUnresolvedIssue
+            ? 'border-red-200 animate-issue-glow hover:border-red-300'
             : 'border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300',
           isDragging && 'opacity-40',
           overlay && 'shadow-xl rotate-1',
