@@ -79,7 +79,7 @@ export function IssueEditModal({ projectId, issue, onClose }: Props) {
   });
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-slide-up">
         <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-200">
