@@ -29,7 +29,9 @@ api.interceptors.response.use(
   async (error) => {
     const original = error.config;
 
-    if (error.response?.status === 401 && !original._retry) {
+    // 로그인 요청 자체의 401은 인증 갱신 로직 건너뜀 (틀린 비밀번호 등)
+    const isAuthEndpoint = original.url?.includes('/auth/login') || original.url?.includes('/auth/register');
+    if (error.response?.status === 401 && !original._retry && !isAuthEndpoint) {
       const refreshToken = localStorage.getItem('refreshToken');
       if (!refreshToken) {
         useAuthStore.getState().logout();
