@@ -93,13 +93,13 @@ export function KanbanPage() {
 
   const collisionDetection = useCallback((args: any) => {
     const pointerCollisions = pointerWithin(args);
-    if (pointerCollisions.length > 0) {
-      const columnHit = pointerCollisions.find((c: any) => kanban?.some((col) => col.id === c.id));
-      if (columnHit) return [columnHit];
-      return pointerCollisions;
-    }
-    const rectCollisions = rectIntersection(args);
-    return getFirstCollision(rectCollisions) ? rectCollisions : [];
+    const collisions = pointerCollisions.length > 0 ? pointerCollisions : rectIntersection(args);
+    if (collisions.length === 0) return [];
+    // 컬럼보다 태스크 충돌을 우선 → 컬럼 안에서 카드 사이에 정확히 끼워넣기 가능
+    const isColumn = (c: any) => kanban?.some((col) => col.id === c.id);
+    const taskHit = collisions.find((c: any) => !isColumn(c));
+    if (taskHit) return [taskHit];
+    return collisions.length > 0 ? [collisions[0]] : [];
   }, [kanban]);
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -146,21 +146,8 @@ export function KanbanPage() {
       });
     });
 
+    // 단계로 옮기면 백엔드가 그 단계의 status를 자동 적용 (status는 단계를 따라감)
     moveTask.mutate({ taskId, stepId: targetStepId, order: targetOrder });
-
-    // 대상 컬럼 이름이 상태 라벨과 일치하면 상태도 동기화 (예: 완료 컬럼 → DONE)
-    const targetCol = kanban.find((c) => c.id === targetStepId);
-    const matchedStatus = (Object.keys(STATUS_CONFIG) as TaskStatus[]).find(
-      (k) => STATUS_CONFIG[k].label === targetCol?.name,
-    );
-    const movedTask = kanban.flatMap((c) => c.tasks).find((t) => t.id === taskId);
-    if (matchedStatus && movedTask && movedTask.status !== matchedStatus) {
-      tasksApi.update(projectId!, taskId, { status: matchedStatus }).then(() => {
-        qc.invalidateQueries({ queryKey: ['task', taskId] });
-        qc.invalidateQueries({ queryKey: ['gantt', projectId] });
-        qc.invalidateQueries({ queryKey: ['project-stats', projectId] });
-      });
-    }
   }, [kanban, projectId, qc, moveTask]);
 
   return (
