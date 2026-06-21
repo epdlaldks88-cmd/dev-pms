@@ -40,6 +40,8 @@ export function KanbanColumn({ column, projectId, canManage, currentUserId, isOw
     mutationFn: (status: TaskStatus) => stepsApi.update(projectId, column.id, { status }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['kanban', projectId] });
+      qc.invalidateQueries({ queryKey: ['project-stats', projectId] });
+      qc.invalidateQueries({ queryKey: ['gantt', projectId] });
       toast.success('단계 상태가 변경되었습니다.');
     },
     onError: () => toast.error('변경에 실패했습니다.'),
