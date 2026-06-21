@@ -213,7 +213,7 @@ function NoticeCard({ notice, isAdmin, expanded, onToggle, onEdit, onDelete }: {
           <span className="text-[11px] text-gray-400 hidden sm:block whitespace-nowrap">{notice.createdBy.name}</span>
           <span className="text-[11px] text-gray-300 whitespace-nowrap">{formatRelativeTime(notice.createdAt)}</span>
           {isAdmin && (
-            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-0.5 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all" onClick={(e) => e.stopPropagation()}>
               <button onClick={onEdit} className="p-1.5 text-gray-300 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-colors">
                 <Pencil size={12} />
               </button>

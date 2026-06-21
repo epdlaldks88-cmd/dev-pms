@@ -389,7 +389,7 @@ export function MeetingsPage() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
+                  <div className="flex items-center gap-1 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all flex-shrink-0">
                     <button
                       onClick={(e) => { e.stopPropagation(); printMeeting(m); }}
                       className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"

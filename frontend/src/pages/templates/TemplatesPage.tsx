@@ -299,7 +299,7 @@ export function TemplatesPage() {
                         </div>
                       </div>
                       {/* 액션 */}
-                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => openEdit(t)}
                           className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow border border-gray-200 text-gray-500 hover:text-indigo-600 transition-colors"

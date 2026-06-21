@@ -393,7 +393,7 @@ export function WorkloadPage() {
                   <button
                     onClick={() => acknowledgeWorklog.mutate(log.id)}
                     disabled={acknowledgeWorklog.isPending}
-                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[11px] font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-full transition-all"
+                    className="flex-shrink-0 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto flex items-center gap-1 text-[11px] font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-full transition-all"
                   >
                     <CheckCircle2 size={12} /> 확인했어요
                   </button>

@@ -79,7 +79,7 @@ export function KanbanColumn({ column, projectId, canManage, currentUserId, isOw
               <button
                 onClick={() => toggleDone.mutate()}
                 className={cn(
-                  'p-1 rounded transition-colors cursor-pointer opacity-0 group-hover:opacity-100',
+                  'p-1 rounded transition-colors cursor-pointer opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto',
                   column.isDone
                     ? 'text-emerald-500 hover:text-gray-400 hover:bg-gray-100'
                     : 'text-gray-400 hover:text-emerald-500 hover:bg-emerald-50',
@@ -90,7 +90,7 @@ export function KanbanColumn({ column, projectId, canManage, currentUserId, isOw
               </button>
               <button
                 onClick={handleDelete}
-                className="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
+                className="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors cursor-pointer opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"
                 title="단계 삭제"
               >
                 <Trash2 size={13} />

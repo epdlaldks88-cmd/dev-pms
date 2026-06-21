@@ -184,7 +184,7 @@ export function ProjectsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3.5">
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                      <div className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity flex items-center gap-1">
                         <button
                           onClick={() => {
                             if (confirm('프로젝트를 삭제하시겠습니까?')) {

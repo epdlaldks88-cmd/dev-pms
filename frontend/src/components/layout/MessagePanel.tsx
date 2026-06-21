@@ -375,7 +375,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                     </p>
                   </div>
                   <button onClick={(e) => { e.stopPropagation(); setPendingCutoffIso(c.lastMessage?.createdAt ?? ''); setConfirmHideId(c.user.id); }}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all flex-shrink-0" title="대화 삭제">
+                    className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all flex-shrink-0" title="대화 삭제">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -630,7 +630,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); setProfilePopup(u); }}
-                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-[11px] font-medium text-gray-400 hover:text-gray-600 bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-lg"
+                    className="flex-shrink-0 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity flex items-center gap-1 text-[11px] font-medium text-gray-400 hover:text-gray-600 bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-lg"
                   >
                     <User size={11} />
                     프로필

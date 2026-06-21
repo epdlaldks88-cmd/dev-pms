@@ -376,7 +376,7 @@ export function IssuesPage() {
                       <span className="text-xs text-gray-400">{formatRelativeTime(issue.createdAt)}</span>
                     </td>
                     <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                      <div className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity flex items-center gap-1">
                         <button
                           onClick={() => {
                             if (confirm(`"${issue.title}" 이슈를 삭제하시겠습니까?`)) {

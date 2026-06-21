@@ -410,7 +410,7 @@ function ErdTableNode({ id, data, selected }: any) {
               <button
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => removeCol(col.id, e)}
-                className="nodrag flex-shrink-0 opacity-0 group-hover:opacity-100 text-gray-300 hover:text-rose-400 transition-all"
+                className="nodrag flex-shrink-0 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto text-gray-300 hover:text-rose-400 transition-all"
               >
                 <Trash size={10} />
               </button>
@@ -1086,7 +1086,7 @@ export function CanvasPage() {
               )}
             >
               <Icon size={14} /> {label}
-              <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity z-50">
+              <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-white opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50">
                 {label} <kbd className="ml-1 font-mono opacity-70">{shortcut}</kbd>
               </span>
             </button>
@@ -1101,7 +1101,7 @@ export function CanvasPage() {
             )}
           >
             <MagnetIcon size={14} /> 스냅
-            <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity z-50">
+            <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-white opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50">
               스냅 — 도형을 격자(16px)에 맞춤
             </span>
           </button>
@@ -1122,7 +1122,7 @@ export function CanvasPage() {
               )}
             >
               <Icon size={14} /> {label}
-              <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity z-50">
+              <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-white opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50">
                 {label} <kbd className="ml-1 font-mono opacity-70">{shortcut}</kbd>
               </span>
             </button>
@@ -1320,7 +1320,7 @@ export function CanvasPage() {
                   {user?.id === c.user.id && (
                     <button
                       onClick={() => deleteComment.mutate(c.id)}
-                      className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all flex-shrink-0 mt-0.5"
+                      className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto text-gray-300 hover:text-red-400 transition-all flex-shrink-0 mt-0.5"
                     >
                       <X size={12} />
                     </button>

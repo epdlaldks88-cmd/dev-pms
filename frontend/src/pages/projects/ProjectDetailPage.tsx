@@ -840,7 +840,7 @@ export function ProjectDetailPage() {
                           <button
                             onClick={() => removeMember.mutate(m.user.id)}
                             disabled={removeMember.isPending}
-                            className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                            className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                             title="멤버 제거"
                           >
                             <Trash2 size={13} />
@@ -909,7 +909,7 @@ export function ProjectDetailPage() {
                           <p className="text-sm font-medium text-gray-800 truncate">{u.name}</p>
                           <p className="text-[11px] text-gray-400 truncate">{u.email}</p>
                         </div>
-                        <span className="opacity-0 group-hover:opacity-100 text-[11px] text-gray-600 font-medium flex items-center gap-0.5 transition-opacity flex-shrink-0">
+                        <span className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto text-[11px] text-gray-600 font-medium flex items-center gap-0.5 transition-opacity flex-shrink-0">
                           <UserPlus size={12} /> 추가
                         </span>
                       </button>

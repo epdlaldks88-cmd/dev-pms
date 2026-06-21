@@ -421,7 +421,7 @@ export function TaskDetailModal() {
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); deleteLabel.mutate(label.id); }}
-                                className="absolute right-1.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-black/10 p-0.5"
+                                className="absolute right-1.5 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity rounded-full hover:bg-black/10 p-0.5"
                                 style={{ color: label.color }}
                                 title="레이블 삭제"
                               >
@@ -590,11 +590,11 @@ export function TaskDetailModal() {
                           <button
                             type="button"
                             onClick={() => deleteSubtask.mutate(sub.id)}
-                            className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-all"
+                            className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto text-red-400 hover:text-red-600 transition-all"
                           >
                             <Trash2 size={12} />
                           </button>
-                          <ChevronRight size={12} className="text-gray-300 opacity-0 group-hover:opacity-100" />
+                          <ChevronRight size={12} className="text-gray-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto" />
                         </div>
                       ))}
                     </div>
@@ -654,7 +654,7 @@ export function TaskDetailModal() {
                           <span className="text-xs text-gray-400">{formatFileSize(att.size)}</span>
                           <button
                             onClick={() => deleteAttachment.mutate(att.id)}
-                            className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-all"
+                            className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto text-red-400 hover:text-red-600 transition-all"
                           >
                             <Trash2 size={13} />
                           </button>
@@ -697,7 +697,7 @@ export function TaskDetailModal() {
                           {c.author.id === user?.id && (
                             <button
                               onClick={() => deleteComment.mutate(c.id)}
-                              className="text-[11px] text-gray-400 hover:text-red-500 mt-1 opacity-0 group-hover:opacity-100 transition-all"
+                              className="text-[11px] text-gray-400 hover:text-red-500 mt-1 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all"
                             >
                               삭제
                             </button>

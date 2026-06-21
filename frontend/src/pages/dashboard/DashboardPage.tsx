@@ -138,7 +138,7 @@ function ProjectCardWide({ project, stats }: { project: Project; stats: ProjectS
       )}
 
       {/* 호버 글로우 */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+      <div className="absolute inset-0 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-300 pointer-events-none"
         style={{ background: `radial-gradient(ellipse at top left, ${project.color}0a 0%, transparent 55%)` }} />
 
       <div className="flex flex-col lg:flex-row">

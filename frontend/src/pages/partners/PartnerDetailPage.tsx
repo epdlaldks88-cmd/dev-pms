@@ -119,7 +119,7 @@ export function PartnerDetailPage() {
                 </div>
                 <button
                   onClick={() => { if (confirm(`"${person.name}" 인력을 삭제하시겠습니까?`)) deletePersonnel.mutate(person.id); }}
-                  className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 p-1.5 transition-all cursor-pointer"
+                  className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto text-gray-400 hover:text-red-500 p-1.5 transition-all cursor-pointer"
                 >
                   <Trash2 size={14} />
                 </button>

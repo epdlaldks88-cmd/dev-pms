@@ -82,7 +82,7 @@ export function PartnersPage() {
                 </div>
                 <button
                   onClick={() => { if (confirm(`"${p.name}" 파트너사를 삭제하시겠습니까?\n소속 인력 정보도 함께 삭제됩니다.`)) deletePartner.mutate(p.id); }}
-                  className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 p-1 transition-all cursor-pointer"
+                  className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto text-gray-400 hover:text-red-500 p-1 transition-all cursor-pointer"
                 >
                   <Trash2 size={14} />
                 </button>
