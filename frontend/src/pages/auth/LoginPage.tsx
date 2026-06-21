@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { X } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
 
 function Logo({ size = 40 }: { size?: number }) {
   return (
@@ -46,6 +46,7 @@ type FindTab = 'id' | 'password';
 export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState<string | null>(null);
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
 
@@ -61,12 +62,15 @@ export function LoginPage() {
   const login = useMutation({
     mutationFn: authApi.login,
     onSuccess: (data) => {
+      setLoginError(null);
       setAuth(data.user, data.accessToken, data.refreshToken);
       navigate('/dashboard');
       toast.success(`안녕하세요, ${data.user.name}님!`);
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.message ?? '로그인에 실패했습니다.');
+      const msg = err.response?.data?.message ?? '로그인에 실패했습니다.';
+      setLoginError(msg);
+      setPassword('');
     },
   });
 
@@ -85,6 +89,7 @@ export function LoginPage() {
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
+    setLoginError(null);
     login.mutate({ email, password });
   };
 
@@ -117,30 +122,45 @@ export function LoginPage() {
           <h1 className="text-xl font-bold text-gray-700 mb-1">로그인</h1>
           <p className="text-sm text-gray-500 mb-6">계정에 로그인하여 시작하세요.</p>
 
-          <form onSubmit={onSubmit} className="space-y-4">
+          <form onSubmit={onSubmit} className="space-y-4" noValidate>
             <Input
               label="이메일"
               type="email"
               placeholder="name@company.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); setLoginError(null); }}
               autoComplete="email"
-              required
             />
             <Input
               label="비밀번호"
               type="password"
               placeholder="••••••••"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => { setPassword(e.target.value); setLoginError(null); }}
               autoComplete="current-password"
-              required
             />
+
+            {/* 에러 팝업 */}
+            {loginError && (
+              <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-red-50 border border-red-200 animate-slide-up">
+                <AlertCircle size={15} className="text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700 font-medium flex-1">{loginError}</p>
+                <button
+                  type="button"
+                  onClick={() => setLoginError(null)}
+                  className="text-red-400 hover:text-red-600 flex-shrink-0"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+
             <Button
               type="submit"
               variant="primary"
               size="lg"
               loading={login.isPending}
+              disabled={!email || !password}
               className="w-full"
             >
               로그인
