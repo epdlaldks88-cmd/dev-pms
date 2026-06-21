@@ -7,6 +7,7 @@ import { messagesApi } from '../../api/messages';
 import { searchApi } from '../../api/search';
 import { Avatar } from '../ui/Avatar';
 import { useAuthStore } from '../../store/auth.store';
+import { getAccessToken } from '../../utils/token';
 import { authApi } from '../../api/auth';
 import { useUiStore } from '../../store/ui.store';
 import { formatRelativeTime, cn } from '../../lib/utils';
@@ -148,7 +149,7 @@ export function Header() {
   // SSE: 새 메시지 도착 시 즉시 unread count 갱신
   useEffect(() => {
     if (!user) return;
-    const token = localStorage.getItem('accessToken');
+    const token = getAccessToken();
     const url = `/api/messages/events${token ? `?token=${token}` : ''}`;
     const es = new EventSource(url);
     es.onmessage = (e) => {

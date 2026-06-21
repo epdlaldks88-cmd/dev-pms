@@ -10,6 +10,7 @@ import { usersApi } from '../../api/users';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../ui/Avatar';
 import { formatRelativeTime, formatMessageTime, cn } from '../../lib/utils';
+import { getAccessToken } from '../../utils/token';
 
 const EMOJI_ONLY_RE = /^(\p{Emoji_Presentation}|\p{Extended_Pictographic}|️|‍)+$/u;
 const isEmojiOnly = (text: string) => EMOJI_ONLY_RE.test(text.trim());
@@ -104,7 +105,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
   // ── SSE: DM ──
   useEffect(() => {
     if (!me) return;
-    const token = localStorage.getItem('accessToken');
+    const token = getAccessToken();
     const es = new EventSource(`/api/messages/events${token ? `?token=${token}` : ''}`);
     es.onmessage = (e) => {
       const data = JSON.parse(e.data ?? '{}');
@@ -119,7 +120,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
   // ── SSE: 그룹채팅 ──
   useEffect(() => {
     if (!me) return;
-    const token = localStorage.getItem('accessToken');
+    const token = getAccessToken();
     const es = new EventSource(`/api/rooms/events${token ? `?token=${token}` : ''}`);
     es.onmessage = (e) => {
       const data = JSON.parse(e.data ?? '{}');

@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { canvasApi } from '../../api/canvas';
+import { getAccessToken } from '../../utils/token';
 import { usersApi } from '../../api/users';
 import {
   ReactFlow, Background, Controls, MiniMap,
@@ -617,7 +618,7 @@ export function CanvasPage() {
   // SSE: 다른 사람 변경 시 refetch
   useEffect(() => {
     if (!projectId || !canvasId) return;
-    const token = localStorage.getItem('accessToken');
+    const token = getAccessToken();
     const url = `/api/projects/${projectId}/canvases/${canvasId}/events${token ? `?token=${token}` : ''}`;
     const es = new EventSource(url);
     es.onmessage = (e) => {
@@ -726,7 +727,7 @@ export function CanvasPage() {
       if (!isDirty.current) return;
       const cleanNodes = nodesRef.current.map(({ selected: _, ...n }) => n);
       const cleanEdges = edgesRef.current.map(({ selected: _, ...e }) => e);
-      const token = localStorage.getItem('accessToken');
+      const token = getAccessToken();
       fetch(`/api/projects/${projectId}/canvases/${canvasId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token ?? ''}` },

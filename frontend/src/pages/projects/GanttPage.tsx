@@ -5,6 +5,7 @@ import { ChevronRight, GripVertical, AlertTriangle, X, ChevronRight as ChevronRi
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import { tasksApi } from '../../api/tasks';
+import { getAccessToken } from '../../utils/token';
 import { projectsApi } from '../../api/projects';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../components/ui/ErrorState';
@@ -181,7 +182,7 @@ export function GanttPage() {
 
   useEffect(() => {
     if (!projectId) return;
-    const token = localStorage.getItem('accessToken');
+    const token = getAccessToken();
     const url = `/api/projects/${projectId}/tasks/events${token ? `?token=${token}` : ''}`;
     const es = new EventSource(url);
     es.onmessage = () => {

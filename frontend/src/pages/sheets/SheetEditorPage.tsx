@@ -6,6 +6,7 @@ import { ArrowLeft, Plus, X, Check, Table2, Bold, Italic, AlignLeft, AlignCenter
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import { sheetsApi } from '../../api/sheets';
+import { getAccessToken } from '../../utils/token';
 import { cn } from '../../lib/utils';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -944,7 +945,7 @@ export function SheetEditorPage() {
     const onHide = () => {
       clearTimeout(saveTimer.current);
       if (!dataLoadedRef.current || !projectId || !sheetId) return;
-      const token = localStorage.getItem('accessToken');
+      const token = getAccessToken();
       try {
         fetch(`/api/projects/${projectId}/sheets/${sheetId}`, {
           method: 'PUT',

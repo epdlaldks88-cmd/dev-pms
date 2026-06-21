@@ -11,6 +11,7 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { ChevronRight, Plus, LayoutGrid, List } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { tasksApi } from '../../api/tasks';
+import { getAccessToken } from '../../utils/token';
 import { stepsApi } from '../../api/notifications';
 import { projectsApi } from '../../api/projects';
 import { KanbanColumn } from '../../components/kanban/KanbanColumn';
@@ -52,7 +53,7 @@ export function KanbanPage() {
   // SSE: 다른 사람이 태스크 변경 시 실시간 갱신
   useEffect(() => {
     if (!projectId || !currentUser) return;
-    const token = localStorage.getItem('accessToken');
+    const token = getAccessToken();
     const url = `/api/projects/${projectId}/tasks/events${token ? `?token=${token}` : ''}`;
     const es = new EventSource(url);
     es.onmessage = () => {

@@ -5,6 +5,7 @@ import { Plus, Clock, Briefcase, Trash2, X, Pencil, CheckCircle2, Check, Filter,
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import { worklogsApi, STAGE_CONFIG, STAGE_ORDER, type WorkLogStage } from '../../api/worklogs';
+import { getAccessToken } from '../../utils/token';
 import { projectsApi } from '../../api/projects';
 import { tasksApi } from '../../api/tasks';
 import { usersApi } from '../../api/users';
@@ -36,7 +37,7 @@ export function WorkloadPage() {
 
   useEffect(() => {
     if (!routeProjectId) return;
-    const token = localStorage.getItem('accessToken');
+    const token = getAccessToken();
     const url = `/api/projects/${routeProjectId}/tasks/events${token ? `?token=${token}` : ''}`;
     const es = new EventSource(url);
     es.onmessage = () => {

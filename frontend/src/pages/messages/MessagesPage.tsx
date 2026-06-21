@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { messagesApi } from '../../api/messages';
 import { usersApi } from '../../api/users';
 import { useAuthStore } from '../../store/auth.store';
+import { getAccessToken } from '../../utils/token';
 import { Avatar } from '../../components/ui/Avatar';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { formatRelativeTime, formatMessageTime, cn } from '../../lib/utils';
@@ -49,7 +50,7 @@ export function MessagesPage() {
   // SSE: 새 메시지 도착 시 실시간 갱신
   useEffect(() => {
     if (!me) return;
-    const token = localStorage.getItem('accessToken');
+    const token = getAccessToken();
     const url = `/api/messages/events${token ? `?token=${token}` : ''}`;
     const es = new EventSource(url);
     es.onmessage = (e) => {
