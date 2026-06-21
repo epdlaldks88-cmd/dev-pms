@@ -139,24 +139,10 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
           </div>
         )}
 
-        {/* 제목 + 이슈 배지 */}
-        <div className={cn('flex items-start gap-2 mb-2', canDelete && 'pr-6')}>
-          <p className="text-sm font-medium text-gray-900 leading-snug group-hover:text-red-600 transition-colors flex-1 pr-1">
-            {task.title}
-          </p>
-          {hasIssue && (
-            <button
-              ref={badgeRef}
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={openIssuePopover}
-              title="연결된 이슈 보기"
-              className="flex-shrink-0 flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm transition-all hover:shadow-md active:scale-95"
-            >
-              <AlertTriangle size={9} strokeWidth={2.5} />
-              이슈 {task._count.issues}
-            </button>
-          )}
-        </div>
+        {/* 제목 */}
+        <p className="text-sm font-medium text-gray-900 leading-snug mb-2 group-hover:text-red-600 transition-colors pr-5">
+          {task.title}
+        </p>
 
         {task.description && (
           <p className="text-xs text-gray-400 mb-2 line-clamp-2">{task.description}</p>
@@ -193,10 +179,24 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
               </span>
             )}
           </div>
-          <div className="flex -space-x-1">
-            {task.assignees.slice(0, 3).map(({ user }) => (
-              <Avatar key={user.id} name={user.name} avatar={user.avatar} size="xs" className="ring-1 ring-white" />
-            ))}
+          <div className="flex items-center gap-1.5">
+            <div className="flex -space-x-1">
+              {task.assignees.slice(0, 3).map(({ user }) => (
+                <Avatar key={user.id} name={user.name} avatar={user.avatar} size="xs" className="ring-1 ring-white" />
+              ))}
+            </div>
+            {hasIssue && (
+              <button
+                ref={badgeRef}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={openIssuePopover}
+                title="연결된 이슈 보기"
+                className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm transition-all hover:shadow-md active:scale-95"
+              >
+                <AlertTriangle size={9} strokeWidth={2.5} />
+                이슈 {task._count.issues}
+              </button>
+            )}
           </div>
         </div>
       </div>
