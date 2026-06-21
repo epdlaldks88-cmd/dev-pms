@@ -453,6 +453,8 @@ export function DashboardPage() {
     }
   });
   const taskRows = [...taskMap.values()];
+  // 잔여 일감: 내 워크로그 중 완료(DONE)·취소(CANCELLED)되지 않은 일감 수
+  const remainingLogs = taskRows.filter((r) => r.status !== 'DONE' && r.status !== 'CANCELLED').length;
 
   return (
     <div className="min-h-full relative overflow-hidden" style={{ background: 'linear-gradient(180deg, #f1f5f9 0%, #ffffff 55%, #f8fafc 100%)' }}>
@@ -588,7 +590,7 @@ export function DashboardPage() {
             {[
               { label: '이번 주 일감', value: weekLogs.length, unit: '건', from: '#6366f1', to: '#818cf8' },
               { label: '이번 주 공수', value: weekHours, unit: 'h', from: '#0ea5e9', to: '#38bdf8' },
-              { label: '진행 중 태스크', value: statusCounts['IN_PROGRESS'], unit: '건', from: '#10b981', to: '#34d399' },
+              { label: '잔여 일감', value: remainingLogs, unit: '건', from: '#10b981', to: '#34d399' },
             ].map(({ label, value, unit, from, to }) => (
               <div key={label} className="flex flex-col items-center px-5 py-3.5 rounded-2xl text-white shadow-lg"
                 style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}>
