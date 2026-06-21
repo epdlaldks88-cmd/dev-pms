@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Users, Activity, Calendar, Pencil, Megaphone, Pin, ChevronLeft, ChevronRight, ChevronDown, UserPlus, X, Crown, ShieldCheck, Eye, Search, ArrowRight, Trash2, MessageSquare, BarChart2 } from 'lucide-react';
+import { Users, Activity, Calendar, Pencil, Megaphone, Pin, ChevronLeft, ChevronRight, ChevronDown, UserPlus, X, Crown, ShieldCheck, Eye, Search, ArrowRight, Trash2, MessageSquare, BarChart2, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { NavLink } from 'react-router-dom';
 import { projectsApi } from '../../api/projects';
@@ -97,6 +97,9 @@ export function ProjectDetailPage() {
     setMsgTargetId(userId);
     setMsgPanelOpen(true);
   };
+
+  // 프로필 팝업
+  const [profilePopup, setProfilePopup] = useState<any | null>(null);
 
   // 멤버 관리
   const [memberOpen, setMemberOpen] = useState(false);
@@ -683,7 +686,10 @@ export function ProjectDetailPage() {
                       key={m.id}
                       className="group flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors"
                     >
-                      <div className="relative flex-shrink-0">
+                      <div
+                        className="relative flex-shrink-0 cursor-pointer"
+                        onClick={() => setProfilePopup(m.user)}
+                      >
                         <Avatar name={m.user.name} avatar={m.user.avatar} size="sm" />
                         <span className={cn(
                           'absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-white rounded-full',
@@ -728,6 +734,53 @@ export function ProjectDetailPage() {
         onClose={() => { setMsgPanelOpen(false); setMsgTargetId(null); }}
         initialUserId={msgTargetId}
       />
+
+      {/* 프로필 팝업 */}
+      {profilePopup && (
+        <>
+          <div className="fixed inset-0 z-[60] bg-black/30 backdrop-blur-[2px]" onClick={() => setProfilePopup(null)} />
+          <div className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-none">
+            <div className="bg-white rounded-2xl shadow-2xl w-80 overflow-hidden pointer-events-auto">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
+                    <User size={13} className="text-white" />
+                  </div>
+                  <span className="text-sm font-bold text-gray-800">프로필 정보</span>
+                </div>
+                <button onClick={() => setProfilePopup(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="flex justify-center mt-5 mb-3">
+                <Avatar name={profilePopup.name} avatar={profilePopup.avatar} size="lg" />
+              </div>
+              <div className="text-center px-6 pb-5 space-y-1">
+                <p className="text-base font-bold text-gray-800">{profilePopup.name}</p>
+                {(profilePopup.statusEmoji || profilePopup.statusText) && (
+                  <p className="text-xs text-gray-400">{profilePopup.statusEmoji} {profilePopup.statusText}</p>
+                )}
+                {(profilePopup.position || profilePopup.department) && (
+                  <p className="text-xs text-gray-500">{[profilePopup.position, profilePopup.department].filter(Boolean).join(' · ')}</p>
+                )}
+                {profilePopup.email && <p className="text-xs text-gray-400">{profilePopup.email}</p>}
+                {profilePopup.phone && <p className="text-xs text-gray-400">{profilePopup.phone}</p>}
+                {profilePopup.id !== user?.id && (
+                  <div className="pt-3">
+                    <button
+                      onClick={() => { openChat(profilePopup.id); setProfilePopup(null); }}
+                      className="w-full py-2 text-sm font-semibold text-white rounded-xl transition-opacity hover:opacity-90"
+                      style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}
+                    >
+                      메시지 보내기
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Member Management Modal */}
       {memberOpen && (
