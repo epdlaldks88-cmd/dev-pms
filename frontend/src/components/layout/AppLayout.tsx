@@ -1,8 +1,10 @@
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { useOnlinePing } from '../../hooks/useOnlinePing';
 
 export function AppLayout() {
+  useOnlinePing();
   return (
     <div className="flex h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-white to-rose-50/30">
       {/* 전역 배경 블롭 */}

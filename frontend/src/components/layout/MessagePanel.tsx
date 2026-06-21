@@ -87,6 +87,8 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
   const { data: rooms } = useQuery({ queryKey: ['rooms'], queryFn: roomsApi.list, enabled: open, refetchInterval: 30_000 });
   const { data: roomData } = useQuery({ queryKey: ['room-messages', activeRoomId], queryFn: () => roomsApi.messages(activeRoomId!), enabled: !!activeRoomId, refetchInterval: false });
   const { data: allUsers } = useQuery({ queryKey: ['users'], queryFn: usersApi.getAll, enabled: view === 'new' || view === 'new-room' || showAddMember });
+  const { data: onlineIds } = useQuery({ queryKey: ['online-users'], queryFn: usersApi.getOnlineIds, enabled: open, refetchInterval: 30_000 });
+  const onlineSet = new Set(onlineIds ?? []);
 
   // ── SSE: DM ──
   useEffect(() => {
@@ -287,10 +289,15 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                   onClick={() => openChat(c.user.id)}>
                   <div className="relative flex-shrink-0">
                     <Avatar name={c.user.name} avatar={c.user.avatar} size="md" />
-                    {c.unread > 0 && (
+                    {c.unread > 0 ? (
                       <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5">
                         {c.unread > 9 ? '9+' : c.unread}
                       </span>
+                    ) : (
+                      <span className={cn(
+                        'absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-white rounded-full',
+                        onlineSet.has(c.user.id) ? 'bg-green-400' : 'bg-gray-300',
+                      )} />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -364,26 +371,37 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
         {/* ══ DM 채팅 뷰 ══ */}
         {view === 'chat' && (
           <div className="flex-1 flex flex-col min-h-0">
-            {activeUser && (
-              <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-gray-50/50 flex-shrink-0">
-                <div className="relative flex-shrink-0">
-                  <Avatar name={activeUser.name} avatar={activeUser.avatar} size="sm" />
-                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border-2 border-white rounded-full" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-gray-700 truncate">{activeUser.name}</p>
-                    <span className="flex-shrink-0 flex items-center gap-1 text-[10px] font-semibold text-green-600 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded-full">
-                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-                      온라인
-                    </span>
+            {activeUser && (() => {
+              const isOnline = onlineSet.has(activeUser.id);
+              return (
+                <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-gray-50/50 flex-shrink-0">
+                  <div className="relative flex-shrink-0">
+                    <Avatar name={activeUser.name} avatar={activeUser.avatar} size="sm" />
+                    <span className={cn(
+                      'absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-white rounded-full',
+                      isOnline ? 'bg-green-400' : 'bg-gray-300',
+                    )} />
                   </div>
-                  {(activeUser.position || activeUser.department) && (
-                    <p className="text-[11px] text-gray-400 mt-0.5">{[activeUser.position, activeUser.department].filter(Boolean).join(' · ')}</p>
-                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-gray-700 truncate">{activeUser.name}</p>
+                      <span className={cn(
+                        'flex-shrink-0 flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border',
+                        isOnline
+                          ? 'text-green-600 bg-green-50 border-green-200'
+                          : 'text-gray-400 bg-gray-50 border-gray-200',
+                      )}>
+                        <span className={cn('w-1.5 h-1.5 rounded-full', isOnline ? 'bg-green-500' : 'bg-gray-400')} />
+                        {isOnline ? '온라인' : '오프라인'}
+                      </span>
+                    </div>
+                    {(activeUser.position || activeUser.department) && (
+                      <p className="text-[11px] text-gray-400 mt-0.5">{[activeUser.position, activeUser.department].filter(Boolean).join(' · ')}</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
             <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
               {(() => {
                 const allMsgs: any[] = thread?.messages ?? [];

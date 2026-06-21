@@ -24,4 +24,10 @@ export const usersApi = {
 
   adminUpdate: (id: string, data: { role?: string; name?: string }) =>
     api.patch<User>(`/users/${id}/admin`, data).then((r) => r.data),
+
+  ping: () =>
+    api.post<void>('/users/me/ping').then((r) => r.data),
+
+  getOnlineIds: () =>
+    api.get<string[]>('/users/online').then((r) => r.data),
 };
