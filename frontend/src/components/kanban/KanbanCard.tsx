@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { MessageSquare, Paperclip, CalendarDays, GitBranch, Trash2, AlertTriangle, X } from 'lucide-react';
+import { MessageSquare, Paperclip, CalendarDays, GitBranch, Trash2, AlertTriangle, X, ChevronRight } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Avatar } from '../ui/Avatar';
 import { PriorityBadge } from '../ui/PriorityBadge';
+import { IssueEditModal } from '../issue/IssueEditModal';
+import type { IssueEditTarget } from '../issue/IssueEditModal';
 import { useUiStore } from '../../store/ui.store';
 import { tasksApi } from '../../api/tasks';
 import { formatDueDate, isDueDateOverdue, cn } from '../../lib/utils';
@@ -48,6 +50,7 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
 
   // 이슈 팝오버
   const [issuePopover, setIssuePopover] = useState(false);
+  const [editingIssue, setEditingIssue] = useState<IssueEditTarget | null>(null);
   const badgeRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [popPos, setPopPos] = useState({ top: 0, left: 0 });
@@ -136,9 +139,24 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
           </div>
         )}
 
-        <p className="text-sm font-medium text-gray-900 leading-snug mb-2 group-hover:text-red-600 transition-colors pr-5">
-          {task.title}
-        </p>
+        {/* 제목 + 이슈 배지 */}
+        <div className="flex items-start gap-2 mb-2">
+          <p className="text-sm font-medium text-gray-900 leading-snug group-hover:text-red-600 transition-colors flex-1 pr-1">
+            {task.title}
+          </p>
+          {hasIssue && (
+            <button
+              ref={badgeRef}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={openIssuePopover}
+              title="연결된 이슈 보기"
+              className="flex-shrink-0 flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm transition-all hover:shadow-md active:scale-95"
+            >
+              <AlertTriangle size={9} strokeWidth={2.5} />
+              이슈 {task._count.issues}
+            </button>
+          )}
+        </div>
 
         {task.description && (
           <p className="text-xs text-gray-400 mb-2 line-clamp-2">{task.description}</p>
@@ -164,18 +182,6 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {/* 이슈 뱃지 — 클릭 시 팝오버 */}
-            {hasIssue && (
-              <button
-                ref={badgeRef}
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={openIssuePopover}
-                className="flex items-center gap-0.5 text-[11px] font-semibold text-red-500 hover:text-red-700 hover:bg-red-100 px-1 py-0.5 rounded transition-colors"
-                title="연결된 이슈 보기"
-              >
-                <AlertTriangle size={10} /> {task._count.issues}
-              </button>
-            )}
             {task._count.comments > 0 && (
               <span className="flex items-center gap-0.5 text-[11px] text-gray-400">
                 <MessageSquare size={10} /> {task._count.comments}
@@ -196,6 +202,16 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
       </div>
 
       {/* 이슈 팝오버 — portal로 렌더 */}
+      {/* 이슈 수정 모달 */}
+      {editingIssue && createPortal(
+        <IssueEditModal
+          projectId={task.projectId}
+          issue={editingIssue}
+          onClose={() => setEditingIssue(null)}
+        />,
+        document.body,
+      )}
+
       {issuePopover && createPortal(
         <div
           ref={popoverRef}
@@ -229,11 +245,19 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
               const risk = RISK_CONFIG[issue.riskLevel];
               const isResolved = issue.status === 'RESOLVED';
               return (
-                <div key={issue.id} className="px-3 py-2.5 hover:bg-gray-50 transition-colors">
+                <button
+                  key={issue.id}
+                  className="w-full text-left px-3 py-2.5 hover:bg-primary-50 transition-colors group/item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIssuePopover(false);
+                    setEditingIssue(issue);
+                  }}
+                >
                   <div className="flex items-start gap-2">
                     <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5', risk.dot)} />
                     <div className="flex-1 min-w-0">
-                      <p className={cn('text-xs font-medium leading-snug', isResolved ? 'text-gray-400 line-through' : 'text-gray-800')}>
+                      <p className={cn('text-xs font-medium leading-snug', isResolved ? 'text-gray-400 line-through' : 'text-gray-800 group-hover/item:text-red-600')}>
                         {issue.title}
                       </p>
                       <div className="flex items-center gap-1.5 mt-1">
@@ -250,8 +274,9 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
                         </span>
                       </div>
                     </div>
+                    <ChevronRight size={12} className="text-gray-300 group-hover/item:text-red-400 flex-shrink-0 mt-1 transition-colors" />
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
