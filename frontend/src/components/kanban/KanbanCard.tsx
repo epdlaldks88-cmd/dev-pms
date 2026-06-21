@@ -140,7 +140,7 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
         )}
 
         {/* 제목 + 이슈 배지 */}
-        <div className="flex items-start gap-2 mb-2">
+        <div className={cn('flex items-start gap-2 mb-2', canDelete && 'pr-6')}>
           <p className="text-sm font-medium text-gray-900 leading-snug group-hover:text-red-600 transition-colors flex-1 pr-1">
             {task.title}
           </p>
