@@ -114,7 +114,7 @@ function ProjectCardWide({ project, stats }: { project: Project; stats: ProjectS
   const ds = dday ? ddayStyle[dday.tier] : null;
 
   const metrics = [
-    { label: '전체 일감', value: total, color: '#64748b' },
+    { label: '전체 태스크', value: total, color: '#64748b' },
     { label: '진행 중', value: inProgress, color: STATUS_HEX['IN_PROGRESS'] },
     { label: '할 일', value: todo, color: STATUS_HEX['TODO'] ?? '#94a3b8' },
     { label: '완료', value: done, color: STATUS_HEX['DONE'] ?? '#10b981' },
