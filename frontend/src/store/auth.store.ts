@@ -7,7 +7,11 @@ const smartStorage = {
   getItem: (name: string) =>
     sessionStorage.getItem(name) ?? localStorage.getItem(name),
   setItem: (name: string, value: string) => {
-    if (localStorage.getItem('pms_keep') === '1') {
+    const keep = localStorage.getItem('pms_keep') === '1';
+    // 기존에 localStorage에 데이터가 있으면(배포 전 로그인 사용자) 영구 세션으로 유지
+    const hasLegacy = !keep && localStorage.getItem(name) !== null;
+    if (keep || hasLegacy) {
+      if (hasLegacy) localStorage.setItem('pms_keep', '1');
       localStorage.setItem(name, value);
       sessionStorage.removeItem(name);
     } else {
