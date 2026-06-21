@@ -751,25 +751,9 @@ export function TaskDetailModal() {
         {task && (
           <div className="w-56 border-l border-gray-200 bg-gray-50/50 flex flex-col overflow-y-auto flex-shrink-0">
             <div className="p-4 space-y-4">
-              {/* Step */}
-              {steps && steps.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">단계 (칸반 컬럼)</p>
-                  <select
-                    value={task.stepId ?? ''}
-                    onChange={(e) => updateTask.mutate({ stepId: e.target.value })}
-                    className="w-full text-xs rounded-lg border border-gray-200 px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
-                  >
-                    {steps.map((s: any) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* 단계 (status는 단계를 따라감) */}
+              {/* 단계 (칸반 컬럼) — status는 단계를 따라감 */}
               <div>
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">단계</p>
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">단계 (칸반 컬럼)</p>
                 <select
                   value={task.stepId ?? ''}
                   onChange={(e) => handleStepChange(e.target.value)}
