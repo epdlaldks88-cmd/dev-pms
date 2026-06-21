@@ -421,86 +421,90 @@ export function ProjectDetailPage() {
         <div className="lg:col-span-3 flex flex-col gap-6">
 
           {/* 공지사항 */}
-          <div className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200/70">
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-sm flex-shrink-0">
-                  <Megaphone size={12} className="text-white" />
+          <div className="bg-white/85 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
+            {/* 헤더 */}
+            <div className="flex items-center justify-between px-5 py-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center shadow-md flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
+                  <Megaphone size={14} className="text-white" />
                 </div>
-                <span className="text-xs font-semibold text-gray-600">공지사항</span>
-                {notices && notices.length > 0 && (
-                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary-100 text-gray-800 text-[10px] font-bold">
-                    {notices.length}
-                  </span>
-                )}
+                <div>
+                  <span className="text-sm font-bold text-gray-800">공지사항</span>
+                  {notices && notices.length > 0 && (
+                    <span className="ml-2 text-[10px] font-bold text-[#e73827] bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-full">{notices.length}</span>
+                  )}
+                </div>
               </div>
-              <NavLink to="notices" relative="route" className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-600 font-medium transition-colors group">
-                모두 보기 <ArrowRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
+              <NavLink to="notices" relative="route" className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 hover:text-[#e73827] transition-colors group">
+                전체보기 <ArrowRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
               </NavLink>
             </div>
+
             {!notices?.length ? (
-              <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center mb-2.5">
-                  <Megaphone size={18} className="opacity-40" />
+              <div className="flex flex-col items-center justify-center py-12 px-6">
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'linear-gradient(135deg, #fff0f0, #ffe0e0)' }}>
+                  <Megaphone size={20} className="text-red-300" />
                 </div>
-                <p className="text-xs font-medium">등록된 공지사항이 없습니다</p>
+                <p className="text-sm font-semibold text-gray-400 mb-1">등록된 공지사항이 없습니다</p>
                 {canManageProject && (
-                  <NavLink to="notices" relative="route" className="mt-2 text-xs text-gray-600 hover:text-red-600 font-medium">
-                    공지사항 작성하기
+                  <NavLink to="notices" relative="route" className="mt-1 text-xs text-[#e73827] hover:underline font-medium">
+                    공지사항 작성하기 →
                   </NavLink>
                 )}
               </div>
             ) : (
-              <div>
+              <div className="px-4 pb-4 space-y-2">
+                {/* 고정 공지 */}
                 {notices.filter((n) => n.isPinned).slice(0, 1).map((n) => {
                   const isOpen = expandedNoticeId === n.id;
                   return (
-                    <div key={n.id} className="border-b border-gray-50">
+                    <div key={n.id} className="rounded-xl overflow-hidden border border-amber-200/80 bg-gradient-to-r from-amber-50 to-orange-50/40">
                       <button
                         onClick={() => setExpandedNoticeId(isOpen ? null : n.id)}
-                        className="w-full flex items-start gap-3 px-5 py-3 hover:bg-gray-50 transition-colors group text-left"
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-amber-50/60 transition-colors text-left"
                       >
-                        <Pin size={12} className="text-gray-600 mt-1 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-semibold text-gray-600 bg-primary-100 px-1.5 py-0.5 rounded-full flex-shrink-0">고정</span>
-                            <p className="text-sm font-semibold text-gray-600 truncate group-hover:text-red-600 transition-colors">{n.title}</p>
-                          </div>
+                        <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                          <Pin size={11} className="text-amber-600" />
                         </div>
-                        <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
-                          <span className="text-[10px] text-gray-300 whitespace-nowrap">{formatRelativeTime(n.createdAt)}</span>
-                          <ChevronDown size={13} className={cn('text-gray-400 transition-transform duration-200', isOpen && 'rotate-180')} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-bold text-amber-600 mb-0.5">고정 공지</p>
+                          <p className="text-sm font-semibold text-gray-800 truncate leading-snug">{n.title}</p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-[10px] text-gray-400 whitespace-nowrap">{formatRelativeTime(n.createdAt)}</span>
+                          <ChevronDown size={13} className={cn('text-amber-400 transition-transform duration-200', isOpen && 'rotate-180')} />
                         </div>
                       </button>
                       {isOpen && n.content && (
-                        <div className="border-t border-gray-100 px-5 pb-3 pt-3 bg-gray-50">
-                          <p className="text-[11px] text-gray-500 mb-2">{n.createdBy.name} · {formatDate(n.createdAt)} 작성</p>
-                          <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{n.content}</p>
+                        <div className="border-t border-amber-100 px-4 py-3 bg-white/60">
+                          <p className="text-[10px] text-gray-400 mb-2 font-medium">{n.createdBy.name} · {formatDate(n.createdAt)}</p>
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{n.content}</p>
                         </div>
                       )}
                     </div>
                   );
                 })}
-                {notices.filter((n) => !n.isPinned).slice(0, 3).map((n, i, arr) => {
+                {/* 일반 공지 */}
+                {notices.filter((n) => !n.isPinned).slice(0, 3).map((n) => {
                   const isOpen = expandedNoticeId === n.id;
                   return (
-                    <div key={n.id} className={cn(i < arr.length - 1 && 'border-b border-gray-50')}>
+                    <div key={n.id} className="rounded-xl overflow-hidden border border-gray-100 bg-gray-50/60 hover:border-gray-200 transition-colors">
                       <button
                         onClick={() => setExpandedNoticeId(isOpen ? null : n.id)}
-                        className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors group text-left"
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-100/50 transition-colors text-left"
                       >
-                        <div className="w-1.5 h-1.5 rounded-full bg-gray-300 flex-shrink-0" />
-                        <p className="flex-1 text-sm text-gray-600 truncate font-medium group-hover:text-red-600 transition-colors">{n.title}</p>
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#e73827]/40 flex-shrink-0 mt-0.5" />
+                        <p className="flex-1 text-sm font-medium text-gray-700 truncate">{n.title}</p>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <span className="text-[10px] text-gray-400 hidden sm:block">{n.createdBy.name}</span>
-                          <span className="text-[10px] text-gray-300 whitespace-nowrap">{formatRelativeTime(n.createdAt)}</span>
-                          <ChevronDown size={13} className={cn('text-gray-400 transition-transform duration-200', isOpen && 'rotate-180')} />
+                          <span className="text-[10px] text-gray-400 whitespace-nowrap">{formatRelativeTime(n.createdAt)}</span>
+                          <ChevronDown size={13} className={cn('text-gray-300 transition-transform duration-200', isOpen && 'rotate-180')} />
                         </div>
                       </button>
                       {isOpen && n.content && (
-                        <div className="border-t border-gray-100 px-5 pb-3 pt-3 bg-gray-50">
-                          <p className="text-[11px] text-gray-500 mb-2">{n.createdBy.name} · {formatDate(n.createdAt)} 작성</p>
-                          <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{n.content}</p>
+                        <div className="border-t border-gray-100 px-4 py-3 bg-white/80">
+                          <p className="text-[10px] text-gray-400 mb-2 font-medium">{n.createdBy.name} · {formatDate(n.createdAt)}</p>
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{n.content}</p>
                         </div>
                       )}
                     </div>
@@ -508,8 +512,8 @@ export function ProjectDetailPage() {
                 })}
                 {notices.length > 4 && (
                   <NavLink to="notices" relative="route"
-                    className="flex items-center justify-center gap-1 py-2.5 text-xs text-gray-400 hover:text-red-600 hover:bg-gray-50 transition-colors border-t border-gray-50">
-                    <span>+{notices.length - 4}개 더</span><ArrowRight size={11} />
+                    className="flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-gray-400 hover:text-[#e73827] transition-colors rounded-xl hover:bg-red-50">
+                    +{notices.length - 4}개 더 보기 <ArrowRight size={11} />
                   </NavLink>
                 )}
               </div>
