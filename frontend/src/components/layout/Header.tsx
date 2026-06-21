@@ -24,19 +24,20 @@ export function Header() {
   const openMessagePanel = useUiStore((s) => s.openMessagePanel);
   const messagePanelUserId = useUiStore((s) => s.messagePanelUserId);
   const closeMessagePanel = useUiStore((s) => s.closeMessagePanel);
+  const messagePanelRoomId = useUiStore((s) => s.messagePanelRoomId);
 
   const { logout, refreshToken } = useAuthStore();
   const [notifOpen, setNotifOpen] = useState(false);
   const [msgOpen, setMsgOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
-  // 스토어에서 패널 오픈 요청 감지
+  // 스토어에서 패널 오픈 요청 감지 (DM / 그룹채팅)
   useEffect(() => {
-    if (messagePanelUserId) {
+    if (messagePanelUserId || messagePanelRoomId) {
       setMsgOpen(true);
       setNotifOpen(false);
     }
-  }, [messagePanelUserId]);
+  }, [messagePanelUserId, messagePanelRoomId]);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 

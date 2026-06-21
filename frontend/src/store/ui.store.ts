@@ -19,9 +19,15 @@ interface UiState {
   mentionPopup: { id: string; title: string; message: string; link?: string } | null;
   showMentionPopup: (n: { id: string; title: string; message: string; link?: string }) => void;
   hideMentionPopup: () => void;
+  roomPopup: { roomId: string; senderName: string; content: string } | null;
+  showRoomPopup: (n: { roomId: string; senderName: string; content: string }) => void;
+  hideRoomPopup: () => void;
   messagePanelUserId: string | null;
   openMessagePanel: (userId: string) => void;
   closeMessagePanel: () => void;
+  messagePanelRoomId: string | null;
+  openRoomPanel: (roomId: string) => void;
+  closeRoomPanel: () => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -44,9 +50,15 @@ export const useUiStore = create<UiState>()(
       mentionPopup: null,
       showMentionPopup: (n) => set({ mentionPopup: n }),
       hideMentionPopup: () => set({ mentionPopup: null }),
+      roomPopup: null,
+      showRoomPopup: (n) => set({ roomPopup: n }),
+      hideRoomPopup: () => set({ roomPopup: null }),
       messagePanelUserId: null,
       openMessagePanel: (userId) => set({ messagePanelUserId: userId }),
       closeMessagePanel: () => set({ messagePanelUserId: null }),
+      messagePanelRoomId: null,
+      openRoomPanel: (roomId) => set({ messagePanelRoomId: roomId }),
+      closeRoomPanel: () => set({ messagePanelRoomId: null }),
     }),
     {
       name: 'ui-storage',

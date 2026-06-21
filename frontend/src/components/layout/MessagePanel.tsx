@@ -8,6 +8,7 @@ import { messagesApi } from '../../api/messages';
 import { roomsApi } from '../../api/rooms';
 import { usersApi } from '../../api/users';
 import { useAuthStore } from '../../store/auth.store';
+import { useUiStore } from '../../store/ui.store';
 import { Avatar } from '../ui/Avatar';
 import { formatRelativeTime, formatMessageTime, cn } from '../../lib/utils';
 import { getAccessToken } from '../../utils/token';
@@ -27,6 +28,9 @@ type View = 'list' | 'chat' | 'new' | 'room' | 'new-room';
 export function MessagePanel({ open, onClose, initialUserId }: Props) {
   const qc = useQueryClient();
   const me = useAuthStore((s) => s.user);
+  const showRoomPopup = useUiStore((s) => s.showRoomPopup);
+  const messagePanelRoomId = useUiStore((s) => s.messagePanelRoomId);
+  const closeRoomPanel = useUiStore((s) => s.closeRoomPanel);
 
   const [tab, setTab] = useState<Tab>('dm');
   const [view, setView] = useState<View>(initialUserId ? 'chat' : 'list');
@@ -65,6 +69,15 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
   useEffect(() => {
     if (initialUserId) { setActiveUserId(initialUserId); setView('chat'); setTab('dm'); }
   }, [initialUserId]);
+
+  // 그룹 팝업 클릭 시 해당 룸 열기
+  useEffect(() => {
+    if (!messagePanelRoomId) return;
+    setActiveRoomId(messagePanelRoomId);
+    setView('room');
+    setTab('group');
+    closeRoomPanel();
+  }, [messagePanelRoomId]);
 
   useEffect(() => {
     if (!open) {
@@ -126,11 +139,11 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
       const data = JSON.parse(e.data ?? '{}');
       qc.invalidateQueries({ queryKey: ['rooms'] });
       if (data.roomId) qc.invalidateQueries({ queryKey: ['room-messages', data.roomId] });
-      // 내가 보낸 메시지는 토스트 제외, 패널이 닫혔거나 다른 방/뷰 보는 중이면 토스트
+      // 내가 보낸 메시지는 제외, 해당 방을 보고 있지 않으면 팝업
       if (data.senderId && data.senderId !== me.id) {
         const isViewingThisRoom = open && view === 'room' && activeRoomId === data.roomId;
         if (!isViewingThisRoom) {
-          toast(`💬 ${data.senderName}: ${data.content?.slice(0, 40) ?? ''}${(data.content?.length ?? 0) > 40 ? '…' : ''}`, { duration: 4000 });
+          showRoomPopup({ roomId: data.roomId, senderName: data.senderName, content: data.content ?? '' });
         }
       }
     };
