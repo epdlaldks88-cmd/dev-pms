@@ -256,11 +256,11 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
         {/* ── 탭 (목록 뷰에서만) ── */}
         {view === 'list' && (
           <div className="flex border-b border-gray-100 flex-shrink-0">
-            {([['dm', '멘션', MessageSquare], ['group', '그룹채팅', Users]] as const).map(([t, label, Icon]) => (
+            {([['dm', 'DM', MessageSquare], ['group', '채널', Users]] as const).map(([t, label, Icon]) => (
               <button key={t} onClick={() => setTab(t as Tab)}
-                className={cn('flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors border-b-2',
+                className={cn('flex-1 flex items-center justify-center gap-1.5 py-4 text-sm font-semibold transition-colors border-b-2',
                   tab === t ? 'text-[#e73827] border-[#e73827]' : 'text-gray-400 border-transparent hover:text-gray-600')}>
-                <Icon size={13} />{label}
+                <Icon size={14} />{label}
               </button>
             ))}
           </div>
