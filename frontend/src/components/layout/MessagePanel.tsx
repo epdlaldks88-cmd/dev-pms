@@ -188,9 +188,9 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
   const headerTitle =
     view === 'chat' && activeUser ? activeUser.name :
     view === 'room' && activeRoom ? activeRoom.name :
-    view === 'new' ? '새 멘션' :
+    view === 'new' ? '새 채팅' :
     view === 'new-room' ? '그룹채팅 만들기' :
-    tab === 'dm' ? '멘션' : '그룹채팅';
+    tab === 'dm' ? '채팅' : '그룹채팅';
   const showBack = ['chat', 'new', 'room', 'new-room'].includes(view);
 
   const goBack = () => {
@@ -226,7 +226,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
             {view === 'list' && tab === 'dm' && (
               <button onClick={() => setView('new')}
                 className="flex items-center gap-1 text-[11px] font-bold text-[#e73827] bg-white hover:bg-white/90 px-2.5 py-1 rounded-full shadow-sm transition-colors">
-                <Plus size={11} strokeWidth={2.5} /> 새 멘션
+                <Plus size={11} strokeWidth={2.5} /> 새 채팅
               </button>
             )}
             {view === 'list' && tab === 'group' && (
@@ -256,7 +256,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
         {/* ── 탭 (목록 뷰에서만) ── */}
         {view === 'list' && (
           <div className="flex border-b border-gray-100 flex-shrink-0">
-            {([['dm', 'DM', MessageSquare], ['group', '채널', Users]] as const).map(([t, label, Icon]) => (
+            {([['dm', '채팅', MessageSquare], ['group', '그룹채팅', Users]] as const).map(([t, label, Icon]) => (
               <button key={t} onClick={() => setTab(t as Tab)}
                 className={cn('flex-1 flex items-center justify-center gap-1.5 py-4 text-sm font-semibold transition-colors border-b-2',
                   tab === t ? 'text-[#e73827] border-[#e73827]' : 'text-gray-400 border-transparent hover:text-gray-600')}>
@@ -275,10 +275,10 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                   <MessageSquare size={24} className="text-gray-400" />
                 </div>
                 <p className="text-sm font-semibold text-gray-600 mb-1">대화가 없습니다</p>
-                <p className="text-xs text-gray-400 mb-4">새 멘션을 보내 대화를 시작해보세요</p>
+                <p className="text-xs text-gray-400 mb-4">새 채팅을 보내 대화를 시작해보세요</p>
                 <button onClick={() => setView('new')}
                   className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-orange-50 hover:bg-orange-100 px-4 py-2 rounded-lg transition-colors">
-                  <Plus size={13} /> 새 멘션 보내기
+                  <Plus size={13} /> 새 채팅 보내기
                 </button>
               </div>
             ) : (
@@ -385,7 +385,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                 if (!messages.length) return (
                   <div className="flex flex-col items-center justify-center h-full text-center">
                     <MessageSquare size={28} className="text-gray-200 mb-2" />
-                    <p className="text-sm text-gray-400">첫 멘션을 보내보세요</p>
+                    <p className="text-sm text-gray-400">첫 채팅을 보내보세요</p>
                   </div>
                 );
                 return messages.map((m: any, i: number) => {
@@ -514,7 +514,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
           </div>
         )}
 
-        {/* ══ 새 DM 멘션 ══ */}
+        {/* ══ 새 채팅 DM ══ */}
         {view === 'new' && (
           <div className="flex-1 flex flex-col min-h-0">
             <div className="p-4 border-b border-gray-100 flex-shrink-0">
