@@ -99,20 +99,29 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
           overlay && 'shadow-xl rotate-1',
         )}
       >
-        {/* 삭제 버튼 */}
-        {canDelete && (
-          <button
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (confirm(`"${task.title}" 태스크를 삭제하시겠습니까?`)) deleteTask.mutate();
-            }}
-            className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 hover:bg-red-50 p-1 rounded-md transition-all z-10"
-            title="태스크 삭제"
-          >
-            <Trash2 size={12} />
-          </button>
-        )}
+        {/* 우측 상단: 담당자 아바타 + hover 시 삭제 버튼 */}
+        <div className="absolute top-2.5 right-2.5 flex items-center gap-1">
+          {canDelete && (
+            <button
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (confirm(`"${task.title}" 태스크를 삭제하시겠습니까?`)) deleteTask.mutate();
+              }}
+              className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 hover:bg-red-50 p-1 rounded-md transition-all z-10"
+              title="태스크 삭제"
+            >
+              <Trash2 size={12} />
+            </button>
+          )}
+          {task.assignees.length > 0 && (
+            <div className="flex -space-x-1.5">
+              {task.assignees.slice(0, 3).map(({ user }) => (
+                <Avatar key={user.id} name={user.name} avatar={user.avatar} size="xs" className="ring-2 ring-white" />
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* 라벨 */}
         {task.labels.length > 0 && (
@@ -130,7 +139,7 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
         )}
 
         {/* 제목 */}
-        <p className="text-[13px] font-semibold text-gray-800 leading-snug mb-2 pr-5 group-hover:text-gray-600 transition-colors">
+        <p className="text-[13px] font-semibold text-gray-800 leading-snug mb-2 pr-16 group-hover:text-gray-600 transition-colors">
           {task.title}
         </p>
 
@@ -180,8 +189,8 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
         </div>
 
         {/* 하단 푸터 */}
-        <div className="flex items-center justify-between pt-1 border-t border-gray-50">
-          <div className="flex items-center gap-2">
+        {(task._count.comments > 0 || task._count.attachments > 0) && (
+          <div className="flex items-center gap-2 pt-1 border-t border-gray-50">
             {task._count.comments > 0 && (
               <span className="flex items-center gap-1 text-[11px] text-gray-400 font-medium">
                 <MessageSquare size={10} /> {task._count.comments}
@@ -193,12 +202,7 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
               </span>
             )}
           </div>
-          <div className="flex -space-x-1.5">
-            {task.assignees.slice(0, 3).map(({ user }) => (
-              <Avatar key={user.id} name={user.name} avatar={user.avatar} size="xs" className="ring-2 ring-white" />
-            ))}
-          </div>
-        </div>
+        )}
       </div>
 
       {/* 이슈 수정 모달 */}
