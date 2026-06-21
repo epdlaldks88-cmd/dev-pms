@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { ChevronRight, GripVertical } from 'lucide-react';
+import { ChevronRight, GripVertical, AlertTriangle, X, ChevronRight as ChevronRightSm } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import { tasksApi } from '../../api/tasks';
 import { projectsApi } from '../../api/projects';
@@ -12,11 +13,128 @@ import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Avatar } from '../../components/ui/Avatar';
 import { CreateTaskModal } from '../../components/task/CreateTaskModal';
 import { TaskDetailModal } from '../../components/task/TaskDetailModal';
+import { IssueEditModal } from '../../components/issue/IssueEditModal';
+import type { IssueEditTarget } from '../../components/issue/IssueEditModal';
 import { useUiStore } from '../../store/ui.store';
 import { cn, isDueDateOverdue } from '../../lib/utils';
 import { addDays, differenceInDays, startOfDay, startOfWeek, format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import type { Task } from '../../types';
+import type { Task, IssueRisk, IssueStatus } from '../../types';
+
+const RISK_CONFIG: Record<IssueRisk, { label: string; color: string; bg: string; dot: string }> = {
+  LOW:      { label: '낮음',  color: 'text-green-700',  bg: 'bg-green-50',  dot: 'bg-green-500' },
+  MEDIUM:   { label: '보통',  color: 'text-yellow-700', bg: 'bg-yellow-50', dot: 'bg-yellow-500' },
+  HIGH:     { label: '높음',  color: 'text-orange-700', bg: 'bg-orange-50', dot: 'bg-orange-500' },
+  CRITICAL: { label: '심각',  color: 'text-red-700',    bg: 'bg-red-50',    dot: 'bg-red-500' },
+};
+
+const STATUS_LABEL: Record<IssueStatus, string> = {
+  OPEN: '미해결', IN_REVIEW: '검토중', RESOLVED: '해결됨', ON_HOLD: '보류',
+};
+
+function GanttIssuesBadge({ task, projectId }: { task: Task; projectId: string }) {
+  const [open, setOpen] = useState(false);
+  const [editingIssue, setEditingIssue] = useState<IssueEditTarget | null>(null);
+  const badgeRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  const issues = task.issues ?? [];
+
+  const openPopover = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!badgeRef.current) return;
+    const rect = badgeRef.current.getBoundingClientRect();
+    setPos({ top: rect.bottom + 6, left: Math.min(rect.left, window.innerWidth - 280) });
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        popoverRef.current && !popoverRef.current.contains(e.target as Node) &&
+        badgeRef.current && !badgeRef.current.contains(e.target as Node)
+      ) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={badgeRef}
+        onClick={openPopover}
+        title="연결된 이슈 보기"
+        className="flex-shrink-0 flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm transition-all hover:shadow-md active:scale-95"
+      >
+        <AlertTriangle size={9} strokeWidth={2.5} />
+        이슈 {task._count.issues}
+      </button>
+
+      {open && createPortal(
+        <div
+          ref={popoverRef}
+          className="fixed z-[9999] w-64 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden"
+          style={{ top: pos.top, left: pos.left }}
+        >
+          <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100 bg-gray-50">
+            <div className="flex items-center gap-1.5">
+              <div className="w-5 h-5 rounded flex items-center justify-center bg-red-100">
+                <AlertTriangle size={11} className="text-red-500" />
+              </div>
+              <span className="text-xs font-bold text-gray-700">연결된 이슈</span>
+              <span className="text-[10px] font-semibold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full">
+                {issues.length}
+              </span>
+            </div>
+            <button onClick={(e) => { e.stopPropagation(); setOpen(false); }} className="text-gray-400 hover:text-gray-600 p-0.5 rounded">
+              <X size={13} />
+            </button>
+          </div>
+          <div className="max-h-60 overflow-y-auto divide-y divide-gray-50">
+            {issues.map((issue) => {
+              const risk = RISK_CONFIG[issue.riskLevel];
+              const isResolved = issue.status === 'RESOLVED';
+              return (
+                <button
+                  key={issue.id}
+                  className="w-full text-left px-3 py-2.5 hover:bg-primary-50 transition-colors group/item"
+                  onClick={(e) => { e.stopPropagation(); setOpen(false); setEditingIssue(issue); }}
+                >
+                  <div className="flex items-start gap-2">
+                    <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5', risk.dot)} />
+                    <div className="flex-1 min-w-0">
+                      <p className={cn('text-xs font-medium leading-snug', isResolved ? 'text-gray-400 line-through' : 'text-gray-800 group-hover/item:text-red-600')}>
+                        {issue.title}
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full', risk.color, risk.bg)}>{risk.label}</span>
+                        <span className={cn('text-[10px] font-medium',
+                          issue.status === 'OPEN' ? 'text-red-500' :
+                          issue.status === 'IN_REVIEW' ? 'text-blue-500' :
+                          issue.status === 'RESOLVED' ? 'text-green-500' : 'text-gray-400',
+                        )}>{STATUS_LABEL[issue.status]}</span>
+                      </div>
+                    </div>
+                    <ChevronRightSm size={12} className="text-gray-300 group-hover/item:text-red-400 flex-shrink-0 mt-1 transition-colors" />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {editingIssue && createPortal(
+        <IssueEditModal projectId={projectId} issue={editingIssue} onClose={() => setEditingIssue(null)} />,
+        document.body,
+      )}
+    </>
+  );
+}
 
 const COL_W = 40;
 const TASK_LIST_W = 320;
@@ -214,10 +332,15 @@ export function GanttPage() {
                   </span>
                   <StatusBadge status={task.status} />
                   <span className="text-sm text-gray-800 truncate flex-1">{task.title}</span>
-                  <div className="flex -space-x-1 flex-shrink-0">
-                    {task.assignees.slice(0, 2).map(({ user }) => (
-                      <Avatar key={user.id} name={user.name} avatar={user.avatar} size="xs" className="ring-1 ring-white" />
-                    ))}
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <div className="flex -space-x-1">
+                      {task.assignees.slice(0, 2).map(({ user }) => (
+                        <Avatar key={user.id} name={user.name} avatar={user.avatar} size="xs" className="ring-1 ring-white" />
+                      ))}
+                    </div>
+                    {task._count.issues > 0 && (
+                      <GanttIssuesBadge task={task} projectId={projectId!} />
+                    )}
                   </div>
                 </div>
               ))}
