@@ -95,6 +95,7 @@ export interface Task {
   subTasks?: Task[];
   comments?: Comment[];
   attachments?: Attachment[];
+  issues?: { id: string; title: string; riskLevel: IssueRisk; status: IssueStatus }[];
   _count: { comments: number; attachments: number; subTasks: number; issues: number };
 }
 
