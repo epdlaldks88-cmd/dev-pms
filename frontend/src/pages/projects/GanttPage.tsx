@@ -248,6 +248,15 @@ export function GanttPage() {
   const timelineStart = project?.startDate ? startOfDay(new Date(project.startDate)) : addDays(today, -7);
   const timelineEnd = project?.endDate ? startOfDay(new Date(project.endDate)) : addDays(today, 60);
 
+  // 데이터 로드 완료 후 오늘 날짜를 화면 좌측에서 약간 여유를 두고 스크롤
+  useEffect(() => {
+    if (!tasks || !outerRef.current) return;
+    const todayOff = differenceInDays(today, timelineStart);
+    if (todayOff <= 0) return;
+    const scrollX = TASK_LIST_W + todayOff * COL_W - COL_W * 3; // 오늘 3칸 앞에서 시작
+    outerRef.current.scrollLeft = Math.max(0, scrollX);
+  }, [tasks]);
+
   const projectDays = Math.max(differenceInDays(timelineEnd, timelineStart) + 1, 30);
   const minDaysForView = Math.ceil(Math.max(visibleWidth - TASK_LIST_W, 0) / COL_W) + 2;
   const totalDays = Math.max(projectDays, minDaysForView);
