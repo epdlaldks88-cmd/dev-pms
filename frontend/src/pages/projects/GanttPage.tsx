@@ -31,8 +31,13 @@ function GanttBar({ task, startDate, totalDays }: { task: Task; startDate: Date;
 
   const offsetDays = Math.max(0, differenceInDays(taskStart, startDate));
   const durationDays = Math.max(1, differenceInDays(taskEnd, taskStart) + 1);
+
+  // 타임라인 범위 완전히 벗어난 경우 렌더링 안 함
+  if (offsetDays >= totalDays) return null;
+
+  const clampedDuration = Math.min(durationDays, totalDays - offsetDays);
   const leftPct = (offsetDays / totalDays) * 100;
-  const widthPct = Math.min((durationDays / totalDays) * 100, 100 - leftPct);
+  const widthPct = (clampedDuration / totalDays) * 100;
   const isOverdue = isDueDateOverdue(task.dueDate);
 
   return (
