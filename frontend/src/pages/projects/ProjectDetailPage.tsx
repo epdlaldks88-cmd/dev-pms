@@ -84,6 +84,10 @@ export function ProjectDetailPage() {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === 'ADMIN';
 
+  // 온라인 상태
+  const { data: onlineIds } = useQuery({ queryKey: ['online-users'], queryFn: usersApi.getOnlineIds, refetchInterval: 30_000 });
+  const onlineSet = new Set(onlineIds ?? []);
+
   // 메시지 패널
   const [msgPanelOpen, setMsgPanelOpen] = useState(false);
   const [expandedNoticeId, setExpandedNoticeId] = useState<string | null>(null);
@@ -679,7 +683,13 @@ export function ProjectDetailPage() {
                       key={m.id}
                       className="group flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors"
                     >
-                      <Avatar name={m.user.name} avatar={m.user.avatar} size="sm" className="flex-shrink-0" />
+                      <div className="relative flex-shrink-0">
+                        <Avatar name={m.user.name} avatar={m.user.avatar} size="sm" />
+                        <span className={cn(
+                          'absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-white rounded-full',
+                          onlineSet.has(m.user.id) ? 'bg-green-400' : 'bg-gray-300',
+                        )} />
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1 flex-wrap">
                           <p className={cn('text-xs font-semibold truncate', isSelf ? 'text-gray-600' : 'text-gray-600')}>{m.user.name}</p>

@@ -53,6 +53,10 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
   const [renameDraft, setRenameDraft] = useState('');
   const ctxRef = useRef<HTMLDivElement>(null);
 
+  // DM 컨텍스트 메뉴
+  const [dmCtxMenu, setDmCtxMenu] = useState<{ conv: any; x: number; y: number } | null>(null);
+  const dmCtxRef = useRef<HTMLDivElement>(null);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -182,6 +186,15 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [ctxMenu]);
+
+  useEffect(() => {
+    if (!dmCtxMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (dmCtxRef.current && !dmCtxRef.current.contains(e.target as Node)) setDmCtxMenu(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [dmCtxMenu]);
 
   // ── 자동 스크롤 ──
   useEffect(() => {
@@ -314,7 +327,8 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
               visibleConvs.map((c: any) => (
                 <div key={c.user.id}
                   className={cn('group flex items-center gap-3 px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer', c.unread > 0 && 'bg-orange-50/40')}
-                  onClick={() => openChat(c.user.id)}>
+                  onClick={() => openChat(c.user.id)}
+                  onContextMenu={(e) => { e.preventDefault(); setDmCtxMenu({ conv: c, x: e.clientX, y: e.clientY }); }}>
                   <div className="relative flex-shrink-0">
                     <Avatar name={c.user.name} avatar={c.user.avatar} size="md" />
                     {c.unread > 0 ? (
@@ -779,6 +793,27 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
             </div>
           </div>
         </>
+      )}
+
+      {/* DM 우클릭 컨텍스트 메뉴 */}
+      {dmCtxMenu && (
+        <div
+          ref={dmCtxRef}
+          className="fixed z-[9999] w-44 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden py-1 animate-slide-up"
+          style={{ top: dmCtxMenu.y, left: dmCtxMenu.x }}
+        >
+          <button
+            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
+            onClick={() => {
+              if (confirm(`"${dmCtxMenu.conv.user.name}"과의 대화를 삭제하시겠습니까?`)) {
+                hideConversation(dmCtxMenu.conv.user.id, dmCtxMenu.conv.lastMessage?.createdAt ?? '');
+              }
+              setDmCtxMenu(null);
+            }}
+          >
+            <LogOut size={14} /> 채팅방 나가기
+          </button>
+        </div>
       )}
 
       {/* 그룹채팅 우클릭 컨텍스트 메뉴 */}
