@@ -250,7 +250,7 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
                   onClick={(e) => {
                     e.stopPropagation();
                     setIssuePopover(false);
-                    setEditingIssue(issue);
+                    setEditingIssue({ ...issue, taskId: issue.taskId ?? task.id });
                   }}
                 >
                   <div className="flex items-start gap-2">
