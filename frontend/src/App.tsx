@@ -28,6 +28,7 @@ import { SheetListPage } from './pages/sheets/SheetListPage';
 import { SheetEditorPage } from './pages/sheets/SheetEditorPage';
 import { TemplatesPage } from './pages/templates/TemplatesPage';
 import { MentionPopup } from './components/MentionPopup';
+import { QATestPage } from './pages/qa/QATestPage';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)();
@@ -98,6 +99,7 @@ export default function App() {
           <Route path="settings/password" element={<ChangePasswordPage />} />
           <Route path="admin/users" element={<AdminUsersPage />} />
           <Route path="messages" element={<MessagesPage />} />
+          <Route path="qa" element={<QATestPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

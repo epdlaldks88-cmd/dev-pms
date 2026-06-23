@@ -3,7 +3,7 @@ import { NavLink, useNavigate, useMatch } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard, FolderKanban, Bell, ChevronLeft, ChevronRight,
-  Building2, Users, CalendarDays, ShieldCheck, PenTool, Table2, FileText,
+  Building2, Users, CalendarDays, ShieldCheck, PenTool, Table2, FileText, FlaskConical,
 } from 'lucide-react';
 
 function Logo({ size = 28 }: { size?: number }) {
@@ -51,6 +51,7 @@ const navItems = [
   { to: '/sheets', icon: Table2, label: '시트' },
   { to: '/templates', icon: FileText, label: '템플릿' },
   { to: '/partners', icon: Building2, label: '파트너사 관리' },
+  { to: '/qa', icon: FlaskConical, label: 'QA 테스트' },
   { to: '/notifications', icon: Bell, label: '알림' },
 ];
 

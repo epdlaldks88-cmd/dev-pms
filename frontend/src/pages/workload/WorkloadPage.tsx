@@ -27,6 +27,7 @@ interface AddWorkLogForm {
   requestDate: string;
   startDate: string;
   endDate: string;
+  srNumber: string;
 }
 
 export function WorkloadPage() {
@@ -70,6 +71,7 @@ export function WorkloadPage() {
     requestDate: today,
     startDate: today,
     endDate: today,
+    srNumber: '',
   });
 
   // ── 상세 보기 ───────────────────────────────────────────
@@ -131,11 +133,12 @@ export function WorkloadPage() {
       description: form.description, requester: form.requester || undefined,
       requestDate: form.requestDate || undefined,
       startDate: form.startDate, endDate: form.endDate,
+      srNumber: form.srNumber || undefined,
     }),
     onSuccess: () => {
       invalidate();
       setShowAddModal(false);
-      setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', requester: '', requestDate: today, startDate: today, endDate: today });
+      setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', requester: '', requestDate: today, startDate: today, endDate: today, srNumber: '' });
       toast.success('일감이 등록되었습니다.');
     },
     onError: () => toast.error('등록에 실패했습니다.'),
@@ -255,7 +258,7 @@ export function WorkloadPage() {
             <Button variant="secondary" onClick={() => { setGraphWinStart(Math.max(0, graphData.dates.length - 14)); setGraphOpen(true); }}>
               <BarChart2 size={15} /> 그래프 보기
             </Button>
-            <Button variant="primary" onClick={() => { setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', requester: '', requestDate: today, startDate: today, endDate: today }); setShowAddModal(true); }}>
+            <Button variant="primary" onClick={() => { setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', requester: '', requestDate: today, startDate: today, endDate: today, srNumber: '' }); setShowAddModal(true); }}>
               <Plus size={15} /> 일감 등록
             </Button>
           </div>
@@ -521,7 +524,7 @@ export function WorkloadPage() {
                       title={selectedUserId ? '해당 담당자의 일감이 없습니다' : '등록된 일감이 없습니다'}
                       description={selectedUserId ? undefined : '작업한 일감을 등록해 공수를 기록하세요.'}
                       action={!selectedUserId ? (
-                        <Button variant="primary" onClick={() => { setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', requester: '', requestDate: today, startDate: today, endDate: today }); setShowAddModal(true); }}>
+                        <Button variant="primary" onClick={() => { setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', requester: '', requestDate: today, startDate: today, endDate: today, srNumber: '' }); setShowAddModal(true); }}>
                           <Plus size={15} /> 일감 등록
                         </Button>
                       ) : undefined}
@@ -842,6 +845,14 @@ export function WorkloadPage() {
                     className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">SR번호</label>
+                <input type="text" value={form.srNumber}
+                  onChange={(e) => setForm({ ...form, srNumber: e.target.value })}
+                  placeholder="SR-26-0001 (선택)"
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">공수 (시간) *</label>
