@@ -24,6 +24,7 @@ interface AddWorkLogForm {
   hours: number;
   description: string;
   requester: string;
+  requestDate: string;
   startDate: string;
   endDate: string;
 }
@@ -66,6 +67,7 @@ export function WorkloadPage() {
     hours: 1,
     description: '',
     requester: '',
+    requestDate: today,
     startDate: today,
     endDate: today,
   });
@@ -76,7 +78,7 @@ export function WorkloadPage() {
   // ── 수정 모달 ───────────────────────────────────────────
   const [editLog, setEditLog] = useState<any>(null);
   const [editForm, setEditForm] = useState({
-    hours: 1, description: '', startDate: '', endDate: '', userId: '', stage: '' as WorkLogStage | '', requester: '',
+    hours: 1, description: '', startDate: '', endDate: '', userId: '', stage: '' as WorkLogStage | '', requester: '', requestDate: '',
   });
 
   // ── 담당자 카드 선택 필터 ─────────────────────────────
@@ -127,12 +129,13 @@ export function WorkloadPage() {
     mutationFn: () => worklogsApi.create({
       taskId: form.taskId, userId: form.userId, hours: form.hours,
       description: form.description, requester: form.requester || undefined,
+      requestDate: form.requestDate || undefined,
       startDate: form.startDate, endDate: form.endDate,
     }),
     onSuccess: () => {
       invalidate();
       setShowAddModal(false);
-      setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', requester: '', startDate: today, endDate: today });
+      setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', requester: '', requestDate: today, startDate: today, endDate: today });
       toast.success('일감이 등록되었습니다.');
     },
     onError: () => toast.error('등록에 실패했습니다.'),
@@ -182,6 +185,7 @@ export function WorkloadPage() {
       '담당자': log.user.name,
       '태스크': log.task?.title ?? log.taskTitle ?? '-',
       '프로젝트': log.task?.project?.name ?? log.projectName ?? '-',
+      '요청일자': log.requestDate ? formatDate(log.requestDate) : '-',
       '요청자': log.requester || '-',
       '업무 내용': log.description || '-',
       '공수(h)': log.hours,
@@ -242,7 +246,7 @@ export function WorkloadPage() {
             <Button variant="secondary" onClick={() => { setGraphWinStart(Math.max(0, graphData.dates.length - 14)); setGraphOpen(true); }}>
               <BarChart2 size={15} /> 그래프 보기
             </Button>
-            <Button variant="primary" onClick={() => { setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', requester: '', startDate: today, endDate: today }); setShowAddModal(true); }}>
+            <Button variant="primary" onClick={() => { setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', requester: '', requestDate: today, startDate: today, endDate: today }); setShowAddModal(true); }}>
               <Plus size={15} /> 일감 등록
             </Button>
           </div>
@@ -508,7 +512,7 @@ export function WorkloadPage() {
                       title={selectedUserId ? '해당 담당자의 일감이 없습니다' : '등록된 일감이 없습니다'}
                       description={selectedUserId ? undefined : '작업한 일감을 등록해 공수를 기록하세요.'}
                       action={!selectedUserId ? (
-                        <Button variant="primary" onClick={() => { setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', requester: '', startDate: today, endDate: today }); setShowAddModal(true); }}>
+                        <Button variant="primary" onClick={() => { setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', requester: '', requestDate: today, startDate: today, endDate: today }); setShowAddModal(true); }}>
                           <Plus size={15} /> 일감 등록
                         </Button>
                       ) : undefined}
@@ -625,6 +629,7 @@ export function WorkloadPage() {
                               userId: viewLog.user.id,
                               stage: viewLog.stage ?? '',
                               requester: viewLog.requester ?? '',
+                              requestDate: viewLog.requestDate ? viewLog.requestDate.slice(0, 10) : '',
                             });
                           }}
                           className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -698,6 +703,11 @@ export function WorkloadPage() {
                     </div>
                   )}
                 </Row>
+                {viewLog.requestDate && (
+                  <Row label="요청일자">
+                    <span className="text-sm text-gray-600">{formatDate(viewLog.requestDate)}</span>
+                  </Row>
+                )}
                 {viewLog.requester && (
                   <Row label="요청자">
                     <span className="text-sm text-gray-600">{viewLog.requester}</span>
@@ -766,13 +776,22 @@ export function WorkloadPage() {
                   {allUsers?.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">요청자</label>
-                <input type="text" value={form.requester}
-                  onChange={(e) => setForm({ ...form, requester: e.target.value })}
-                  placeholder="요청자를 입력하세요 (선택)"
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
+              <div className="flex gap-3">
+                <div className="w-40 flex-shrink-0">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">요청일자</label>
+                  <input type="date" value={form.requestDate}
+                    onChange={(e) => setForm({ ...form, requestDate: e.target.value })}
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">요청자</label>
+                  <input type="text" value={form.requester}
+                    onChange={(e) => setForm({ ...form, requester: e.target.value })}
+                    placeholder="요청자를 입력하세요 (선택)"
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">공수 (시간) *</label>
@@ -883,16 +902,27 @@ export function WorkloadPage() {
                 </select>
               </div>
 
-              {/* 요청자 */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">요청자</label>
-                <input
-                  type="text"
-                  value={editForm.requester}
-                  onChange={(e) => setEditForm({ ...editForm, requester: e.target.value })}
-                  placeholder="요청자를 입력하세요 (선택)"
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
+              {/* 요청일자 + 요청자 */}
+              <div className="flex gap-3">
+                <div className="w-40 flex-shrink-0">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">요청일자</label>
+                  <input
+                    type="date"
+                    value={editForm.requestDate}
+                    onChange={(e) => setEditForm({ ...editForm, requestDate: e.target.value })}
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">요청자</label>
+                  <input
+                    type="text"
+                    value={editForm.requester}
+                    onChange={(e) => setEditForm({ ...editForm, requester: e.target.value })}
+                    placeholder="요청자를 입력하세요 (선택)"
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
               </div>
 
               {/* 공수 */}
@@ -934,7 +964,7 @@ export function WorkloadPage() {
               <Button variant="ghost" onClick={() => setEditLog(null)}>닫기</Button>
               <Button
                 variant="primary"
-                onClick={() => updateWorklog.mutate({ id: editLog.id, patch: { hours: editForm.hours, description: editForm.description, startDate: editForm.startDate, endDate: editForm.endDate, userId: editForm.userId, requester: editForm.requester || undefined, ...(editForm.stage && { stage: editForm.stage }) } })}
+                onClick={() => updateWorklog.mutate({ id: editLog.id, patch: { hours: editForm.hours, description: editForm.description, startDate: editForm.startDate, endDate: editForm.endDate, userId: editForm.userId, requester: editForm.requester || undefined, requestDate: editForm.requestDate || undefined, ...(editForm.stage && { stage: editForm.stage }) } })}
                 disabled={editForm.hours <= 0}
                 loading={updateWorklog.isPending}
               >
