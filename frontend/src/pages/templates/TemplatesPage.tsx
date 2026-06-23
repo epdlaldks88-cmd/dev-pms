@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { templatesApi, type TemplateInput } from '../../api/templates';
+import { useAuthStore } from '../../store/auth.store';
 import type { Template } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -91,6 +92,7 @@ function PhaseSelect({ value, phases, onChange }: {
 
 export function TemplatesPage() {
   const qc = useQueryClient();
+  const me = useAuthStore((s) => s.user);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Template | null>(null);
   const [form, setForm] = useState<TemplateInput>(emptyForm());
@@ -298,7 +300,8 @@ export function TemplatesPage() {
                           <span className="ml-auto">{formatDate(t.updatedAt)}</span>
                         </div>
                       </div>
-                      {/* 액션 */}
+                      {/* 액션 — 등록자/관리자만 */}
+                      {(me?.role === 'ADMIN' || (t as any).createdBy?.id === me?.id) && (
                       <div className="absolute top-2 right-2 flex gap-1 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => openEdit(t)}
@@ -313,6 +316,7 @@ export function TemplatesPage() {
                           <Trash2 size={12} />
                         </button>
                       </div>
+                      )}
                     </div>
                   ))}
                 </div>

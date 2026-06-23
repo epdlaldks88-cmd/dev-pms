@@ -5,6 +5,7 @@ import { Plus, PenTool, Trash2, Pencil } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { canvasApi } from '../../api/canvas';
 import { projectsApi } from '../../api/projects';
+import { useAuthStore } from '../../store/auth.store';
 import { formatDate } from '../../lib/utils';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -12,6 +13,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 export function CanvasListPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const me = useAuthStore((s) => s.user);
   const [searchParams, setSearchParams] = useSearchParams();
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
@@ -185,6 +187,7 @@ export function CanvasListPage() {
                   )}
                   <p className="text-xs text-gray-400 mt-0.5">{formatDate(canvas.updatedAt)} 수정</p>
                 </div>
+                {(me?.role === 'ADMIN' || (canvas as any).createdBy?.id === me?.id) && (
                 <div
                   className="absolute top-2 right-2 flex gap-1 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity"
                   onClick={(e) => e.stopPropagation()}
@@ -202,6 +205,7 @@ export function CanvasListPage() {
                     <Trash2 size={12} />
                   </button>
                 </div>
+                )}
               </div>
             ))}
           </div>
