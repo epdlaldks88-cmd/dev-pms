@@ -69,8 +69,15 @@ export function KanbanPage() {
       tasksApi.move(projectId!, taskId, stepId, order),
     onSuccess: (data, { taskId }) => {
       qc.setQueryData(['task', taskId], data);
-      qc.refetchQueries({ queryKey: ['kanban', projectId] });
       qc.invalidateQueries({ queryKey: ['project-stats', projectId] });
+      qc.invalidateQueries({ queryKey: ['gantt', projectId] });
+    },
+    onError: (e: any) => {
+      toast.error(e.response?.data?.message ?? '단계 이동에 실패했습니다.');
+    },
+    // 성공/실패 무관하게 서버 상태로 동기화(낙관적 업데이트 정합성 보장)
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['kanban', projectId] });
     },
   });
 
