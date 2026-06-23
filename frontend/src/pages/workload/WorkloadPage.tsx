@@ -500,6 +500,7 @@ export function WorkloadPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">작업 내용</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-14">공수</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">요청자</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">SR번호</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">사용자확인일</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-14">확인</th>
                 <th className="w-10" />
@@ -509,7 +510,7 @@ export function WorkloadPage() {
               {isLoading ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={i} className="border-b border-gray-100">
-                    {[...Array(11)].map((__, j) => (
+                    {[...Array(12)].map((__, j) => (
                       <td key={j} className="px-4 py-3"><div className="h-4 bg-gray-100 rounded animate-pulse" /></td>
                     ))}
                   </tr>
@@ -568,6 +569,9 @@ export function WorkloadPage() {
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-500 truncate max-w-[80px]">
                         {log.requester || '-'}
+                      </td>
+                      <td className="px-4 py-3 text-xs font-mono text-primary-600 truncate max-w-[100px]">
+                        {log.srNumber || '-'}
                       </td>
                       <td className="px-4 py-3 text-center text-[11px] text-gray-400">
                         {log.userConfirmedAt ? formatDate(log.userConfirmedAt) : '-'}
@@ -764,6 +768,11 @@ export function WorkloadPage() {
                 {viewLog.requester && (
                   <Row label="요청자">
                     <span className="text-sm text-gray-600">{viewLog.requester}</span>
+                  </Row>
+                )}
+                {viewLog.srNumber && (
+                  <Row label="SR번호">
+                    <span className="text-sm font-mono text-primary-600">{viewLog.srNumber}</span>
                   </Row>
                 )}
                 {viewLog.description && (
