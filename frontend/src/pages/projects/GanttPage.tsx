@@ -339,8 +339,8 @@ export function GanttPage() {
                   >
                     <GripVertical size={14} />
                   </span>
-                  <StatusBadge status={task.status} />
                   <span className="text-sm text-gray-800 truncate flex-1">{task.title}</span>
+                  <span className="flex-shrink-0"><StatusBadge status={task.status} /></span>
                   {task._count.issues > 0 && (
                     <GanttIssuesBadge task={task} projectId={projectId!} />
                   )}
