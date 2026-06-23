@@ -16,6 +16,7 @@ import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { formatDate, cn } from '../../lib/utils';
 
 interface AddWorkLogForm {
@@ -77,6 +78,11 @@ export function WorkloadPage() {
 
   // ── 상세 보기 ───────────────────────────────────────────
   const [viewLog, setViewLog] = useState<any>(null);
+
+  // ── 커스텀 확인 다이얼로그 ──────────────────────────────
+  const [confirmState, setConfirmState] = useState<{
+    title: string; message: React.ReactNode; confirmText: string; tone: 'primary' | 'danger'; onConfirm: () => void;
+  } | null>(null);
 
   // ── 수정 모달 ───────────────────────────────────────────
   const [editLog, setEditLog] = useState<any>(null);
@@ -695,7 +701,13 @@ export function WorkloadPage() {
                           <Pencil size={14} />
                         </button>
                         <button
-                          onClick={() => { if (confirm('일감을 삭제하시겠습니까?')) { deleteWorklog.mutate(viewLog.id); setViewLog(null); } }}
+                          onClick={() => setConfirmState({
+                            title: '일감 삭제',
+                            message: '이 일감을 삭제하시겠습니까? 되돌릴 수 없습니다.',
+                            confirmText: '삭제',
+                            tone: 'danger',
+                            onConfirm: () => { deleteWorklog.mutate(viewLog.id); setViewLog(null); },
+                          })}
                           className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                           title="삭제"
                         >
@@ -714,16 +726,20 @@ export function WorkloadPage() {
               {viewLog.srNumber && (
                 <div className="flex justify-end px-6 pt-3">
                   <button
-                    onClick={() => {
-                      if (confirm(`SR번호 [${viewLog.srNumber}] 로 QA요청을 하시겠습니까?`)) {
+                    onClick={() => setConfirmState({
+                      title: 'QA요청',
+                      message: <>SR번호 <b className="font-mono text-primary-600">[{viewLog.srNumber}]</b> 로 QA요청을 하시겠습니까?</>,
+                      confirmText: 'QA요청',
+                      tone: 'primary',
+                      onConfirm: () => {
                         qaApi.create({
                           srNumber: viewLog.srNumber,
                           title: viewLog.taskTitle ?? viewLog.description ?? viewLog.srNumber,
                           workLogId: viewLog.id,
                         }).then(() => toast.success('QA요청이 등록되었습니다.'))
                           .catch(() => toast.error('QA요청 등록에 실패했습니다.'));
-                      }
-                    }}
+                      },
+                    })}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-violet-600 hover:bg-violet-700 rounded-lg shadow-sm hover:shadow transition-all active:scale-95"
                   >
                     <FlaskConical size={14} />
@@ -1240,6 +1256,17 @@ export function WorkloadPage() {
           </div>
         );
       })()}
+
+      {/* ── 커스텀 확인 다이얼로그 ── */}
+      <ConfirmDialog
+        open={!!confirmState}
+        title={confirmState?.title ?? ''}
+        message={confirmState?.message}
+        confirmText={confirmState?.confirmText}
+        tone={confirmState?.tone}
+        onConfirm={() => { confirmState?.onConfirm(); setConfirmState(null); }}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }

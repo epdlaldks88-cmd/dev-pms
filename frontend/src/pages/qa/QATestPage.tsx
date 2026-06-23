@@ -6,7 +6,16 @@ import { qaApi, QA_STATUS_CONFIG, QA_RESULT_CONFIG, type QATest } from '../../ap
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { formatDate, cn } from '../../lib/utils';
+
+interface ConfirmState {
+  title: string;
+  message: React.ReactNode;
+  confirmText: string;
+  tone: 'primary' | 'danger';
+  onConfirm: () => void;
+}
 
 const SR_NUMBER_PATTERN = /^SR-\d{2}-\d{4}$/;
 
@@ -28,6 +37,9 @@ export function QATestPage() {
   // 상세 팝업
   const [viewItem, setViewItem] = useState<QATest | null>(null);
   const [detailForm, setDetailForm] = useState({ title: '', content: '', tester: '' });
+
+  // 커스텀 확인 다이얼로그
+  const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
 
   useEffect(() => {
     if (viewItem) {
@@ -289,19 +301,28 @@ export function QATestPage() {
               {viewItem.status === 'IN_PROGRESS' && (
                 <>
                   <button
-                    onClick={() => { if (confirm('확인 처리하시겠습니까?')) confirmMutation.mutate(viewItem.id); }}
+                    onClick={() => setConfirmState({
+                      title: 'QA 확인', message: '이 QA 항목을 확인 처리하시겠습니까?', confirmText: '확인', tone: 'primary',
+                      onConfirm: () => confirmMutation.mutate(viewItem.id),
+                    })}
                     className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors"
                   >
                     확인
                   </button>
                   <button
-                    onClick={() => { if (confirm('반려 처리하시겠습니까?')) rejectMutation.mutate(viewItem.id); }}
+                    onClick={() => setConfirmState({
+                      title: 'QA 반려', message: '이 QA 항목을 반려 처리하시겠습니까?', confirmText: '반려', tone: 'danger',
+                      onConfirm: () => rejectMutation.mutate(viewItem.id),
+                    })}
                     className="px-3 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm transition-colors"
                   >
                     반려
                   </button>
                   <button
-                    onClick={() => { if (confirm('취소 처리하시겠습니까?')) cancelMutation.mutate(viewItem.id); }}
+                    onClick={() => setConfirmState({
+                      title: 'QA 취소', message: '이 QA 항목을 취소 처리하시겠습니까?', confirmText: '취소 처리', tone: 'danger',
+                      onConfirm: () => cancelMutation.mutate(viewItem.id),
+                    })}
                     className="px-3 py-1.5 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                   >
                     취소
@@ -348,7 +369,10 @@ export function QATestPage() {
             {/* 푸터 */}
             <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
               <button
-                onClick={() => { if (confirm('삭제하시겠습니까?')) deleteMutation.mutate(viewItem.id); }}
+                onClick={() => setConfirmState({
+                  title: 'QA 삭제', message: '이 QA 항목을 삭제하시겠습니까? 되돌릴 수 없습니다.', confirmText: '삭제', tone: 'danger',
+                  onConfirm: () => deleteMutation.mutate(viewItem.id),
+                })}
                 className="flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
               >
                 <Trash2 size={14} /> 삭제
@@ -363,6 +387,17 @@ export function QATestPage() {
           </div>
         </div>
       )}
+
+      {/* 커스텀 확인 다이얼로그 */}
+      <ConfirmDialog
+        open={!!confirmState}
+        title={confirmState?.title ?? ''}
+        message={confirmState?.message}
+        confirmText={confirmState?.confirmText}
+        tone={confirmState?.tone}
+        onConfirm={() => { confirmState?.onConfirm(); setConfirmState(null); }}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }
