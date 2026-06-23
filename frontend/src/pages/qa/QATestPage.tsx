@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, X, Pencil, Trash2, FlaskConical } from 'lucide-react';
+import { Plus, X, Trash2, FlaskConical } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { qaApi, QA_STATUS_CONFIG, QA_RESULT_CONFIG, type QATestStatus } from '../../api/qa';
+import { qaApi, QA_STATUS_CONFIG, QA_RESULT_CONFIG, type QATest } from '../../api/qa';
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -24,8 +24,16 @@ export function QATestPage() {
   const [filterSR, setFilterSR] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [form, setForm] = useState<QAForm>(defaultForm);
-  const [editItem, setEditItem] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ title: '', content: '', tester: '' });
+
+  // 상세 팝업
+  const [viewItem, setViewItem] = useState<QATest | null>(null);
+  const [detailForm, setDetailForm] = useState({ title: '', content: '', tester: '' });
+
+  useEffect(() => {
+    if (viewItem) {
+      setDetailForm({ title: viewItem.title, content: viewItem.content ?? '', tester: viewItem.tester ?? '' });
+    }
+  }, [viewItem]);
 
   const { data: tests, isLoading } = useQuery({
     queryKey: ['qa-tests', filterSR],
@@ -47,47 +55,42 @@ export function QATestPage() {
 
   const acceptMutation = useMutation({
     mutationFn: (id: string) => qaApi.accept(id),
-    onSuccess: () => { invalidate(); toast.success('QA 접수되었습니다. QA번호가 발급되었습니다.'); },
+    onSuccess: (data) => { invalidate(); setViewItem(data); toast.success('QA 접수되었습니다. QA번호가 발급되었습니다.'); },
     onError: () => toast.error('접수에 실패했습니다.'),
   });
 
   const confirmMutation = useMutation({
     mutationFn: (id: string) => qaApi.confirm(id),
-    onSuccess: () => { invalidate(); toast.success('QA 확인 처리되었습니다.'); },
+    onSuccess: (data) => { invalidate(); setViewItem(data); toast.success('QA 확인 처리되었습니다.'); },
     onError: () => toast.error('처리에 실패했습니다.'),
   });
 
   const rejectMutation = useMutation({
     mutationFn: (id: string) => qaApi.reject(id),
-    onSuccess: () => { invalidate(); toast.success('QA 반려 처리되었습니다.'); },
+    onSuccess: (data) => { invalidate(); setViewItem(data); toast.success('QA 반려 처리되었습니다.'); },
     onError: () => toast.error('처리에 실패했습니다.'),
   });
 
   const cancelMutation = useMutation({
     mutationFn: (id: string) => qaApi.cancel(id),
-    onSuccess: () => { invalidate(); toast.success('QA 취소 처리되었습니다.'); },
+    onSuccess: (data) => { invalidate(); setViewItem(data); toast.success('QA 취소 처리되었습니다.'); },
     onError: () => toast.error('처리에 실패했습니다.'),
   });
 
   const updateMutation = useMutation({
-    mutationFn: () => qaApi.update(editItem.id, {
-      title: editForm.title || undefined,
-      content: editForm.content || undefined,
-      tester: editForm.tester || undefined,
+    mutationFn: () => qaApi.update(viewItem!.id, {
+      title: detailForm.title || undefined,
+      content: detailForm.content || undefined,
+      tester: detailForm.tester || undefined,
     }),
-    onSuccess: () => { invalidate(); setEditItem(null); toast.success('수정되었습니다.'); },
+    onSuccess: (data) => { invalidate(); setViewItem(data); toast.success('수정되었습니다.'); },
     onError: () => toast.error('수정에 실패했습니다.'),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => qaApi.remove(id),
-    onSuccess: () => { invalidate(); toast.success('삭제되었습니다.'); },
+    onSuccess: () => { invalidate(); setViewItem(null); toast.success('삭제되었습니다.'); },
   });
-
-  const openEdit = (item: any) => {
-    setEditItem(item);
-    setEditForm({ title: item.title, content: item.content ?? '', tester: item.tester ?? '' });
-  };
 
   const isValidSR = SR_NUMBER_PATTERN.test(form.srNumber);
 
@@ -137,13 +140,15 @@ export function QATestPage() {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">상태</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">결과</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">등록일</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">액션</th>
-                  <th className="w-16" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {tests.map((t) => (
-                  <tr key={t.id} className="hover:bg-gray-50">
+                  <tr
+                    key={t.id}
+                    onClick={() => setViewItem(t)}
+                    className="hover:bg-primary-50/40 cursor-pointer transition-colors"
+                  >
                     <td className="px-4 py-3 font-mono text-xs font-medium text-primary-600">
                       {t.qaNumber ?? <span className="text-gray-300">미발급</span>}
                     </td>
@@ -163,54 +168,6 @@ export function QATestPage() {
                       ) : '-'}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-400">{formatDate(t.createdAt)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1">
-                        {/* PENDING → 접수 버튼 */}
-                        {t.status === 'PENDING' && (
-                          <button
-                            onClick={() => acceptMutation.mutate(t.id)}
-                            className="px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
-                          >
-                            접수
-                          </button>
-                        )}
-                        {/* IN_PROGRESS → 확인/반려/취소 버튼 */}
-                        {t.status === 'IN_PROGRESS' && (
-                          <>
-                            <button
-                              onClick={() => { if (confirm('확인 처리하시겠습니까?')) confirmMutation.mutate(t.id); }}
-                              className="px-2 py-1 text-xs font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-md transition-colors"
-                            >
-                              확인
-                            </button>
-                            <button
-                              onClick={() => { if (confirm('반려 처리하시겠습니까?')) rejectMutation.mutate(t.id); }}
-                              className="px-2 py-1 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
-                            >
-                              반려
-                            </button>
-                            <button
-                              onClick={() => { if (confirm('취소 처리하시겠습니까?')) cancelMutation.mutate(t.id); }}
-                              className="px-2 py-1 text-xs font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-                            >
-                              취소
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1">
-                        {t.status === 'PENDING' && (
-                          <button onClick={() => openEdit(t)} className="p-1 text-gray-400 hover:text-primary-600 rounded">
-                            <Pencil size={14} />
-                          </button>
-                        )}
-                        <button onClick={() => { if (confirm('삭제하시겠습니까?')) deleteMutation.mutate(t.id); }} className="p-1 text-gray-400 hover:text-red-500 rounded">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -289,24 +246,81 @@ export function QATestPage() {
         </div>
       )}
 
-      {/* 수정 모달 (PENDING 상태만) */}
-      {editItem && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <div>
-                <h2 className="text-base font-bold">QA 수정</h2>
-                <p className="text-xs text-gray-500 mt-0.5 font-mono">{editItem.srNumber}</p>
+      {/* 상세 팝업 (행 클릭) */}
+      {viewItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setViewItem(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+            {/* 헤더 */}
+            <div className="px-6 py-5 bg-gray-50 border-b border-gray-200 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="font-mono text-xs font-semibold text-primary-600">
+                    {viewItem.qaNumber ?? '미발급'}
+                  </span>
+                  <span className={cn('px-2 py-0.5 rounded-full text-[11px] font-medium', QA_STATUS_CONFIG[viewItem.status].bg, QA_STATUS_CONFIG[viewItem.status].color)}>
+                    {QA_STATUS_CONFIG[viewItem.status].label}
+                  </span>
+                  {viewItem.result && (
+                    <span className={cn('text-[11px] font-bold', QA_RESULT_CONFIG[viewItem.result].color)}>
+                      {QA_RESULT_CONFIG[viewItem.result].label}
+                    </span>
+                  )}
+                </div>
+                <h2 className="text-base font-bold text-gray-700 leading-snug truncate">{viewItem.title}</h2>
+                <p className="text-[11px] text-gray-400 font-mono mt-0.5">SR: {viewItem.srNumber}</p>
               </div>
-              <button onClick={() => setEditItem(null)}><X size={18} /></button>
+              <button onClick={() => setViewItem(null)} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg flex-shrink-0">
+                <X size={16} />
+              </button>
             </div>
+
+            {/* 상태 변경 액션 바 */}
+            <div className="px-6 py-3 border-b border-gray-100 flex flex-wrap items-center gap-2">
+              {viewItem.status === 'PENDING' && (
+                <button
+                  onClick={() => acceptMutation.mutate(viewItem.id)}
+                  disabled={acceptMutation.isPending}
+                  className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors"
+                >
+                  접수 (QA번호 발급)
+                </button>
+              )}
+              {viewItem.status === 'IN_PROGRESS' && (
+                <>
+                  <button
+                    onClick={() => { if (confirm('확인 처리하시겠습니까?')) confirmMutation.mutate(viewItem.id); }}
+                    className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors"
+                  >
+                    확인
+                  </button>
+                  <button
+                    onClick={() => { if (confirm('반려 처리하시겠습니까?')) rejectMutation.mutate(viewItem.id); }}
+                    className="px-3 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm transition-colors"
+                  >
+                    반려
+                  </button>
+                  <button
+                    onClick={() => { if (confirm('취소 처리하시겠습니까?')) cancelMutation.mutate(viewItem.id); }}
+                    className="px-3 py-1.5 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  >
+                    취소
+                  </button>
+                </>
+              )}
+              {(viewItem.status === 'COMPLETED' || viewItem.status === 'CANCELLED') && (
+                <span className="text-xs text-gray-400">처리 완료된 항목입니다.</span>
+              )}
+            </div>
+
+            {/* 수정 가능한 본문 */}
             <div className="px-6 py-4 space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">제목</label>
                 <input
                   type="text"
-                  value={editForm.title}
-                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                  value={detailForm.title}
+                  onChange={(e) => setDetailForm({ ...detailForm, title: e.target.value })}
                   className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
@@ -314,26 +328,37 @@ export function QATestPage() {
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">테스터</label>
                 <input
                   type="text"
-                  value={editForm.tester}
-                  onChange={(e) => setEditForm({ ...editForm, tester: e.target.value })}
+                  value={detailForm.tester}
+                  onChange={(e) => setDetailForm({ ...detailForm, tester: e.target.value })}
                   className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">내용</label>
                 <textarea
-                  value={editForm.content}
-                  onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                  value={detailForm.content}
+                  onChange={(e) => setDetailForm({ ...detailForm, content: e.target.value })}
                   rows={3}
                   className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
                 />
               </div>
+              <p className="text-[11px] text-gray-400">등록일: {formatDate(viewItem.createdAt)}</p>
             </div>
-            <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
-              <Button variant="ghost" onClick={() => setEditItem(null)}>취소</Button>
-              <Button variant="primary" onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}>
-                저장
-              </Button>
+
+            {/* 푸터 */}
+            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+              <button
+                onClick={() => { if (confirm('삭제하시겠습니까?')) deleteMutation.mutate(viewItem.id); }}
+                className="flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
+              >
+                <Trash2 size={14} /> 삭제
+              </button>
+              <div className="flex gap-2">
+                <Button variant="ghost" onClick={() => setViewItem(null)}>닫기</Button>
+                <Button variant="primary" onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}>
+                  저장
+                </Button>
+              </div>
             </div>
           </div>
         </div>
