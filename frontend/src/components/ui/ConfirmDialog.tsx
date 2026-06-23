@@ -11,6 +11,8 @@ export interface ConfirmDialogProps {
   cancelText?: string;
   tone?: 'primary' | 'danger';
   loading?: boolean;
+  /** 안내 전용 모드 (취소 버튼 숨김, 확인 버튼만 표시) */
+  infoOnly?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -34,6 +36,7 @@ export function ConfirmDialog({
   cancelText = '취소',
   tone = 'primary',
   loading = false,
+  infoOnly = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -81,13 +84,15 @@ export function ConfirmDialog({
 
         {/* 푸터 */}
         <div className="flex gap-2 px-5 py-4 border-t border-gray-100">
-          <button
-            onClick={onCancel}
-            disabled={loading}
-            className="flex-1 h-11 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50"
-          >
-            {cancelText}
-          </button>
+          {!infoOnly && (
+            <button
+              onClick={onCancel}
+              disabled={loading}
+              className="flex-1 h-11 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50"
+            >
+              {cancelText}
+            </button>
+          )}
           <button
             onClick={onConfirm}
             disabled={loading}

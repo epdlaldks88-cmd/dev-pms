@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, X, Trash2, FlaskConical } from 'lucide-react';
+import { Plus, X, Trash2, FlaskConical, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { qaApi, QA_STATUS_CONFIG, QA_RESULT_CONFIG, type QATest } from '../../api/qa';
 import { Button } from '../../components/ui/Button';
@@ -47,7 +47,7 @@ export function QATestPage() {
     }
   }, [viewItem]);
 
-  const { data: tests, isLoading } = useQuery({
+  const { data: tests, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['qa-tests', filterSR],
     queryFn: () => qaApi.getAll(filterSR || undefined),
   });
@@ -112,9 +112,14 @@ export function QATestPage() {
         title="QA 테스트"
         description="SR번호와 QA번호를 매핑하여 테스트를 관리합니다."
         actions={
-          <Button variant="primary" onClick={() => { setForm(defaultForm); setShowAddModal(true); }}>
-            <Plus size={16} className="mr-1" /> QA 등록
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => refetch()} disabled={isFetching} title="새로고침">
+              <RefreshCw size={15} className={cn('mr-1', isFetching && 'animate-spin')} /> 새로고침
+            </Button>
+            <Button variant="primary" onClick={() => { setForm(defaultForm); setShowAddModal(true); }}>
+              <Plus size={16} className="mr-1" /> QA 등록
+            </Button>
+          </div>
         }
       />
 

@@ -34,6 +34,8 @@ export const QA_RESULT_CONFIG: Record<QATestResult, { label: string; color: stri
 export const qaApi = {
   getAll: (srNumber?: string) =>
     api.get('/qa', { params: srNumber ? { srNumber } : undefined }).then((r) => r.data as QATest[]),
+  getByWorkLog: (workLogId: string) =>
+    api.get('/qa', { params: { workLogId } }).then((r) => r.data as QATest[]),
   getOne: (id: string) =>
     api.get(`/qa/${id}`).then((r) => r.data as QATest),
   create: (data: { srNumber: string; title: string; content?: string; tester?: string; workLogId?: string }) =>

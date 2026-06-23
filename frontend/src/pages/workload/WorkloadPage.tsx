@@ -5,7 +5,7 @@ import { Plus, Clock, Briefcase, Trash2, X, Pencil, CheckCircle2, Check, Filter,
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import { worklogsApi, STAGE_CONFIG, STAGE_ORDER, type WorkLogStage } from '../../api/worklogs';
-import { qaApi } from '../../api/qa';
+import { qaApi, QA_STATUS_CONFIG, QA_RESULT_CONFIG } from '../../api/qa';
 import { getAccessToken } from '../../utils/token';
 import { projectsApi } from '../../api/projects';
 import { tasksApi } from '../../api/tasks';
@@ -81,7 +81,7 @@ export function WorkloadPage() {
 
   // ── 커스텀 확인 다이얼로그 ──────────────────────────────
   const [confirmState, setConfirmState] = useState<{
-    title: string; message: React.ReactNode; confirmText: string; tone: 'primary' | 'danger'; onConfirm: () => void;
+    title: string; message: React.ReactNode; confirmText: string; tone: 'primary' | 'danger'; infoOnly?: boolean; onConfirm: () => void;
   } | null>(null);
 
   // ── 수정 모달 ───────────────────────────────────────────
@@ -103,6 +103,13 @@ export function WorkloadPage() {
   // ── Queries ─────────────────────────────────────────────
   const { data: projects } = useQuery({ queryKey: ['projects'], queryFn: projectsApi.getAll });
   const { data: allUsers } = useQuery({ queryKey: ['users'], queryFn: usersApi.getAll });
+
+  // 상세 팝업이 열린 일감의 QA 이력 (workLogId 기준, createdAt desc)
+  const { data: qaHistory } = useQuery({
+    queryKey: ['qa-by-worklog', viewLog?.id],
+    queryFn: () => qaApi.getByWorkLog(viewLog.id),
+    enabled: !!viewLog?.id && !!viewLog?.srNumber,
+  });
   const { data: formTasks } = useQuery({
     queryKey: ['tasks', form.projectId],
     queryFn: () => tasksApi.getAll(form.projectId),
@@ -167,6 +174,75 @@ export function WorkloadPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['worklogs'] }); toast.success('일감을 확인했습니다.'); },
     onError: () => toast.error('확인 처리에 실패했습니다.'),
   });
+
+  // QA요청 등록 실행
+  const submitQaRequest = (log: any) => {
+    qaApi.create({
+      srNumber: log.srNumber,
+      title: log.taskTitle ?? log.description ?? log.srNumber,
+      workLogId: log.id,
+    }).then(() => {
+      qc.invalidateQueries({ queryKey: ['qa-by-worklog', log.id] });
+      qc.invalidateQueries({ queryKey: ['qa-tests'] });
+      toast.success('QA요청이 등록되었습니다.');
+    }).catch(() => toast.error('QA요청 등록에 실패했습니다.'));
+  };
+
+  // QA요청 버튼 클릭 → 기존 QA 상태에 따라 분기
+  const handleQaRequest = (log: any) => {
+    const latest = qaHistory?.[0]; // createdAt desc → 가장 최근 QA
+
+    // 진행 중(요청/접수) → 블로킹
+    if (latest && (latest.status === 'PENDING' || latest.status === 'IN_PROGRESS')) {
+      setConfirmState({
+        title: 'QA요청 불가', tone: 'danger', confirmText: '확인', infoOnly: true,
+        message: <>이미 <b className="font-mono text-primary-600">{latest.qaNumber ?? '요청'}</b> 으로 QA가 진행 중입니다.<br/>완료 후 다시 시도하세요.</>,
+        onConfirm: () => {},
+      });
+      return;
+    }
+    // 완료(확인) → 블로킹
+    if (latest && latest.status === 'COMPLETED' && latest.result === 'PASS') {
+      setConfirmState({
+        title: 'QA요청 불가', tone: 'danger', confirmText: '확인', infoOnly: true,
+        message: <>이미 QA가 <b className="text-emerald-600">확인 완료</b>된 일감입니다.</>,
+        onConfirm: () => {},
+      });
+      return;
+    }
+    // 반려됨 → 재요청 가능 + 히스토리 표시
+    if (latest && latest.status === 'COMPLETED' && latest.result === 'REJECTED') {
+      setConfirmState({
+        title: 'QA 재요청', tone: 'primary', confirmText: 'QA 재요청',
+        message: (
+          <div className="space-y-3">
+            <p>이전 QA가 <b className="text-red-600">반려</b>되었습니다. 다시 QA요청을 하시겠습니까?</p>
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-2.5 space-y-1.5 max-h-40 overflow-auto">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase">이전 QA 이력</p>
+              {qaHistory!.map((q) => (
+                <div key={q.id} className="flex items-center justify-between text-xs">
+                  <span className="font-mono text-gray-600">{q.qaNumber ?? '미발급'}</span>
+                  <span className={cn('font-medium', QA_STATUS_CONFIG[q.status].color)}>
+                    {QA_STATUS_CONFIG[q.status].label}
+                    {q.result ? ` · ${QA_RESULT_CONFIG[q.result].label}` : ''}
+                  </span>
+                  <span className="text-gray-400">{formatDate(q.createdAt)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ),
+        onConfirm: () => submitQaRequest(log),
+      });
+      return;
+    }
+    // 취소됨 또는 이력 없음 → 일반 요청 (히스토리 불필요)
+    setConfirmState({
+      title: 'QA요청', tone: 'primary', confirmText: 'QA요청',
+      message: <>SR번호 <b className="font-mono text-primary-600">[{log.srNumber}]</b> 로 QA요청을 하시겠습니까?</>,
+      onConfirm: () => submitQaRequest(log),
+    });
+  };
 
   // ── 미확인 + 테이블 필터 ──────────────────────────────
   const pendingAck = (worklogs ?? []).filter(
@@ -726,20 +802,7 @@ export function WorkloadPage() {
               {viewLog.srNumber && (
                 <div className="flex justify-end px-6 pt-3">
                   <button
-                    onClick={() => setConfirmState({
-                      title: 'QA요청',
-                      message: <>SR번호 <b className="font-mono text-primary-600">[{viewLog.srNumber}]</b> 로 QA요청을 하시겠습니까?</>,
-                      confirmText: 'QA요청',
-                      tone: 'primary',
-                      onConfirm: () => {
-                        qaApi.create({
-                          srNumber: viewLog.srNumber,
-                          title: viewLog.taskTitle ?? viewLog.description ?? viewLog.srNumber,
-                          workLogId: viewLog.id,
-                        }).then(() => toast.success('QA요청이 등록되었습니다.'))
-                          .catch(() => toast.error('QA요청 등록에 실패했습니다.'));
-                      },
-                    })}
+                    onClick={() => handleQaRequest(viewLog)}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-violet-600 hover:bg-violet-700 rounded-lg shadow-sm hover:shadow transition-all active:scale-95"
                   >
                     <FlaskConical size={14} />
@@ -1264,6 +1327,7 @@ export function WorkloadPage() {
         message={confirmState?.message}
         confirmText={confirmState?.confirmText}
         tone={confirmState?.tone}
+        infoOnly={confirmState?.infoOnly}
         onConfirm={() => { confirmState?.onConfirm(); setConfirmState(null); }}
         onCancel={() => setConfirmState(null)}
       />
