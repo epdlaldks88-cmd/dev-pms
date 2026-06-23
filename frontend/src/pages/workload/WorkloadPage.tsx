@@ -168,6 +168,15 @@ export function WorkloadPage() {
     ? (worklogs ?? []).filter((log: any) => log.user.id === selectedUserId)
     : (worklogs ?? []);
 
+  // ── 페이지네이션 (프론트, 50개씩) ──
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / PAGE_SIZE));
+  // 필터/담당자 변경 시 1페이지로, 범위 벗어나면 보정
+  useEffect(() => { setPage(1); }, [filterProject, filterUser, filterStage, filterStart, filterEnd, selectedUserId]);
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
+  const pagedLogs = filteredLogs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   const displayDate = (log: any) => {
     if (log.startDate && log.endDate) {
       const s = formatDate(log.startDate);
@@ -520,7 +529,7 @@ export function WorkloadPage() {
                   </td>
                 </tr>
               ) : (
-                filteredLogs.map((log: any) => {
+                pagedLogs.map((log: any) => {
                   const stageCfg = STAGE_CONFIG[log.stage as WorkLogStage] ?? STAGE_CONFIG.RECEIVED;
                   return (
                     <tr
@@ -586,6 +595,47 @@ export function WorkloadPage() {
             </tbody>
           </table>
         </div>
+
+        {/* ── 페이지네이션 ── */}
+        {!isLoading && !isError && filteredLogs.length > PAGE_SIZE && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+            <span className="text-xs text-gray-400">
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredLogs.length)} / 총 {filteredLogs.length}건
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                이전
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                .map((p, idx, arr) => (
+                  <span key={p} className="flex items-center">
+                    {idx > 0 && arr[idx - 1] !== p - 1 && <span className="px-1 text-gray-300">…</span>}
+                    <button
+                      onClick={() => setPage(p)}
+                      className={cn(
+                        'min-w-[28px] px-2 py-1 text-xs font-semibold rounded-lg border transition-colors',
+                        p === page ? 'bg-primary-500 text-white border-primary-500' : 'border-gray-200 text-gray-600 hover:bg-gray-50',
+                      )}
+                    >
+                      {p}
+                    </button>
+                  </span>
+                ))}
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                다음
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── 상세 보기 모달 ── */}
