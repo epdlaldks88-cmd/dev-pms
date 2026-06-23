@@ -493,14 +493,12 @@ export function WorkloadPage() {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-40">기간</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">담당자</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-36">태스크</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">상태</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-36">프로젝트</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">작업 내용</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-14">공수</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">요청자</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">SR번호</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">상태</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">작업 내용</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">담당자</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">요청자</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">사용자확인일</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-14">확인</th>
                 <th className="w-10" />
@@ -510,7 +508,7 @@ export function WorkloadPage() {
               {isLoading ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={i} className="border-b border-gray-100">
-                    {[...Array(12)].map((__, j) => (
+                    {[...Array(10)].map((__, j) => (
                       <td key={j} className="px-4 py-3"><div className="h-4 bg-gray-100 rounded animate-pulse" /></td>
                     ))}
                   </tr>
@@ -543,35 +541,27 @@ export function WorkloadPage() {
                     >
                       <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{displayDate(log)}</td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <Avatar name={log.user.name} avatar={log.user.avatar} size="xs" />
-                          <span className="text-xs text-gray-600 truncate">{log.user.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
                         <span className={`text-xs font-medium truncate max-w-[120px] block ${log.task ? 'text-gray-600' : 'text-gray-400 line-through'}`}>
                           {log.task?.title ?? log.taskTitle ?? '-'}
                         </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs font-mono text-primary-600 truncate max-w-[100px]">
+                        {log.srNumber || '-'}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span className={cn('text-[11px] font-semibold px-2 py-0.5 rounded-full border', stageCfg.bg, stageCfg.color, stageCfg.border)}>
                           {stageCfg.label}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-500 truncate max-w-[110px]">
-                        {log.task?.project?.name ?? log.projectName ?? '-'}
-                      </td>
                       <td className="px-4 py-3 text-xs text-gray-600 max-w-[200px] truncate">{log.description || '-'}</td>
-                      <td className="px-4 py-3 text-center">
-                        <span className="flex items-center justify-center gap-0.5 text-sm font-bold text-gray-600">
-                          <Clock size={12} className="text-gray-400" />{log.hours}h
-                        </span>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          <Avatar name={log.user.name} avatar={log.user.avatar} size="xs" />
+                          <span className="text-xs text-gray-600 truncate">{log.user.name}</span>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-500 truncate max-w-[80px]">
                         {log.requester || '-'}
-                      </td>
-                      <td className="px-4 py-3 text-xs font-mono text-primary-600 truncate max-w-[100px]">
-                        {log.srNumber || '-'}
                       </td>
                       <td className="px-4 py-3 text-center text-[11px] text-gray-400">
                         {log.userConfirmedAt ? formatDate(log.userConfirmedAt) : '-'}
