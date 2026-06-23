@@ -133,7 +133,6 @@ export function WorkloadPage() {
       description: form.description, requester: form.requester || undefined,
       requestDate: form.requestDate || undefined,
       startDate: form.startDate, endDate: form.endDate,
-      srNumber: form.srNumber || undefined,
     }),
     onSuccess: () => {
       invalidate();
@@ -844,14 +843,6 @@ export function WorkloadPage() {
                     className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">SR번호</label>
-                <input type="text" value={form.srNumber}
-                  onChange={(e) => setForm({ ...form, srNumber: e.target.value })}
-                  placeholder="SR-26-0001 (선택)"
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">공수 (시간) *</label>
