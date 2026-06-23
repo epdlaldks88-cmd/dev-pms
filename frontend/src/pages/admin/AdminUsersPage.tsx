@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Users, Shield, ShieldOff, Search, Phone, Briefcase, Building, Clock, Check, X } from 'lucide-react';
+import { Users, Shield, ShieldOff, Search, Phone, Briefcase, Building, Clock, Check, X, UserX, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { usersApi } from '../../api/users';
 import { useAuthStore } from '../../store/auth.store';
@@ -61,13 +61,35 @@ export function AdminUsersPage() {
     onError: (e: any) => toast.error(e.response?.data?.message ?? '거절에 실패했습니다.'),
   });
 
-  const filtered = (users ?? []).filter(
-    (u) =>
-      !search ||
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase()) ||
-      (u.department ?? '').toLowerCase().includes(search.toLowerCase()),
-  );
+  const withdraw = useMutation({
+    mutationFn: (id: string) => usersApi.withdrawUser(id),
+    onSuccess: (u: any) => {
+      qc.invalidateQueries({ queryKey: ['admin-users'] });
+      toast.success(`${u.name}님을 탈퇴 처리했습니다.`);
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message ?? '탈퇴 처리에 실패했습니다.'),
+  });
+
+  const reactivate = useMutation({
+    mutationFn: (id: string) => usersApi.reactivateUser(id),
+    onSuccess: (u: any) => {
+      qc.invalidateQueries({ queryKey: ['admin-users'] });
+      toast.success(`${u.name}님을 복구했습니다.`);
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message ?? '복구에 실패했습니다.'),
+  });
+
+  const filtered = (users ?? [])
+    .filter(
+      (u) =>
+        !search ||
+        u.name.toLowerCase().includes(search.toLowerCase()) ||
+        u.email.toLowerCase().includes(search.toLowerCase()) ||
+        (u.department ?? '').toLowerCase().includes(search.toLowerCase()),
+    )
+    // 승인 대기는 별도 탭에서 처리 → 활성 탭에선 제외, 탈퇴(INACTIVE)는 하단으로
+    .filter((u) => u.status !== 'PENDING')
+    .sort((a, b) => (a.status === 'INACTIVE' ? 1 : 0) - (b.status === 'INACTIVE' ? 1 : 0));
 
   const adminCount = users?.filter((u) => u.role === 'ADMIN').length ?? 0;
   const memberCount = users?.filter((u) => u.role === 'MEMBER').length ?? 0;
@@ -184,15 +206,21 @@ export function AdminUsersPage() {
                   />
                 ) : (
                   <div className="divide-y divide-gray-50">
-                    {filtered.map((u) => (
-                      <div key={u.id} className="grid grid-cols-12 gap-3 px-4 py-3.5 items-center hover:bg-gray-50/60 transition-colors">
+                    {filtered.map((u) => {
+                      const isInactive = u.status === 'INACTIVE';
+                      const isSelf = u.id === currentUser?.id;
+                      return (
+                      <div key={u.id} className={cn('grid grid-cols-12 gap-3 px-4 py-3.5 items-center hover:bg-gray-50/60 transition-colors', isInactive && 'opacity-60 bg-gray-50/40')}>
                         <div className="col-span-4 flex items-center gap-3 min-w-0">
                           <Avatar name={u.name} avatar={u.avatar} size="sm" className="flex-shrink-0" />
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
                               <p className="text-sm font-semibold text-gray-600 truncate">{u.name}</p>
-                              {u.id === currentUser?.id && (
+                              {isSelf && (
                                 <span className="text-[10px] font-bold text-gray-600 bg-primary-50 px-1 py-0.5 rounded">나</span>
+                              )}
+                              {isInactive && (
+                                <span className="text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded">탈퇴됨</span>
                               )}
                             </div>
                             <p className="text-xs text-gray-400 truncate">{u.email}</p>
@@ -215,23 +243,42 @@ export function AdminUsersPage() {
                         <div className="col-span-1">
                           <span className="text-xs text-gray-400">{formatDate(u.createdAt)}</span>
                         </div>
-                        <div className="col-span-2 flex justify-center">
-                          {u.id === currentUser?.id ? (
+                        <div className="col-span-2 flex items-center justify-center gap-1.5">
+                          {isInactive ? (
+                            <button
+                              onClick={() => { if (confirm(`${u.name}님을 복구하시겠습니까?\n다시 로그인할 수 있게 됩니다.`)) reactivate.mutate(u.id); }}
+                              disabled={reactivate.isPending}
+                              className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                              <RotateCcw size={11} /> 복구
+                            </button>
+                          ) : isSelf ? (
                             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${u.role === 'ADMIN' ? 'bg-primary-100 text-gray-800' : 'bg-gray-100 text-gray-600'}`}>
                               {u.role === 'ADMIN' ? '관리자' : '일반'}
                             </span>
                           ) : (
-                            <button
-                              onClick={() => toggleRole.mutate({ id: u.id, role: u.role === 'ADMIN' ? 'MEMBER' : 'ADMIN' })}
-                              disabled={toggleRole.isPending}
-                              className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border transition-colors cursor-pointer disabled:opacity-50 ${u.role === 'ADMIN' ? 'bg-primary-50 text-gray-800 border-gray-200 hover:bg-primary-100' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'}`}
-                            >
-                              {u.role === 'ADMIN' ? <><Shield size={11} /> 관리자</> : <><ShieldOff size={11} /> 일반</>}
-                            </button>
+                            <>
+                              <button
+                                onClick={() => toggleRole.mutate({ id: u.id, role: u.role === 'ADMIN' ? 'MEMBER' : 'ADMIN' })}
+                                disabled={toggleRole.isPending}
+                                className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border transition-colors cursor-pointer disabled:opacity-50 ${u.role === 'ADMIN' ? 'bg-primary-50 text-gray-800 border-gray-200 hover:bg-primary-100' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'}`}
+                              >
+                                {u.role === 'ADMIN' ? <><Shield size={11} /> 관리자</> : <><ShieldOff size={11} /> 일반</>}
+                              </button>
+                              <button
+                                onClick={() => { if (confirm(`${u.name}님을 탈퇴 처리하시겠습니까?\n로그인이 차단되며, 작성한 데이터는 유지됩니다. (복구 가능)`)) withdraw.mutate(u.id); }}
+                                disabled={withdraw.isPending}
+                                title="탈퇴(비활성화)"
+                                className="flex items-center justify-center w-7 h-7 rounded-full border border-gray-200 text-gray-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-colors cursor-pointer disabled:opacity-50 flex-shrink-0"
+                              >
+                                <UserX size={13} />
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

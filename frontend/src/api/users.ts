@@ -39,4 +39,10 @@ export const usersApi = {
 
   rejectUser: (id: string) =>
     api.delete(`/users/${id}/reject`).then((r) => r.data),
+
+  withdrawUser: (id: string) =>
+    api.patch<User>(`/users/${id}/withdraw`).then((r) => r.data),
+
+  reactivateUser: (id: string) =>
+    api.patch<User>(`/users/${id}/reactivate`).then((r) => r.data),
 };

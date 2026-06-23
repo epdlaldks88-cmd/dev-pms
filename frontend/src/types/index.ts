@@ -20,6 +20,7 @@ export interface User {
   name: string;
   avatar?: string;
   role: Role;
+  status?: 'PENDING' | 'ACTIVE' | 'INACTIVE';
   position?: string;
   department?: string;
   phone?: string;
