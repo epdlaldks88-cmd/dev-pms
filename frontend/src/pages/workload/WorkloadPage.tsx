@@ -483,10 +483,10 @@ export function WorkloadPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-40">기간</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">담당자</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-36">태스크</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">상태</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-36">프로젝트</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">작업 내용</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-14">공수</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">상태</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">요청자</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">사용자확인일</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-14">확인</th>
@@ -540,6 +540,11 @@ export function WorkloadPage() {
                           {log.task?.title ?? log.taskTitle ?? '-'}
                         </span>
                       </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={cn('text-[11px] font-semibold px-2 py-0.5 rounded-full border', stageCfg.bg, stageCfg.color, stageCfg.border)}>
+                          {stageCfg.label}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-xs text-gray-500 truncate max-w-[110px]">
                         {log.task?.project?.name ?? log.projectName ?? '-'}
                       </td>
@@ -547,11 +552,6 @@ export function WorkloadPage() {
                       <td className="px-4 py-3 text-center">
                         <span className="flex items-center justify-center gap-0.5 text-sm font-bold text-gray-600">
                           <Clock size={12} className="text-gray-400" />{log.hours}h
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={cn('text-[11px] font-semibold px-2 py-0.5 rounded-full border', stageCfg.bg, stageCfg.color, stageCfg.border)}>
-                          {stageCfg.label}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-500 truncate max-w-[80px]">
