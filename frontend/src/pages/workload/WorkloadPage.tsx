@@ -645,6 +645,16 @@ export function WorkloadPage() {
             <div className="flex-1 min-w-0">{children}</div>
           </div>
         );
+        // 2열 배치용 셀 (라벨 위 / 값 아래)
+        const Cell = ({ label, children }: { label: string; children: React.ReactNode }) => (
+          <div className="min-w-0">
+            <span className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{label}</span>
+            <div className="min-w-0">{children}</div>
+          </div>
+        );
+        const PairRow = ({ children }: { children: React.ReactNode }) => (
+          <div className="grid grid-cols-2 gap-x-4 py-3 border-b border-gray-100">{children}</div>
+        );
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setViewLog(null)} />
@@ -724,76 +734,87 @@ export function WorkloadPage() {
 
               {/* 상세 항목 */}
               <div className="px-6 py-2">
-                <Row label="담당자">
-                  <div className="flex items-center gap-2">
-                    <Avatar name={viewLog.user.name} avatar={viewLog.user.avatar} size="xs" />
-                    <span className="text-sm font-medium text-gray-800">{viewLog.user.name}</span>
-                  </div>
+                {/* SR번호 */}
+                <Row label="SR번호">
+                  <span className="text-sm font-mono text-primary-600">{viewLog.srNumber ?? '—'}</span>
                 </Row>
-                <Row label="기간">
-                  <span className="text-sm text-gray-800">{displayDate(viewLog)}</span>
-                </Row>
-                <Row label="공수">
-                  <div className="flex items-center gap-1.5">
-                    <Clock size={13} className="text-gray-500" />
-                    <span className="text-sm font-bold text-gray-600">{viewLog.hours}h</span>
-                    <span className="text-xs text-gray-400">({viewLog.hours * 60}분)</span>
-                  </div>
-                </Row>
+
+                {/* 요청일자 · 요청자 */}
+                <PairRow>
+                  <Cell label="요청일자">
+                    <span className="text-sm text-gray-600">{viewLog.requestDate ? formatDate(viewLog.requestDate) : '—'}</span>
+                  </Cell>
+                  <Cell label="요청자">
+                    <span className="text-sm text-gray-600">{viewLog.requester || '—'}</span>
+                  </Cell>
+                </PairRow>
+
+                {/* 기간 · 공수 */}
+                <PairRow>
+                  <Cell label="기간">
+                    <span className="text-sm text-gray-800">{displayDate(viewLog)}</span>
+                  </Cell>
+                  <Cell label="공수">
+                    <div className="flex items-center gap-1.5">
+                      <Clock size={13} className="text-gray-500" />
+                      <span className="text-sm font-bold text-gray-600">{viewLog.hours}h</span>
+                      <span className="text-xs text-gray-400">({viewLog.hours * 60}분)</span>
+                    </div>
+                  </Cell>
+                </PairRow>
+
+                {/* 담당자 · 확인여부 */}
+                <PairRow>
+                  <Cell label="담당자">
+                    <div className="flex items-center gap-2">
+                      <Avatar name={viewLog.user.name} avatar={viewLog.user.avatar} size="xs" />
+                      <span className="text-sm font-medium text-gray-800">{viewLog.user.name}</span>
+                    </div>
+                  </Cell>
+                  <Cell label="확인 여부">
+                    {viewLog.isAcknowledged ? (
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle2 size={14} className="text-emerald-500" />
+                        <span className="text-sm font-medium text-emerald-600">
+                          확인됨{viewLog.acknowledgedAt ? ` · ${formatDate(viewLog.acknowledgedAt)}` : ''}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-400">미확인</span>
+                        {viewLog.user.id === currentUser?.id && (
+                          <button
+                            onClick={() => { acknowledgeWorklog.mutate(viewLog.id); setViewLog(null); }}
+                            className="text-[11px] font-semibold text-amber-600 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-full transition-colors"
+                          >
+                            확인하기
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </Cell>
+                </PairRow>
+
+                {/* 진행 상태 */}
                 <Row label="진행 상태">
                   <span className={cn('text-xs font-bold px-2.5 py-1 rounded-full border', stageCfg.bg, stageCfg.color, stageCfg.border)}>
                     {stageCfg.label}
                   </span>
                 </Row>
+
+                {/* 작업 내용 */}
+                <Row label="작업 내용">
+                  <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
+                    {viewLog.description || '—'}
+                  </p>
+                </Row>
+
+                {/* 사용자확인일 */}
                 <Row label="사용자확인일">
                   <span className={cn('text-sm', viewLog.userConfirmedAt ? 'text-gray-600 font-medium' : 'text-gray-400')}>
                     {viewLog.userConfirmedAt ? formatDate(viewLog.userConfirmedAt) : '—'}
                   </span>
                 </Row>
-                <Row label="확인 여부">
-                  {viewLog.isAcknowledged ? (
-                    <div className="flex items-center gap-1.5">
-                      <CheckCircle2 size={14} className="text-emerald-500" />
-                      <span className="text-sm font-medium text-emerald-600">
-                        확인됨{viewLog.acknowledgedAt ? ` · ${formatDate(viewLog.acknowledgedAt)}` : ''}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-400">미확인</span>
-                      {viewLog.user.id === currentUser?.id && (
-                        <button
-                          onClick={() => { acknowledgeWorklog.mutate(viewLog.id); setViewLog(null); }}
-                          className="text-[11px] font-semibold text-amber-600 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-full transition-colors"
-                        >
-                          확인하기
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </Row>
-                {viewLog.requestDate && (
-                  <Row label="요청일자">
-                    <span className="text-sm text-gray-600">{formatDate(viewLog.requestDate)}</span>
-                  </Row>
-                )}
-                {viewLog.requester && (
-                  <Row label="요청자">
-                    <span className="text-sm text-gray-600">{viewLog.requester}</span>
-                  </Row>
-                )}
-                {viewLog.srNumber && (
-                  <Row label="SR번호">
-                    <span className="text-sm font-mono text-primary-600">{viewLog.srNumber}</span>
-                  </Row>
-                )}
-                {viewLog.description && (
-                  <Row label="작업 내용">
-                    <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
-                      {viewLog.description}
-                    </p>
-                  </Row>
-                )}
               </div>
 
               {/* 닫기 버튼 */}
