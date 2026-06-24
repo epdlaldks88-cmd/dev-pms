@@ -31,14 +31,29 @@ export function TaskDetailModal() {
   const user = useAuthStore((s) => s.user);
 
   const [comment, setComment] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(() => {
+    // 모달이 editMode로 열릴 때 캐시에 데이터가 있으면 즉시 편집 모드로 시작
+    if (!taskModalEditMode || !taskModalId) return false;
+    const cached = qc.getQueryData<any>(['task', taskModalId]);
+    return !!cached;
+  });
 
   useEffect(() => {
     if (!taskModalOpen) setIsEditing(false);
   }, [taskModalOpen]);
-  const [editForm, setEditForm] = useState({
-    title: '', part: '', description: '', priority: '', startDate: '', dueDate: '',
-    assigneeIds: [] as string[], personnelIds: [] as string[], labelIds: [] as string[],
+  const [editForm, setEditForm] = useState(() => {
+    const cached = taskModalEditMode && taskModalId ? qc.getQueryData<any>(['task', taskModalId]) : null;
+    return {
+      title: cached?.title ?? '',
+      part: cached?.part ?? '',
+      description: cached?.description ?? '',
+      priority: cached?.priority ?? '',
+      startDate: cached?.startDate ? cached.startDate.slice(0, 10) : '',
+      dueDate: cached?.dueDate ? cached.dueDate.slice(0, 10) : '',
+      assigneeIds: cached?.assignees?.map((a: any) => a.user.id) ?? [] as string[],
+      personnelIds: cached?.personnel?.map((p: any) => p.personnel.id) ?? [] as string[],
+      labelIds: cached?.labels?.map((l: any) => l.label.id) ?? [] as string[],
+    };
   });
 
   // Sub-task state
@@ -437,7 +452,7 @@ export function TaskDetailModal() {
                                 onClick={() => setEditForm((f) => ({
                                   ...f,
                                   labelIds: selected
-                                    ? f.labelIds.filter((id) => id !== label.id)
+                                    ? f.labelIds.filter((id: string) => id !== label.id)
                                     : [...f.labelIds, label.id],
                                 }))}
                                 className={cn(
@@ -484,7 +499,7 @@ export function TaskDetailModal() {
                               onClick={() => setEditForm((f) => ({
                                 ...f,
                                 assigneeIds: selected
-                                  ? f.assigneeIds.filter((id) => id !== u.id)
+                                  ? f.assigneeIds.filter((id: string) => id !== u.id)
                                   : [...f.assigneeIds, u.id],
                               }))}
                               className={cn(
@@ -516,7 +531,7 @@ export function TaskDetailModal() {
                                 onClick={() => setEditForm((f) => ({
                                   ...f,
                                   personnelIds: selected
-                                    ? f.personnelIds.filter((id) => id !== p.id)
+                                    ? f.personnelIds.filter((id: string) => id !== p.id)
                                     : [...f.personnelIds, p.id],
                                 }))}
                                 className={cn(
