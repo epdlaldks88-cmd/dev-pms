@@ -93,7 +93,7 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
         style={style}
         {...attributes}
         {...listeners}
-        onClick={() => openTaskModal(task.id)}
+        onClick={() => openTaskModal(task.id, true)}
         className={cn(
           'rounded-xl border bg-white p-3 cursor-pointer select-none relative',
           'transition-all duration-200',

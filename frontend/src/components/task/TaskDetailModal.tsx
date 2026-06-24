@@ -27,7 +27,7 @@ const LABEL_COLORS = [
 
 export function TaskDetailModal() {
   const qc = useQueryClient();
-  const { taskModalOpen, taskModalId, closeTaskModal, openTaskModal } = useUiStore();
+  const { taskModalOpen, taskModalId, taskModalEditMode, closeTaskModal, openTaskModal } = useUiStore();
   const user = useAuthStore((s) => s.user);
 
   const [comment, setComment] = useState('');
@@ -104,6 +104,14 @@ export function TaskDetailModal() {
     setIsEditing(true);
   };
 
+  // editMode 플래그가 있으면 데이터 로드 완료 시 바로 편집 모드 진입
+  useEffect(() => {
+    if (task && taskModalEditMode && !isEditing) {
+      startEdit();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task, taskModalEditMode]);
+
   const saveEdit = () => {
     updateTask.mutate({
       title: editForm.title,
@@ -164,7 +172,18 @@ export function TaskDetailModal() {
 
   const deleteSubtask = useMutation({
     mutationFn: (subId: string) => tasksApi.delete(task!.projectId, subId),
-    onSuccess: () => invalidateTask(),
+    onSuccess: (_, subId) => {
+      // 캐시에서 서브태스크 즉시 제거 (모달 목록 바로 반영)
+      qc.setQueryData(['task', taskModalId], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          subTasks: (old.subTasks ?? []).filter((s: any) => s.id !== subId),
+          _count: { ...old._count, subTasks: Math.max(0, (old._count?.subTasks ?? 1) - 1) },
+        };
+      });
+      invalidateTask();
+    },
   });
 
   // Label mutations

@@ -6,7 +6,8 @@ interface UiState {
   toggleSidebar: () => void;
   taskModalOpen: boolean;
   taskModalId: string | null;
-  openTaskModal: (taskId: string) => void;
+  taskModalEditMode: boolean;
+  openTaskModal: (taskId: string, editMode?: boolean) => void;
   closeTaskModal: () => void;
   createTaskProjectId: string | null;
   createTaskStepId: string | null;
@@ -37,8 +38,9 @@ export const useUiStore = create<UiState>()(
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       taskModalOpen: false,
       taskModalId: null,
-      openTaskModal: (taskId) => set({ taskModalOpen: true, taskModalId: taskId }),
-      closeTaskModal: () => set({ taskModalOpen: false, taskModalId: null }),
+      taskModalEditMode: false,
+      openTaskModal: (taskId, editMode = false) => set({ taskModalOpen: true, taskModalId: taskId, taskModalEditMode: editMode }),
+      closeTaskModal: () => set({ taskModalOpen: false, taskModalId: null, taskModalEditMode: false }),
       createTaskProjectId: null,
       createTaskStepId: null,
       openCreateTask: (projectId, stepId) => set({ createTaskProjectId: projectId, createTaskStepId: stepId ?? null }),
