@@ -297,7 +297,7 @@ function ErdTableNode({ id, data, selected }: any) {
     const newCol: ErdColumn = { id: `col-${Date.now()}`, name: 'column', type: 'VARCHAR', pk: false, fk: false, notNull: false };
     setNodes((ns) => ns.map((n) => {
       if (n.id !== id) return n;
-      return { ...n, data: { ...n.data, columns: [...(n.data.columns ?? []), newCol] } };
+      return { ...n, data: { ...n.data, columns: [...((n.data.columns as ErdColumn[]) ?? []), newCol] } };
     }));
   };
 
