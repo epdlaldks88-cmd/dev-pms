@@ -8,7 +8,7 @@ import {
 import type { UniqueIdentifier } from '@dnd-kit/core';
 import type { DragEndEvent, DragOverEvent, DragStartEvent, CollisionDetection } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { ChevronRight, Plus, LayoutGrid, List } from 'lucide-react';
+import { ChevronRight, Plus, LayoutGrid, List, FileSpreadsheet } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { tasksApi } from '../../api/tasks';
 import { getAccessToken } from '../../utils/token';
@@ -18,6 +18,7 @@ import { KanbanColumn } from '../../components/kanban/KanbanColumn';
 import { KanbanCard } from '../../components/kanban/KanbanCard';
 import { CreateTaskModal } from '../../components/task/CreateTaskModal';
 import { TaskDetailModal } from '../../components/task/TaskDetailModal';
+import { BulkImportModal } from '../../components/task/BulkImportModal';
 import { useUiStore } from '../../store/ui.store';
 import { useAuthStore } from '../../store/auth.store';
 import { Button } from '../../components/ui/Button';
@@ -32,6 +33,7 @@ export function KanbanPage() {
   const openCreateTask = useUiStore((s) => s.openCreateTask);
   const taskModalId = useUiStore((s) => s.taskModalId);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [showBulkImport, setShowBulkImport] = useState(false);
 
   const currentUser = useAuthStore((s) => s.user);
 
@@ -168,7 +170,14 @@ export function KanbanPage() {
           <ChevronRight size={14} />
           <span className="text-gray-900 font-medium">칸반보드</span>
         </div>
-        <span className="text-xs text-gray-400">각 컬럼의 + 버튼으로 태스크를 추가하세요</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400 hidden sm:inline">각 컬럼의 + 버튼으로 태스크를 추가하세요</span>
+          {canManage && (
+            <Button size="sm" variant="outline" onClick={() => setShowBulkImport(true)}>
+              <FileSpreadsheet size={14} className="mr-1" /> 엑셀 일괄등록
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Kanban board */}
@@ -245,6 +254,7 @@ export function KanbanPage() {
 
       <CreateTaskModal />
       <TaskDetailModal />
+      {showBulkImport && <BulkImportModal projectId={projectId!} onClose={() => setShowBulkImport(false)} />}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { MessageSquare, Paperclip, CalendarDays, GitBranch, Trash2, AlertTriangle, X, ChevronRight } from 'lucide-react';
+import { MessageSquare, Paperclip, CalendarDays, GitBranch, Trash2, AlertTriangle, X, ChevronRight, ChevronDown } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -48,6 +48,10 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
 
   const [issuePopover, setIssuePopover] = useState(false);
   const [editingIssue, setEditingIssue] = useState<IssueEditTarget | null>(null);
+  const [expanded, setExpanded] = useState(false);
+
+  const subTasks = task.subTasks ?? [];
+  const doneSubs = subTasks.filter((s) => s.status === 'DONE').length;
   const badgeRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [popPos, setPopPos] = useState({ top: 0, left: 0 });
@@ -181,11 +185,17 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
             </span>
           )}
 
-          {/* 서브태스크 */}
+          {/* 서브태스크 (클릭 시 펼침/접기) */}
           {task._count.subTasks > 0 && (
-            <span className="flex items-center gap-0.5 text-[10px] text-gray-400 font-medium">
-              <GitBranch size={10} /> {task._count.subTasks}
-            </span>
+            <button
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+              className="flex items-center gap-0.5 text-[10px] text-gray-500 font-medium hover:text-primary-600 bg-gray-50 hover:bg-primary-50 border border-gray-200 px-1.5 py-0.5 rounded-full transition-colors"
+              title="하위 태스크 펼치기"
+            >
+              {expanded ? <ChevronDown size={10} /> : <GitBranch size={10} />}
+              {doneSubs}/{task._count.subTasks}
+            </button>
           )}
         </div>
 
@@ -202,6 +212,35 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
                 <Paperclip size={10} /> {task._count.attachments}
               </span>
             )}
+          </div>
+        )}
+
+        {/* 펼쳐진 하위 태스크 목록 */}
+        {expanded && subTasks.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
+            {subTasks.map((sub) => {
+              const subDone = sub.status === 'DONE';
+              return (
+                <button
+                  key={sub.id}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); openTaskModal(sub.id); }}
+                  className="w-full flex items-center gap-2 text-left px-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors group/sub"
+                >
+                  <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', subDone ? 'bg-emerald-500' : 'bg-gray-300')} />
+                  <span className={cn('flex-1 min-w-0 truncate text-[11px]', subDone ? 'text-gray-400 line-through' : 'text-gray-700 group-hover/sub:text-primary-600')}>
+                    {sub.title}
+                  </span>
+                  {sub.assignees.length > 0 && (
+                    <div className="flex -space-x-1 flex-shrink-0">
+                      {sub.assignees.slice(0, 2).map(({ user }) => (
+                        <Avatar key={user.id} name={user.name} avatar={user.avatar} size="xs" className="ring-1 ring-white" />
+                      ))}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
