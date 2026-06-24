@@ -124,11 +124,13 @@ export function TaskDetailModal() {
   };
 
   const invalidateTask = () => {
-    qc.invalidateQueries({ queryKey: ['task', taskModalId] });
-    qc.invalidateQueries({ queryKey: ['kanban', task!.projectId] });
-    qc.invalidateQueries({ queryKey: ['gantt', task!.projectId] });
-    qc.invalidateQueries({ queryKey: ['tasks', task!.projectId] });
-    qc.invalidateQueries({ queryKey: ['project-stats', task!.projectId] });
+    const opt = { refetchType: 'all' as const };
+    qc.invalidateQueries({ queryKey: ['task', taskModalId], ...opt });
+    qc.invalidateQueries({ queryKey: ['kanban', task!.projectId], ...opt });
+    qc.invalidateQueries({ queryKey: ['gantt', task!.projectId], ...opt });
+    qc.invalidateQueries({ queryKey: ['tasks', task!.projectId], ...opt });
+    qc.invalidateQueries({ queryKey: ['tasks-with-subtasks', task!.projectId], ...opt });
+    qc.invalidateQueries({ queryKey: ['project-stats', task!.projectId], ...opt });
   };
 
   const updateTask = useMutation({
@@ -222,8 +224,12 @@ export function TaskDetailModal() {
   const deleteTask = useMutation({
     mutationFn: () => tasksApi.delete(task!.projectId, taskModalId!),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['kanban', task!.projectId] });
-      qc.invalidateQueries({ queryKey: ['project-stats', task!.projectId] });
+      const opt = { refetchType: 'all' as const };
+      qc.invalidateQueries({ queryKey: ['kanban', task!.projectId], ...opt });
+      qc.invalidateQueries({ queryKey: ['gantt', task!.projectId], ...opt });
+      qc.invalidateQueries({ queryKey: ['tasks', task!.projectId], ...opt });
+      qc.invalidateQueries({ queryKey: ['tasks-with-subtasks', task!.projectId], ...opt });
+      qc.invalidateQueries({ queryKey: ['project-stats', task!.projectId], ...opt });
       closeTaskModal();
       toast.success('태스크가 삭제되었습니다.');
     },
