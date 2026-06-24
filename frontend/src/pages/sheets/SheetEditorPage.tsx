@@ -948,12 +948,34 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
                 style={{ width: CHW, height: RH }} />
               {Array.from({ length: cols }, (_, c) => (
                 <th key={c}
-                  className={cn('sticky top-0 z-20 bg-gray-50 border border-gray-200 text-xs font-medium text-gray-500 relative select-none',
+                  className={cn('sticky top-0 z-20 bg-gray-50 border border-gray-200 text-xs font-medium text-gray-500 relative select-none cursor-pointer',
                     range && c >= range.c1 && c <= range.c2 && 'bg-primary-50 text-gray-800')}
                   style={{ height: RH }}
+                  onMouseDown={e => {
+                    if ((e.target as HTMLElement).tagName === 'SPAN') return;
+                    e.preventDefault();
+                    setEditing(false);
+                    setSelStart([0, c]);
+                    setSelEnd([rows - 1, c]);
+                    const onMove = (mv: MouseEvent) => {
+                      const el = document.elementFromPoint(mv.clientX, mv.clientY);
+                      const cell = el?.closest('th[data-col]');
+                      if (cell) {
+                        const tc = Number((cell as HTMLElement).dataset.col);
+                        setSelEnd([rows - 1, tc]);
+                      }
+                    };
+                    const onUp = () => {
+                      window.removeEventListener('mousemove', onMove);
+                      window.removeEventListener('mouseup', onUp);
+                    };
+                    window.addEventListener('mousemove', onMove);
+                    window.addEventListener('mouseup', onUp);
+                  }}
+                  data-col={c}
                   onContextMenu={e => { e.preventDefault(); setColCtxMenu({ col: c, x: e.clientX, y: e.clientY }); }}>
                   {colLabel(c)}
-                  <span className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary-400 opacity-0 hover:opacity-100 z-10"
+                  <span className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-primary-400 z-10"
                     onMouseDown={e => onResizeStart(e, c)} />
                 </th>
               ))}
