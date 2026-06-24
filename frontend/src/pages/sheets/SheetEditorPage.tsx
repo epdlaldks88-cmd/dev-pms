@@ -1303,7 +1303,7 @@ export function SheetEditorPage() {
                   </div>
                   <div>
                     <h2 className="text-base font-bold text-gray-800">칸반 태스크 생성</h2>
-                    <p className="text-[11px] text-gray-500">업무구분별 상위 태스크 + 하위 요구사항을 칸반에 생성합니다</p>
+                    <p className="text-[11px] text-gray-500">제목별 상위 태스크 + 하위 태스크를 칸반에 생성합니다</p>
                   </div>
                 </div>
                 <button onClick={() => setKanbanRows(null)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
@@ -1319,14 +1319,14 @@ export function SheetEditorPage() {
                 {/* 미리보기 */}
                 <div>
                   <p className="text-xs font-semibold text-gray-600 mb-1.5">
-                    생성 예정 — 업무구분 <b className="text-violet-600">{groupCount.size}</b>개 · 요구사항 <b className="text-violet-600">{kanbanRows.length}</b>개
+                    생성 예정 — 태스크 <b className="text-violet-600">{groupCount.size}</b>개 · 하위태스크 <b className="text-violet-600">{kanbanRows.length}</b>개
                   </p>
                   <div className="rounded-xl border border-gray-200 overflow-hidden max-h-64 overflow-y-auto">
                     <table className="w-full text-xs">
                       <thead className="bg-gray-50 sticky top-0">
                         <tr>
-                          <th className="px-3 py-2 text-left font-semibold text-gray-500">업무구분</th>
-                          <th className="px-3 py-2 text-left font-semibold text-gray-500">요구사항</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-500">제목</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-500">하위태스크</th>
                           <th className="px-3 py-2 text-left font-semibold text-gray-500">담당자</th>
                           <th className="px-3 py-2 text-left font-semibold text-gray-500">우선순위</th>
                         </tr>
