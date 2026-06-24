@@ -110,6 +110,22 @@ export function WorkloadPage() {
     queryFn: () => qaApi.getByWorkLog(viewLog.id),
     enabled: !!viewLog?.id && !!viewLog?.srNumber,
   });
+
+  // 그리드 QA 상태 표시용 — 전체 QA 목록을 가져와 workLogId로 맵핑
+  const { data: allQaTests } = useQuery({
+    queryKey: ['qa-tests'],
+    queryFn: () => qaApi.getAll(),
+    staleTime: 30_000,
+  });
+  const qaByWorklog = useMemo(() => {
+    const map = new Map<string, (typeof allQaTests extends (infer T)[] | undefined ? T : never)>();
+    allQaTests?.forEach((qa: any) => {
+      if (!qa.workLogId) return;
+      const cur = map.get(qa.workLogId);
+      if (!cur || qa.createdAt > (cur as any).createdAt) map.set(qa.workLogId, qa);
+    });
+    return map;
+  }, [allQaTests]);
   const { data: formTasks } = useQuery({
     queryKey: ['tasks', form.projectId],
     queryFn: () => tasksApi.getAll(form.projectId),
@@ -589,6 +605,7 @@ export function WorkloadPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">담당자</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">요청자</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">사용자확인일</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-20">QA</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-14">확인</th>
                 <th className="w-10" />
               </tr>
@@ -597,16 +614,16 @@ export function WorkloadPage() {
               {isLoading ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={i} className="border-b border-gray-100">
-                    {[...Array(10)].map((__, j) => (
+                    {[...Array(11)].map((__, j) => (
                       <td key={j} className="px-4 py-3"><div className="h-4 bg-gray-100 rounded animate-pulse" /></td>
                     ))}
                   </tr>
                 ))
               ) : isError ? (
-                <tr><td colSpan={11}><ErrorState onRetry={refetch} /></td></tr>
+                <tr><td colSpan={12}><ErrorState onRetry={refetch} /></td></tr>
               ) : !filteredLogs.length ? (
                 <tr>
-                  <td colSpan={11}>
+                  <td colSpan={12}>
                     <EmptyState
                       icon={<Briefcase size={36} />}
                       title={selectedUserId ? '해당 담당자의 일감이 없습니다' : '등록된 일감이 없습니다'}
@@ -654,6 +671,30 @@ export function WorkloadPage() {
                       </td>
                       <td className="px-4 py-3 text-center text-[11px] text-gray-400">
                         {log.userConfirmedAt ? formatDate(log.userConfirmedAt) : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        {(() => {
+                          const qa: any = qaByWorklog.get(log.id);
+                          if (!qa) return <span className="text-[10px] text-gray-300">-</span>;
+                          const isCompleted = qa.status === 'COMPLETED';
+                          const label = isCompleted && qa.result
+                            ? (qa.result === 'PASS' ? '확인' : '반려')
+                            : QA_STATUS_CONFIG[qa.status as keyof typeof QA_STATUS_CONFIG]?.label ?? qa.status;
+                          const cls = isCompleted
+                            ? qa.result === 'PASS'
+                              ? 'text-emerald-700 bg-emerald-50'
+                              : 'text-red-700 bg-red-50'
+                            : qa.status === 'PENDING'
+                              ? 'text-amber-700 bg-amber-50'
+                              : qa.status === 'IN_PROGRESS'
+                                ? 'text-blue-700 bg-blue-50'
+                                : 'text-gray-500 bg-gray-100';
+                          return (
+                            <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full', cls)}>
+                              {label}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                         {log.isAcknowledged ? (
@@ -807,17 +848,65 @@ export function WorkloadPage() {
               </div>
 
               {/* QA요청 액션 바 */}
-              {viewLog.srNumber && (
-                <div className="flex justify-end px-6 pt-3">
-                  <button
-                    onClick={() => handleQaRequest(viewLog)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-violet-600 hover:bg-violet-700 rounded-lg shadow-sm hover:shadow transition-all active:scale-95"
-                  >
-                    <FlaskConical size={14} />
-                    QA요청
-                  </button>
-                </div>
-              )}
+              {viewLog.srNumber && (() => {
+                const latestQa = qaHistory?.[0];
+                const isBlocked = latestQa && (
+                  latestQa.status === 'PENDING' ||
+                  latestQa.status === 'IN_PROGRESS' ||
+                  (latestQa.status === 'COMPLETED' && latestQa.result === 'PASS')
+                );
+                const qaStatusLabel = latestQa
+                  ? latestQa.status === 'COMPLETED' && latestQa.result
+                    ? (latestQa.result === 'PASS' ? '확인 완료' : '반려됨')
+                    : QA_STATUS_CONFIG[latestQa.status]?.label
+                  : null;
+                const qaStatusCls = latestQa
+                  ? latestQa.status === 'COMPLETED'
+                    ? latestQa.result === 'PASS'
+                      ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                      : 'text-red-700 bg-red-50 border-red-200'
+                    : latestQa.status === 'PENDING'
+                      ? 'text-amber-700 bg-amber-50 border-amber-200'
+                      : latestQa.status === 'IN_PROGRESS'
+                        ? 'text-blue-700 bg-blue-50 border-blue-200'
+                        : 'text-gray-500 bg-gray-100 border-gray-200'
+                  : '';
+                return (
+                  <div className="flex items-center justify-between px-6 pt-3">
+                    {/* QA 현재 상태 */}
+                    <div className="flex items-center gap-1.5">
+                      {latestQa ? (
+                        <>
+                          <FlaskConical size={12} className="text-gray-400" />
+                          <span className={cn('text-[11px] font-semibold px-2 py-0.5 rounded-full border', qaStatusCls)}>
+                            {qaStatusLabel}
+                          </span>
+                          {latestQa.qaNumber && (
+                            <span className="text-[11px] font-mono text-gray-400">{latestQa.qaNumber}</span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-[11px] text-gray-400">QA 없음</span>
+                      )}
+                    </div>
+                    {/* QA 요청 버튼 */}
+                    <button
+                      onClick={() => !isBlocked && handleQaRequest(viewLog)}
+                      disabled={!!isBlocked}
+                      title={isBlocked ? 'QA가 진행 중이거나 완료된 일감입니다' : 'QA 테스트를 요청합니다'}
+                      className={cn(
+                        'inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg shadow-sm transition-all',
+                        isBlocked
+                          ? 'text-gray-400 bg-gray-100 cursor-not-allowed shadow-none'
+                          : 'text-white bg-violet-600 hover:bg-violet-700 hover:shadow active:scale-95',
+                      )}
+                    >
+                      <FlaskConical size={14} />
+                      QA요청
+                    </button>
+                  </div>
+                );
+              })()}
 
               {/* 상세 항목 */}
               <div className="px-6 py-2">
