@@ -603,21 +603,41 @@ export function WbsPage() {
 
       {/* 하단 요약 바 */}
       {rawItems.length > 0 && (
-        <div className="flex-shrink-0 px-6 py-2.5 bg-white border-t border-gray-200 flex items-center gap-6 text-xs text-gray-400">
-          <span>총 <strong className="text-gray-600">{rawItems.length}</strong>개 항목</span>
-          <span>지연 <strong className="text-red-500">{rawItems.filter(i => calcDDay(i.endDate, i.progress)?.label.startsWith('D+')).length}</strong>건</span>
-          <span>전체 진행률 <strong className="text-gray-600">{totalAvg}%</strong></span>
-          <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden max-w-xs">
-            <div className="h-full bg-primary-500 rounded-full transition-all" style={{ width: `${totalAvg}%` }} />
+        <div className="flex-shrink-0 px-6 py-4 bg-white border-t-2 border-gray-200 flex items-center gap-8">
+          {/* 항목 수 */}
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-xl font-bold text-gray-700">{rawItems.length}</span>
+            <span className="text-[11px] text-gray-400">전체 항목</span>
           </div>
-          <div className="flex items-center gap-3 ml-2">
+          <div className="w-px h-8 bg-gray-200" />
+          {/* 지연 */}
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-xl font-bold text-red-500">
+              {rawItems.filter(i => calcDDay(i.endDate, i.progress)?.label.startsWith('D+')).length}
+            </span>
+            <span className="text-[11px] text-gray-400">지연</span>
+          </div>
+          <div className="w-px h-8 bg-gray-200" />
+          {/* 전체 진행률 */}
+          <div className="flex flex-col gap-1.5 min-w-[160px]">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-gray-400">전체 진행률</span>
+              <span className="text-sm font-bold text-gray-700">{totalAvg}%</span>
+            </div>
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-full bg-primary-500 rounded-full transition-all" style={{ width: `${totalAvg}%` }} />
+            </div>
+          </div>
+          <div className="w-px h-8 bg-gray-200" />
+          {/* 상태별 카운트 */}
+          <div className="flex items-center gap-2 flex-wrap">
             {(Object.keys(STATUS_CONFIG) as WbsStatus[]).map((k) => {
               const count = rawItems.filter(i => (i.status ?? 'NOT_STARTED') === k).length;
-              if (!count) return null;
               return (
-                <span key={k} className={cn('px-2 py-0.5 rounded-full text-[10px]', STATUS_CONFIG[k].color)}>
-                  {STATUS_CONFIG[k].label} {count}
-                </span>
+                <div key={k} className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg', STATUS_CONFIG[k].color)}>
+                  <span className="text-xs font-semibold">{STATUS_CONFIG[k].label}</span>
+                  <span className="text-sm font-bold">{count}</span>
+                </div>
               );
             })}
           </div>
