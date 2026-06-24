@@ -265,20 +265,18 @@ export function GanttPage() {
   const dateHeaders: Date[] = [];
   for (let i = 0; i < totalDays; i++) dateHeaders.push(addDays(timelineStart, i));
 
+  // 주 그룹의 라벨은 그 주의 월요일이 아니라 "실제로 보이는 첫 날짜"로 표시한다.
+  // (타임라인이 주 중간부터 시작하면 월요일 라벨과 첫 칸 날짜가 어긋나 보이는 문제 방지)
   const weekHeaders: { label: string; span: number }[] = [];
-  let currentWeek = '';
-  let span = 0;
-  dateHeaders.forEach((d, idx) => {
-    const weekStart = startOfWeek(d, { weekStartsOn: 1 });
-    const week = format(weekStart, 'M월 d일', { locale: ko });
-    if (week !== currentWeek) {
-      if (currentWeek) weekHeaders.push({ label: currentWeek, span });
-      currentWeek = week;
-      span = 1;
+  let currentWeekKey = '';
+  dateHeaders.forEach((d) => {
+    const weekKey = format(startOfWeek(d, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    if (weekKey !== currentWeekKey) {
+      currentWeekKey = weekKey;
+      weekHeaders.push({ label: format(d, 'M월 d일', { locale: ko }), span: 1 });
     } else {
-      span++;
+      weekHeaders[weekHeaders.length - 1].span++;
     }
-    if (idx === dateHeaders.length - 1) weekHeaders.push({ label: currentWeek, span });
   });
 
   const todayOffset = differenceInDays(today, timelineStart);

@@ -96,7 +96,7 @@ export interface Task {
   subTasks?: Task[];
   comments?: Comment[];
   attachments?: Attachment[];
-  issues?: { id: string; title: string; riskLevel: IssueRisk; status: IssueStatus }[];
+  issues?: { id: string; title: string; riskLevel: IssueRisk; status: IssueStatus; taskId?: string }[];
   _count: { comments: number; attachments: number; subTasks: number; issues: number };
   workLogStats?: { total: number; completed: number; overdue: boolean };
 }
