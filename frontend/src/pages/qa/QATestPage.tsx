@@ -52,8 +52,17 @@ export function QATestPage() {
     queryFn: () => qaApi.getAll(filterSR || undefined),
   });
 
+  // 같은 SR번호의 QA 요청 이력 (반려 후 재요청 시 누적) — createdAt desc
+  const { data: srHistory } = useQuery({
+    queryKey: ['qa-sr-history', viewItem?.srNumber],
+    queryFn: () => qaApi.getAll(viewItem!.srNumber),
+    enabled: !!viewItem?.srNumber,
+  });
+  const hasHistory = (srHistory?.length ?? 0) > 1;
+
   const invalidate = (workLogId?: string | null) => {
     qc.invalidateQueries({ queryKey: ['qa-tests'] });
+    qc.invalidateQueries({ queryKey: ['qa-sr-history'] });
     if (workLogId) qc.invalidateQueries({ queryKey: ['qa-by-worklog', workLogId] });
   };
 
@@ -284,12 +293,57 @@ export function QATestPage() {
       {viewItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setViewItem(null)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+          <div className={cn('relative bg-white rounded-2xl shadow-2xl w-full overflow-hidden flex max-h-[88vh]', hasHistory ? 'max-w-3xl' : 'max-w-lg')}>
+            {/* 좌측 요청 이력 패널 (같은 SR번호로 재요청된 경우) */}
+            {hasHistory && (
+              <aside className="w-48 flex-shrink-0 border-r border-gray-200 bg-gray-50/70 overflow-y-auto">
+                <div className="px-3 py-3 border-b border-gray-200 sticky top-0 bg-gray-50/95 backdrop-blur-sm">
+                  <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">요청 이력</p>
+                  <p className="text-[10px] text-gray-400 font-mono mt-0.5">{viewItem.srNumber}</p>
+                </div>
+                <div className="py-1">
+                  {srHistory!.map((h, idx) => {
+                    const active = h.id === viewItem.id;
+                    return (
+                      <button
+                        key={h.id}
+                        onClick={() => setViewItem(h)}
+                        className={cn(
+                          'w-full text-left px-3 py-2.5 border-l-2 transition-colors',
+                          active ? 'border-primary-500 bg-white' : 'border-transparent hover:bg-white/70',
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span className={cn('text-[11px] font-semibold', h.qaNumber ? 'font-mono text-primary-600' : 'text-gray-400')}>
+                            {h.qaNumber ?? '미발급'}
+                          </span>
+                          <span className="text-[9px] text-gray-300 font-medium">#{srHistory!.length - idx}</span>
+                        </div>
+                        <div className="flex items-center gap-1 mt-1">
+                          <span className={cn('text-[10px] font-medium', QA_STATUS_CONFIG[h.status].color)}>
+                            {QA_STATUS_CONFIG[h.status].label}
+                          </span>
+                          {h.result && (
+                            <span className={cn('text-[10px] font-bold', QA_RESULT_CONFIG[h.result].color)}>
+                              · {QA_RESULT_CONFIG[h.result].label}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[9px] text-gray-400 mt-0.5">{formatDate(h.createdAt)}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </aside>
+            )}
+
+            {/* 본문 (헤더 + 스테퍼 + 액션 + 폼 + 푸터) */}
+            <div className="flex-1 min-w-0 flex flex-col overflow-y-auto">
             {/* 헤더 */}
             <div className="px-6 py-5 bg-gray-50 border-b border-gray-200 flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 mb-1.5">
-                  <span className="font-mono text-xs font-semibold text-primary-600">
+                  <span className={cn('text-xs font-semibold text-primary-600', viewItem.qaNumber ? 'font-mono' : '')}>
                     {viewItem.qaNumber ?? '미발급'}
                   </span>
                   <span className={cn('px-2 py-0.5 rounded-full text-[11px] font-medium', QA_STATUS_CONFIG[viewItem.status].bg, QA_STATUS_CONFIG[viewItem.status].color)}>
@@ -475,6 +529,7 @@ export function QATestPage() {
                 저장
               </Button>
               </div>
+            </div>
             </div>
           </div>
         </div>
