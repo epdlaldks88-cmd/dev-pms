@@ -1314,7 +1314,7 @@ export function SheetEditorPage() {
                 {/* 헤더 형식 안내 */}
                 <div className="rounded-xl border border-dashed border-violet-200 bg-violet-50 px-4 py-3 text-xs text-violet-700">
                   <p className="font-semibold mb-0.5">시트 1행에 헤더가 있어야 합니다</p>
-                  <p className="text-violet-500">필수: <b>제목</b> / 선택: 요구사항(하위 태스크) · 설명 · 담당자 · 우선순위 · 시작일 · 마감일</p>
+                  <p className="text-violet-500">필수: <b>제목</b> / 선택: 하위태스크 · 업무파트 · 설명 · 담당자 · 우선순위 · 시작일 · 마감일</p>
                 </div>
 
                 {/* 미리보기 */}
@@ -1385,31 +1385,36 @@ export function SheetEditorPage() {
             </div>
             <div className="px-6 py-5 space-y-4">
               <div>
-                <p className="text-xs font-semibold text-gray-600 mb-2">필수 헤더 (1행에 입력)</p>
+                <p className="text-xs font-semibold text-gray-600 mb-2">연동 헤더 목록 (1행에 입력)</p>
                 <div className="rounded-xl overflow-hidden border border-gray-200 text-xs">
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-3 py-2 text-left font-semibold text-gray-500 border-r border-gray-200">열</th>
-                        <th className="px-3 py-2 text-left font-semibold text-gray-500 border-r border-gray-200">헤더명 (택1)</th>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-500 border-r border-gray-200">구분</th>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-500 border-r border-gray-200">사용 가능한 헤더명</th>
                         <th className="px-3 py-2 text-left font-semibold text-gray-500">설명</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       <tr className="bg-violet-50">
                         <td className="px-3 py-2 font-bold text-violet-700 border-r border-gray-200">필수</td>
-                        <td className="px-3 py-2 font-mono text-violet-700 border-r border-gray-200">제목</td>
-                        <td className="px-3 py-2 text-gray-600">상위 태스크 제목 (업무구분·태스크명도 가능)</td>
+                        <td className="px-3 py-2 font-mono text-violet-700 border-r border-gray-200">제목 · 업무구분 · 태스크명 · 태스크</td>
+                        <td className="px-3 py-2 text-gray-600">상위 태스크 제목</td>
                       </tr>
                       <tr>
                         <td className="px-3 py-2 text-gray-400 border-r border-gray-200">선택</td>
-                        <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">요구사항</td>
-                        <td className="px-3 py-2 text-gray-600">하위 태스크 제목 (서브태스크·하위태스크도 가능)</td>
+                        <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">하위태스크 · 요구사항 · 서브태스크</td>
+                        <td className="px-3 py-2 text-gray-600">하위 태스크 제목 (비어 있으면 상위만 생성)</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 text-gray-400 border-r border-gray-200">선택</td>
+                        <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">업무파트 · 파트</td>
+                        <td className="px-3 py-2 text-gray-600">업무파트 (칸반 상단 필터에 표시)</td>
                       </tr>
                       <tr>
                         <td className="px-3 py-2 text-gray-400 border-r border-gray-200">선택</td>
                         <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">설명</td>
-                        <td className="px-3 py-2 text-gray-600">태스크 상세 설명</td>
+                        <td className="px-3 py-2 text-gray-600">태스크 설명</td>
                       </tr>
                       <tr>
                         <td className="px-3 py-2 text-gray-400 border-r border-gray-200">선택</td>
@@ -1419,12 +1424,17 @@ export function SheetEditorPage() {
                       <tr>
                         <td className="px-3 py-2 text-gray-400 border-r border-gray-200">선택</td>
                         <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">우선순위</td>
-                        <td className="px-3 py-2 text-gray-600">URGENT / HIGH / MEDIUM / LOW</td>
+                        <td className="px-3 py-2 text-gray-600">URGENT · HIGH · MEDIUM · LOW</td>
                       </tr>
                       <tr>
                         <td className="px-3 py-2 text-gray-400 border-r border-gray-200">선택</td>
-                        <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">시작일 · 마감일</td>
+                        <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">시작일</td>
                         <td className="px-3 py-2 text-gray-600">날짜 (예: 2025-01-15)</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 text-gray-400 border-r border-gray-200">선택</td>
+                        <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">마감일</td>
+                        <td className="px-3 py-2 text-gray-600">날짜 (예: 2025-03-31)</td>
                       </tr>
                     </tbody>
                   </table>
@@ -1436,16 +1446,17 @@ export function SheetEditorPage() {
                   <table className="w-full">
                     <thead className="bg-violet-50">
                       <tr>
+                        <th className="px-3 py-2 text-left font-semibold text-violet-700 border-r border-gray-200">업무파트</th>
                         <th className="px-3 py-2 text-left font-semibold text-violet-700 border-r border-gray-200">제목</th>
-                        <th className="px-3 py-2 text-left font-semibold text-violet-700 border-r border-gray-200">요구사항</th>
+                        <th className="px-3 py-2 text-left font-semibold text-violet-700 border-r border-gray-200">하위태스크</th>
                         <th className="px-3 py-2 text-left font-semibold text-violet-700 border-r border-gray-200">담당자</th>
                         <th className="px-3 py-2 text-left font-semibold text-violet-700">우선순위</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      <tr><td className="px-3 py-1.5 text-gray-700 border-r border-gray-200">로그인</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">소셜 로그인 구현</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">홍길동</td><td className="px-3 py-1.5 text-gray-500">HIGH</td></tr>
-                      <tr><td className="px-3 py-1.5 text-gray-700 border-r border-gray-200">로그인</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">비밀번호 찾기</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200"></td><td className="px-3 py-1.5 text-gray-500">MEDIUM</td></tr>
-                      <tr><td className="px-3 py-1.5 text-gray-700 border-r border-gray-200">마이페이지</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">프로필 수정</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">김철수</td><td className="px-3 py-1.5 text-gray-500">LOW</td></tr>
+                      <tr><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">인사관리</td><td className="px-3 py-1.5 text-gray-700 border-r border-gray-200">채용관리</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">공고 등록</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">홍길동</td><td className="px-3 py-1.5 text-gray-500">HIGH</td></tr>
+                      <tr><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">인사관리</td><td className="px-3 py-1.5 text-gray-700 border-r border-gray-200">채용관리</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">서류 심사</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200"></td><td className="px-3 py-1.5 text-gray-500">MEDIUM</td></tr>
+                      <tr><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">재무회계</td><td className="px-3 py-1.5 text-gray-700 border-r border-gray-200">비용처리</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">법인카드 정산</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">김철수</td><td className="px-3 py-1.5 text-gray-500">LOW</td></tr>
                     </tbody>
                   </table>
                 </div>
