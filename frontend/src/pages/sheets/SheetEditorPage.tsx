@@ -252,6 +252,8 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
     cells: Record<string, CellData>;
     merges: Record<string, MergeInfo>;
   } | null>(null);
+  // keydown Ctrl+V에서 내부 paste를 처리했을 때 paste 이벤트가 중복 실행되지 않도록 하는 플래그
+  const handledByKeydownRef = useRef(false);
 
   // Stable refs for use inside callbacks
   const selStartRef = useRef(selStart);
@@ -349,16 +351,19 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
 
   useEffect(() => { if (editing && inputRef.current) inputRef.current.focus(); }, [editing]);
 
-  // 엑셀·외부 앱에서 복사한 데이터를 Ctrl+V로 붙여넣기
-  // navigator.clipboard.readText()는 권한이 필요하고 DRM 환경에서 막힐 수 있으므로
-  // paste 이벤트의 clipboardData를 직접 읽어 처리 (권한 불필요)
+  // 외부 앱(엑셀 등)에서 복사한 데이터 붙여넣기
+  // navigator.clipboard.readText()는 DRM/권한 문제로 막힐 수 있어 paste 이벤트 사용
+  // handledByKeydownRef: 내부 Ctrl+C→Ctrl+V 경로에서 keydown이 이미 처리했으면 스킵
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
-    if (clipboardRef.current) return; // 내부 복사(시트 내 Ctrl+C)는 keydown에서 처리
+    if (handledByKeydownRef.current) return; // keydown(내부 클립보드)이 이미 처리함
     const origin = selStartRef.current;
     if (!origin) return;
     e.preventDefault();
     const text = e.clipboardData.getData('text/plain');
     if (!text) return;
+    // 내부 클립보드가 남아있어도 외부 paste이므로 초기화
+    clipboardRef.current = null;
+    setCopyRange(null);
     const [pr, pc] = origin;
     const lines = text.split(/\r?\n/).map(l => l.split('\t'));
     if (lines.length > 0 && lines[lines.length - 1].every(v => v === '')) lines.pop();
@@ -540,8 +545,11 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
           }
           recordChange({ ...d, cells: newCells, merges: newMerges });
           setCopyRange(null);
+          // paste 이벤트가 중복 실행되지 않도록 플래그 설정
+          handledByKeydownRef.current = true;
+          requestAnimationFrame(() => { handledByKeydownRef.current = false; });
         }
-        // 외부 클립보드(엑셀 등)는 onPaste 이벤트에서 처리
+        // 내부 클립보드가 없으면 onPaste 이벤트에서 외부 클립보드 처리
         return;
       }
     }
