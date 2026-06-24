@@ -1049,6 +1049,7 @@ export function SheetEditorPage() {
   const [renameVal, setRenameVal] = useState('');
   const [saving, setSaving] = useState(false);
   const [kanbanRows, setKanbanRows] = useState<BulkTaskRow[] | null>(null);
+  const [showLayoutGuide, setShowLayoutGuide] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const sheetDataRef = useRef<SheetData>(emptyData());
   const dataLoadedRef = useRef(false);
@@ -1262,7 +1263,7 @@ export function SheetEditorPage() {
               onClick={() => {
                 const rows = parseSheetToRows(sheetData);
                 if (rows.length === 0) {
-                  toast.error('업무구분·요구사항 헤더가 있는 행을 찾을 수 없습니다.\n1행에 헤더(업무구분, 요구사항 등)를 입력하세요.');
+                  setShowLayoutGuide(true);
                   return;
                 }
                 setKanbanRows(rows);
@@ -1365,6 +1366,95 @@ export function SheetEditorPage() {
           </div>
         );
       })()}
+
+      {/* ── 레이아웃 안내 팝업 ── */}
+      {showLayoutGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowLayoutGuide(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 bg-amber-50 border-b border-amber-200">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500 flex items-center justify-center text-white text-lg">!</div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-800">시트 레이아웃이 맞지 않습니다</h2>
+                  <p className="text-[11px] text-amber-700">아래 형식에 맞게 헤더를 설정해주세요</p>
+                </div>
+              </div>
+              <button onClick={() => setShowLayoutGuide(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <p className="text-xs font-semibold text-gray-600 mb-2">필수 헤더 (1행에 입력)</p>
+                <div className="rounded-xl overflow-hidden border border-gray-200 text-xs">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-500 border-r border-gray-200">열</th>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-500 border-r border-gray-200">헤더명 (택1)</th>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-500">설명</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      <tr className="bg-violet-50">
+                        <td className="px-3 py-2 font-bold text-violet-700 border-r border-gray-200">필수</td>
+                        <td className="px-3 py-2 font-mono text-violet-700 border-r border-gray-200">업무구분 · 태스크명 · 태스크</td>
+                        <td className="px-3 py-2 text-gray-600">상위 태스크 제목</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 text-gray-400 border-r border-gray-200">선택</td>
+                        <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">요구사항 · 제목 · 서브태스크</td>
+                        <td className="px-3 py-2 text-gray-600">하위 태스크 제목</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 text-gray-400 border-r border-gray-200">선택</td>
+                        <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">담당자</td>
+                        <td className="px-3 py-2 text-gray-600">프로젝트 멤버 이름</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 text-gray-400 border-r border-gray-200">선택</td>
+                        <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">우선순위</td>
+                        <td className="px-3 py-2 text-gray-600">URGENT / HIGH / MEDIUM / LOW</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 text-gray-400 border-r border-gray-200">선택</td>
+                        <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">시작일 · 마감일</td>
+                        <td className="px-3 py-2 text-gray-600">날짜 (예: 2025-01-15)</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-600 mb-2">예시</p>
+                <div className="rounded-xl overflow-hidden border border-gray-200 text-xs">
+                  <table className="w-full">
+                    <thead className="bg-violet-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-semibold text-violet-700 border-r border-gray-200">태스크명</th>
+                        <th className="px-3 py-2 text-left font-semibold text-violet-700 border-r border-gray-200">요구사항</th>
+                        <th className="px-3 py-2 text-left font-semibold text-violet-700">담당자</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      <tr><td className="px-3 py-1.5 text-gray-700 border-r border-gray-200">로그인</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">소셜 로그인 구현</td><td className="px-3 py-1.5 text-gray-500">홍길동</td></tr>
+                      <tr><td className="px-3 py-1.5 text-gray-700 border-r border-gray-200">로그인</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">비밀번호 찾기</td><td className="px-3 py-1.5 text-gray-500"></td></tr>
+                      <tr><td className="px-3 py-1.5 text-gray-700 border-r border-gray-200">마이페이지</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">프로필 수정</td><td className="px-3 py-1.5 text-gray-500">김철수</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end px-6 pb-5">
+              <button
+                onClick={() => setShowLayoutGuide(false)}
+                className="px-4 py-2 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex-shrink-0 flex items-center border-t border-gray-200 bg-gray-50 h-9 px-2 gap-0.5 overflow-x-auto">
         {sheets.map((sheet: any) => (
