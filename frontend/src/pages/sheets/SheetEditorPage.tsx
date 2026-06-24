@@ -251,9 +251,8 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
     rows: number; cols: number;
     cells: Record<string, CellData>;
     merges: Record<string, MergeInfo>;
+    text: string; // 시스템 클립보드에 쓴 직렬화 텍스트 (내부/외부 판별용)
   } | null>(null);
-  // keydown Ctrl+V에서 내부 paste를 처리했을 때 paste 이벤트가 중복 실행되지 않도록 하는 플래그
-  const handledByKeydownRef = useRef(false);
 
   // Stable refs for use inside callbacks
   const selStartRef = useRef(selStart);
@@ -351,23 +350,42 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
 
   useEffect(() => { if (editing && inputRef.current) inputRef.current.focus(); }, [editing]);
 
-  // 외부 앱(엑셀 등)에서 복사한 데이터 붙여넣기
-  // navigator.clipboard.readText()는 DRM/권한 문제로 막힐 수 있어 paste 이벤트 사용
-  // handledByKeydownRef: 내부 Ctrl+C→Ctrl+V 경로에서 keydown이 이미 처리했으면 스킵
-  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
-    if (handledByKeydownRef.current) return; // keydown(내부 클립보드)이 이미 처리함
+  // 붙여넣기 통합 처리
+  // - 시스템 클립보드 텍스트가 내부 복사본과 동일 → 스타일/병합까지 복원 (내부 붙여넣기)
+  // - 다르면(엑셀 등 외부에서 복사) → 텍스트만 셀에 채움 (외부 붙여넣기)
+  // navigator.clipboard.readText()는 DRM/권한 문제로 막힐 수 있어 paste 이벤트의 clipboardData 사용
+  const processPaste = useCallback((text: string) => {
     const origin = selStartRef.current;
     if (!origin) return;
-    e.preventDefault();
-    const text = e.clipboardData.getData('text/plain');
-    if (!text) return;
-    // 내부 클립보드가 남아있어도 외부 paste이므로 초기화
-    clipboardRef.current = null;
-    setCopyRange(null);
     const [pr, pc] = origin;
+    const nd = dataRef.current;
+    const cb = clipboardRef.current;
+    setCopyRange(null);
+
+    // 내부 클립보드(스타일/병합 포함): 시스템 클립보드 텍스트가 내부 복사본과 일치할 때만
+    if (cb && cb.text === text.replace(/\r\n/g, '\n')) {
+      const newCells = { ...nd.cells };
+      const newMerges = removeOverlap(nd.merges, { r1: pr, c1: pc, r2: pr+cb.rows-1, c2: pc+cb.cols-1 });
+      for (let dr = 0; dr < cb.rows; dr++)
+        for (let dc = 0; dc < cb.cols; dc++) {
+          if (pr+dr >= nd.rows || pc+dc >= nd.cols) continue;
+          const dst = ck(pr+dr, pc+dc);
+          const src = ck(dr, dc);
+          if (cb.cells[src]) newCells[dst] = { ...cb.cells[src] };
+          else delete newCells[dst];
+        }
+      for (const [k, m] of Object.entries(cb.merges)) {
+        const [mr, mc] = k.split(',').map(Number);
+        if (pr+mr < nd.rows && pc+mc < nd.cols)
+          newMerges[ck(pr+mr, pc+mc)] = { ...m };
+      }
+      recordChange({ ...nd, cells: newCells, merges: newMerges });
+      return;
+    }
+
+    // 외부(엑셀 등) 텍스트 붙여넣기
     const lines = text.split(/\r?\n/).map(l => l.split('\t'));
     if (lines.length > 0 && lines[lines.length - 1].every(v => v === '')) lines.pop();
-    const nd = dataRef.current;
     const newCells = { ...nd.cells };
     lines.forEach((row, dr) => row.forEach((val, dc) => {
       if (pr + dr >= nd.rows || pc + dc >= nd.cols) return;
@@ -380,43 +398,34 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
     recordChange({ ...nd, cells: newCells });
   }, [recordChange]);
 
+  // 컨테이너에 포커스가 있을 때의 붙여넣기
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (!selStartRef.current || editingRef.current) return;
+    const text = e.clipboardData.getData('text/plain');
+    if (!text) return;
+    e.preventDefault();
+    processPaste(text);
+  }, [processPaste]);
+
   // 컨테이너 포커스와 무관하게 엑셀 등 외부 붙여넣기 지원
   // (onPaste는 컨테이너에 포커스 있을 때만 발동 → 엑셀에서 돌아오면 포커스 없을 수 있음)
   useEffect(() => {
     const handler = (e: ClipboardEvent) => {
-      if (handledByKeydownRef.current) return;
       if (editingRef.current) return;
       // 컨테이너(또는 하위 요소)가 포커스를 갖고 있으면 onPaste에서 이미 처리됨
       if (containerRef.current?.contains(document.activeElement ?? null)) return;
       // 다른 입력 필드에 포커스가 있으면 무시
       const active = document.activeElement;
       if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || (active as HTMLElement).isContentEditable)) return;
-      // 선택된 셀이 없으면 무시
-      const origin = selStartRef.current;
-      if (!origin) return;
-      e.preventDefault();
+      if (!selStartRef.current) return;
       const text = e.clipboardData?.getData('text/plain');
       if (!text) return;
-      clipboardRef.current = null;
-      setCopyRange(null);
-      const [pr, pc] = origin;
-      const lines = text.split(/\r?\n/).map(l => l.split('\t'));
-      if (lines.length > 0 && lines[lines.length - 1].every(v => v === '')) lines.pop();
-      const nd = dataRef.current;
-      const newCells = { ...nd.cells };
-      lines.forEach((row, dr) => row.forEach((val, dc) => {
-        if (pr + dr >= nd.rows || pc + dc >= nd.cols) return;
-        const dst = ck(pr + dr, pc + dc);
-        const existing = norm(newCells[dst]);
-        if (val) newCells[dst] = { ...existing, v: val };
-        else if (existing.s) newCells[dst] = { s: existing.s };
-        else delete newCells[dst];
-      }));
-      recordChange({ ...nd, cells: newCells });
+      e.preventDefault();
+      processPaste(text);
     };
     document.addEventListener('paste', handler);
     return () => document.removeEventListener('paste', handler);
-  }, [recordChange]);
+  }, [processPaste]);
 
   // 언마운트 시 진행 중인 셀 편집을 강제 커밋
   useEffect(() => {
@@ -549,47 +558,18 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
           if (mr >= rng.r1 && mr <= rng.r2 && mc >= rng.c1 && mc <= rng.c2)
             copyMerges[ck(mr - rng.r1, mc - rng.c1)] = { ...m };
         }
-        clipboardRef.current = { rows: rng.r2-rng.r1+1, cols: rng.c2-rng.c1+1, cells: copyCells, merges: copyMerges };
         setCopyRange(rng);
         const lines: string[] = [];
         for (let rr = 0; rr < rng.r2-rng.r1+1; rr++)
           lines.push(Array.from({ length: rng.c2-rng.c1+1 }, (_, cc) => norm(copyCells[ck(rr,cc)]).v ?? '').join('\t'));
-        navigator.clipboard.writeText(lines.join('\n')).catch(() => {});
+        const text = lines.join('\n');
+        clipboardRef.current = { rows: rng.r2-rng.r1+1, cols: rng.c2-rng.c1+1, cells: copyCells, merges: copyMerges, text };
+        navigator.clipboard.writeText(text).catch(() => {});
         return;
       }
 
-      if (e.key === 'v' || e.key === 'V') {
-        e.preventDefault();
-        const origin = selStartRef.current;
-        if (!origin) return;
-        const [pr, pc] = origin;
-
-        if (clipboardRef.current) {
-          const { rows: cbRows, cols: cbCols, cells: cbCells, merges: cbMerges } = clipboardRef.current;
-          const newCells = { ...d.cells };
-          const newMerges = removeOverlap(d.merges, { r1: pr, c1: pc, r2: pr+cbRows-1, c2: pc+cbCols-1 });
-          for (let dr = 0; dr < cbRows; dr++)
-            for (let dc = 0; dc < cbCols; dc++) {
-              if (pr+dr >= d.rows || pc+dc >= d.cols) continue;
-              const dst = ck(pr+dr, pc+dc);
-              const src = ck(dr, dc);
-              if (cbCells[src]) newCells[dst] = { ...cbCells[src] };
-              else delete newCells[dst];
-            }
-          for (const [k, m] of Object.entries(cbMerges)) {
-            const [mr, mc] = k.split(',').map(Number);
-            if (pr+mr < d.rows && pc+mc < d.cols)
-              newMerges[ck(pr+mr, pc+mc)] = { ...m };
-          }
-          recordChange({ ...d, cells: newCells, merges: newMerges });
-          setCopyRange(null);
-          // paste 이벤트가 중복 실행되지 않도록 플래그 설정
-          handledByKeydownRef.current = true;
-          requestAnimationFrame(() => { handledByKeydownRef.current = false; });
-        }
-        // 내부 클립보드가 없으면 onPaste 이벤트에서 외부 클립보드 처리
-        return;
-      }
+      // Ctrl+V는 가로채지 않고 네이티브 paste 이벤트로 위임 (handlePaste / document paste 리스너에서 처리)
+      // preventDefault하면 paste 이벤트가 차단되어 엑셀 등 외부 붙여넣기가 막힘
     }
 
     if (editingRef.current) {
