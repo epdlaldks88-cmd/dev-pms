@@ -129,8 +129,8 @@ export function WorkloadPage() {
     return map;
   }, [allQaTests]);
   const { data: formTasks } = useQuery({
-    queryKey: ['tasks', form.projectId],
-    queryFn: () => tasksApi.getAll(form.projectId),
+    queryKey: ['tasks-with-subtasks', form.projectId],
+    queryFn: () => tasksApi.getAll(form.projectId, { includeSubtasks: 'true' }),
     enabled: !!form.projectId,
   });
 
@@ -140,8 +140,8 @@ export function WorkloadPage() {
 
   const editProjectId = editLog?.task?.project?.id ?? editLog?.projectId ?? routeProjectId;
   const { data: editTasks } = useQuery({
-    queryKey: ['tasks', editProjectId],
-    queryFn: () => tasksApi.getAll(editProjectId!),
+    queryKey: ['tasks-with-subtasks', editProjectId],
+    queryFn: () => tasksApi.getAll(editProjectId!, { includeSubtasks: 'true' }),
     enabled: !!editProjectId && !!editLog,
   });
 
