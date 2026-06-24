@@ -167,7 +167,10 @@ function GanttBar({ task, startDate, totalDays }: { task: Task; startDate: Date;
       )}
       style={{
         left: `${leftPct}%`,
-        width: `${Math.max(widthPct, 3)}%`,
+        // 너비는 정확히 일수만큼(%). 과거의 3% 하한은 긴 프로젝트에서
+        // 1일 바를 수십일로 부풀리는 버그가 있어 제거. 1칸 미만 방지용으로 px 하한만 둠
+        width: `${widthPct}%`,
+        minWidth: COL_W,
       }}
       title={task.title}
     >
