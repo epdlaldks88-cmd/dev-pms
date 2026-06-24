@@ -380,6 +380,44 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
     recordChange({ ...nd, cells: newCells });
   }, [recordChange]);
 
+  // 컨테이너 포커스와 무관하게 엑셀 등 외부 붙여넣기 지원
+  // (onPaste는 컨테이너에 포커스 있을 때만 발동 → 엑셀에서 돌아오면 포커스 없을 수 있음)
+  useEffect(() => {
+    const handler = (e: ClipboardEvent) => {
+      if (handledByKeydownRef.current) return;
+      if (editingRef.current) return;
+      // 컨테이너(또는 하위 요소)가 포커스를 갖고 있으면 onPaste에서 이미 처리됨
+      if (containerRef.current?.contains(document.activeElement ?? null)) return;
+      // 다른 입력 필드에 포커스가 있으면 무시
+      const active = document.activeElement;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || (active as HTMLElement).isContentEditable)) return;
+      // 선택된 셀이 없으면 무시
+      const origin = selStartRef.current;
+      if (!origin) return;
+      e.preventDefault();
+      const text = e.clipboardData?.getData('text/plain');
+      if (!text) return;
+      clipboardRef.current = null;
+      setCopyRange(null);
+      const [pr, pc] = origin;
+      const lines = text.split(/\r?\n/).map(l => l.split('\t'));
+      if (lines.length > 0 && lines[lines.length - 1].every(v => v === '')) lines.pop();
+      const nd = dataRef.current;
+      const newCells = { ...nd.cells };
+      lines.forEach((row, dr) => row.forEach((val, dc) => {
+        if (pr + dr >= nd.rows || pc + dc >= nd.cols) return;
+        const dst = ck(pr + dr, pc + dc);
+        const existing = norm(newCells[dst]);
+        if (val) newCells[dst] = { ...existing, v: val };
+        else if (existing.s) newCells[dst] = { s: existing.s };
+        else delete newCells[dst];
+      }));
+      recordChange({ ...nd, cells: newCells });
+    };
+    document.addEventListener('paste', handler);
+    return () => document.removeEventListener('paste', handler);
+  }, [recordChange]);
+
   // 언마운트 시 진행 중인 셀 편집을 강제 커밋
   useEffect(() => {
     return () => {
