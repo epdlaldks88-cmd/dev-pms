@@ -36,6 +36,7 @@ export interface BulkTaskRow {
   priority?: string;
   startDate?: string;
   dueDate?: string;
+  part?: string;
 }
 
 export const commentsApi = {

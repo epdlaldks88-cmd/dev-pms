@@ -1011,6 +1011,7 @@ const SHEET_HEADER_MAP: Record<string, keyof BulkTaskRow> = {
   '요구사항': 'title', '서브태스크': 'title', '하위태스크': 'title',
   '설명': 'description', '담당자': 'assigneeName',
   '우선순위': 'priority', '시작일': 'startDate', '마감일': 'dueDate',
+  '업무파트': 'part', '파트': 'part',
 };
 
 function parseSheetToRows(data: SheetData): BulkTaskRow[] {

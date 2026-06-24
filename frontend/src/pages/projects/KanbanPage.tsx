@@ -24,7 +24,7 @@ import { useAuthStore } from '../../store/auth.store';
 import { Button } from '../../components/ui/Button';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../components/ui/ErrorState';
-import { STATUS_CONFIG } from '../../lib/utils';
+import { cn, STATUS_CONFIG } from '../../lib/utils';
 import type { KanbanColumn as KanbanColumnType, Task, TaskStatus } from '../../types';
 
 export function KanbanPage() {
@@ -33,6 +33,7 @@ export function KanbanPage() {
   const openCreateTask = useUiStore((s) => s.openCreateTask);
   const taskModalId = useUiStore((s) => s.taskModalId);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [partFilter, setPartFilter] = useState<string>('');
   const [showBulkImport, setShowBulkImport] = useState(false);
 
   const currentUser = useAuthStore((s) => s.user);
@@ -180,6 +181,34 @@ export function KanbanPage() {
         </div>
       </div>
 
+      {/* 업무파트 필터 */}
+      {(() => {
+        const parts = [...new Set(
+          (kanban ?? []).flatMap((col) => col.tasks.map((t) => t.part)).filter(Boolean)
+        )] as string[];
+        if (parts.length === 0) return null;
+        return (
+          <div className="flex-shrink-0 flex items-center gap-2 px-6 py-2 bg-white border-b border-gray-100 overflow-x-auto">
+            <span className="text-xs font-semibold text-gray-400 flex-shrink-0">업무파트</span>
+            <button
+              onClick={() => setPartFilter('')}
+              className={cn('text-xs px-2.5 py-1 rounded-full border transition-colors flex-shrink-0',
+                partFilter === '' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+              )}
+            >전체</button>
+            {parts.map((p) => (
+              <button
+                key={p}
+                onClick={() => setPartFilter(partFilter === p ? '' : p)}
+                className={cn('text-xs px-2.5 py-1 rounded-full border transition-colors flex-shrink-0 whitespace-nowrap',
+                  partFilter === p ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-500 border-gray-200 hover:border-primary-400 hover:text-primary-600'
+                )}
+              >{p}</button>
+            ))}
+          </div>
+        );
+      })()}
+
       {/* Kanban board */}
       <div className="flex-1 overflow-x-auto overflow-y-hidden">
         <div className="flex gap-4 p-6 h-full min-w-max">
@@ -201,7 +230,7 @@ export function KanbanPage() {
               {kanban?.map((column) => (
                 <KanbanColumn
                   key={column.id}
-                  column={column}
+                  column={partFilter ? { ...column, tasks: column.tasks.filter((t) => t.part === partFilter) } : column}
                   projectId={projectId!}
                   canManage={canManage}
                   currentUserId={currentUser?.id}
