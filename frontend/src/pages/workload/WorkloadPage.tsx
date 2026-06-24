@@ -1124,8 +1124,8 @@ export function WorkloadPage() {
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">작업 내용</label>
                 <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="어떤 작업을 했는지 간략히 입력하세요..." rows={3}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                  placeholder="어떤 작업을 했는지 간략히 입력하세요..." rows={7}
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y min-h-[8rem]"
                 />
               </div>
             </div>
