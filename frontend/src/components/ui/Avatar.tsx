@@ -34,7 +34,7 @@ export function Avatar({ name, avatar, size = 'sm', className }: AvatarProps) {
       />
     );
   }
-  const colors = ['bg-indigo-500', 'bg-purple-500', 'bg-pink-500', 'bg-blue-500', 'bg-emerald-500', 'bg-orange-500'];
+  const colors = ['bg-primary-500', 'bg-purple-500', 'bg-pink-500', 'bg-blue-500', 'bg-emerald-500', 'bg-orange-500'];
   const color = colors[name.charCodeAt(0) % colors.length];
   return (
     <div

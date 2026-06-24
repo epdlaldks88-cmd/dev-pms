@@ -10,7 +10,7 @@ import { formatRelativeTime, cn } from '../../lib/utils';
 import type { Notification, NotificationType } from '../../types';
 
 const TYPE_LABEL: Record<NotificationType, { label: string; color: string }> = {
-  TASK_ASSIGNED: { label: '태스크 할당', color: 'bg-indigo-100 text-indigo-600' },
+  TASK_ASSIGNED: { label: '태스크 할당', color: 'bg-primary-100 text-gray-600' },
   TASK_UPDATED: { label: '태스크 변경', color: 'bg-blue-100 text-blue-600' },
   COMMENT_ADDED: { label: '댓글', color: 'bg-emerald-100 text-emerald-600' },
   MENTION: { label: '멘션', color: 'bg-purple-100 text-purple-600' },
@@ -51,7 +51,7 @@ export function NotificationsPage() {
     <div className="p-6 max-w-3xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">알림</h1>
+          <h1 className="text-xl font-bold text-gray-700">알림</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             {unreadCount > 0 ? `읽지 않은 알림 ${unreadCount}개` : '모든 알림을 확인했습니다.'}
           </p>
@@ -94,10 +94,10 @@ export function NotificationsPage() {
                 }}
                 className={cn(
                   'flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors',
-                  n.isRead ? 'bg-white border-gray-200 hover:bg-gray-50' : 'bg-indigo-50/50 border-indigo-100 hover:bg-indigo-50',
+                  n.isRead ? 'bg-white border-gray-200 hover:bg-gray-50' : 'bg-primary-50/50 border-gray-100 hover:bg-primary-50',
                 )}
               >
-                {!n.isRead && <span className="w-2 h-2 bg-indigo-500 rounded-full mt-2 flex-shrink-0" />}
+                {!n.isRead && <span className="w-2 h-2 bg-primary-500 rounded-full mt-2 flex-shrink-0" />}
                 <div className={cn('flex-1', n.isRead && 'ml-5')}>
                   <div className="flex items-center gap-2 mb-1">
                     <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', t.color)}>{t.label}</span>
@@ -109,7 +109,7 @@ export function NotificationsPage() {
                 {!n.isRead && (
                   <button
                     onClick={(e) => { e.stopPropagation(); markRead.mutate(n.id); }}
-                    className="text-gray-400 hover:text-indigo-600 p-1 transition-colors cursor-pointer"
+                    className="text-gray-400 hover:text-red-600 p-1 transition-colors cursor-pointer"
                     title="읽음 처리"
                   >
                     <Check size={15} />

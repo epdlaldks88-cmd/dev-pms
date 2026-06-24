@@ -53,7 +53,7 @@ export function PartnerDetailPage() {
     <div className="p-6 max-w-4xl mx-auto">
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-sm text-gray-500 mb-5">
-        <Link to="/partners" className="hover:text-gray-700">파트너사 관리</Link>
+        <Link to="/partners" className="hover:text-gray-600">파트너사 관리</Link>
         <ChevronRight size={14} />
         <span className="text-gray-900 font-medium">{partner.name}</span>
       </div>
@@ -61,11 +61,11 @@ export function PartnerDetailPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
-            <Building2 size={22} className="text-indigo-500" />
+          <div className="w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
+            <Building2 size={22} className="text-gray-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">{partner.name}</h1>
+            <h1 className="text-xl font-bold text-gray-700">{partner.name}</h1>
             {partner.description && <p className="text-sm text-gray-500 mt-0.5">{partner.description}</p>}
             <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400">
               {partner.contactName && <span>담당: {partner.contactName}</span>}
@@ -80,10 +80,10 @@ export function PartnerDetailPage() {
       </div>
 
       {/* Personnel list */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
         <div className="flex items-center gap-2 px-5 py-3 border-b border-gray-100">
           <Users size={15} className="text-gray-500" />
-          <h2 className="font-semibold text-sm text-gray-900">인력 목록</h2>
+          <h2 className="font-semibold text-sm text-gray-700">인력 목록</h2>
           <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{partner.personnel?.length ?? 0}명</span>
         </div>
 
@@ -91,7 +91,7 @@ export function PartnerDetailPage() {
           <div className="py-12 text-center">
             <Users size={36} className="text-gray-300 mx-auto mb-2" />
             <p className="text-sm text-gray-400">등록된 인력이 없습니다.</p>
-            <button onClick={() => setAddOpen(true)} className="text-indigo-600 text-sm font-medium mt-2 hover:underline cursor-pointer">
+            <button onClick={() => setAddOpen(true)} className="text-gray-600 text-sm font-medium mt-2 hover:underline cursor-pointer">
               첫 인력 등록하기
             </button>
           </div>
@@ -104,7 +104,7 @@ export function PartnerDetailPage() {
                   <div className="flex items-center gap-2">
                     <p className="font-medium text-sm text-gray-900">{person.name}</p>
                     {person.position && (
-                      <span className="flex items-center gap-1 text-[11px] text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full">
+                      <span className="flex items-center gap-1 text-[11px] text-gray-600 bg-primary-50 px-1.5 py-0.5 rounded-full">
                         <Briefcase size={10} /> {person.position}
                       </span>
                     )}
@@ -119,7 +119,7 @@ export function PartnerDetailPage() {
                 </div>
                 <button
                   onClick={() => { if (confirm(`"${person.name}" 인력을 삭제하시겠습니까?`)) deletePersonnel.mutate(person.id); }}
-                  className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 p-1.5 transition-all cursor-pointer"
+                  className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto text-gray-400 hover:text-red-500 p-1.5 transition-all cursor-pointer"
                 >
                   <Trash2 size={14} />
                 </button>

@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Search, Mail, Settings, LogOut, ChevronDown } from 'lucide-react';
+import { Bell, Search, Mail, Settings, LogOut, ChevronDown, Lock, X } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notificationsApi } from '../../api/notifications';
 import { messagesApi } from '../../api/messages';
 import { searchApi } from '../../api/search';
 import { Avatar } from '../ui/Avatar';
 import { useAuthStore } from '../../store/auth.store';
+import { getAccessToken } from '../../utils/token';
 import { authApi } from '../../api/auth';
 import { useUiStore } from '../../store/ui.store';
 import { formatRelativeTime, cn } from '../../lib/utils';
@@ -20,22 +21,35 @@ export function Header() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const openTaskModal = useUiStore((s) => s.openTaskModal);
+  const openMessagePanel = useUiStore((s) => s.openMessagePanel);
   const messagePanelUserId = useUiStore((s) => s.messagePanelUserId);
   const closeMessagePanel = useUiStore((s) => s.closeMessagePanel);
+  const messagePanelRoomId = useUiStore((s) => s.messagePanelRoomId);
 
   const { logout, refreshToken } = useAuthStore();
   const [notifOpen, setNotifOpen] = useState(false);
   const [msgOpen, setMsgOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
 
-  // 스토어에서 패널 오픈 요청 감지
+  // 스토어에서 패널 오픈 요청 감지 (DM / 그룹채팅)
   useEffect(() => {
-    if (messagePanelUserId) {
+    if (messagePanelUserId || messagePanelRoomId) {
       setMsgOpen(true);
       setNotifOpen(false);
     }
-  }, [messagePanelUserId]);
+  }, [messagePanelUserId, messagePanelRoomId]);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, []);
 
   useEffect(() => {
     function handle(e: MouseEvent) {
@@ -136,7 +150,7 @@ export function Header() {
   // SSE: 새 메시지 도착 시 즉시 unread count 갱신
   useEffect(() => {
     if (!user) return;
-    const token = localStorage.getItem('accessToken');
+    const token = getAccessToken();
     const url = `/api/messages/events${token ? `?token=${token}` : ''}`;
     const es = new EventSource(url);
     es.onmessage = (e) => {
@@ -149,7 +163,8 @@ export function Header() {
       // 메시지 도착 시 멘션 알림도 즉시 체크
       qc.invalidateQueries({ queryKey: ['notifications', 'mention-watch'] });
     };
-    es.onerror = () => es.close();
+    // 연결이 끊겨도 닫지 않음 → EventSource 자동 재연결 유지 (배포/일시 끊김 후에도 실시간 복구)
+    es.onerror = () => {};
     return () => es.close();
   }, [user, qc]);
 
@@ -161,6 +176,14 @@ export function Header() {
 
   const markAll = useMutation({
     mutationFn: notificationsApi.markAllRead,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+      qc.invalidateQueries({ queryKey: ['notifications', 'count'] });
+    },
+  });
+
+  const markOne = useMutation({
+    mutationFn: (id: string) => notificationsApi.markRead(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['notifications'] });
       qc.invalidateQueries({ queryKey: ['notifications', 'count'] });
@@ -180,7 +203,7 @@ export function Header() {
   };
 
   return (
-    <header className="h-14 bg-white border-b border-gray-200 flex items-center px-6 gap-4 flex-shrink-0">
+    <header className="relative z-10 h-14 bg-white/80 backdrop-blur-md border-b border-white/60 shadow-[0_1px_0_rgba(0,0,0,0.04)] flex items-center px-6 gap-4 flex-shrink-0">
       {/* Search */}
       <div className="flex-1 max-w-md relative" ref={searchRef}>
         <div className="relative">
@@ -191,7 +214,7 @@ export function Header() {
             onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true); }}
             onFocus={() => setSearchOpen(true)}
             placeholder="태스크, 프로젝트 검색..."
-            className="w-full h-8 pl-9 pr-3 text-sm bg-gray-100 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-colors"
+            className="w-full h-8 pl-9 pr-3 text-sm bg-gray-100 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:bg-white transition-colors"
           />
           {searchQuery && (
             <button
@@ -294,11 +317,12 @@ export function Header() {
         {/* Messages */}
         <button
           onClick={() => { setMsgOpen(!msgOpen); setNotifOpen(false); }}
-          className="relative h-8 w-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+          className="group relative h-8 flex items-center gap-1 px-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
         >
-          <Mail size={18} className={(msgUnread?.count ?? 0) > 0 ? 'mail-blink' : ''} />
+          <Mail size={16} className={(msgUnread?.count ?? 0) > 0 ? 'mail-blink flex-shrink-0' : 'flex-shrink-0'} />
+          <span className="max-w-0 group-hover:max-w-[2.5rem] overflow-hidden whitespace-nowrap text-xs transition-all duration-200">채팅</span>
           {(msgUnread?.count ?? 0) > 0 && (
-            <span className="absolute top-1 right-1 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
+            <span className="min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5 flex-shrink-0">
               {msgUnread!.count > 9 ? '9+' : msgUnread!.count}
             </span>
           )}
@@ -310,31 +334,38 @@ export function Header() {
         />
 
         {/* Notifications */}
-        <div className="relative">
+        <div className="relative" ref={notifRef}>
           <button
             onClick={() => { setNotifOpen(!notifOpen); setMsgOpen(false); }}
-            className="relative h-8 w-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+            className="group relative h-8 flex items-center gap-1 px-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
           >
-            <Bell size={18} />
+            <Bell size={16} className="flex-shrink-0" />
+            <span className="max-w-0 group-hover:max-w-[2.5rem] overflow-hidden whitespace-nowrap text-xs transition-all duration-200">알림</span>
             {(unread?.count ?? 0) > 0 && (
-              <span className="absolute top-1 right-1 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
+              <span className="min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5 flex-shrink-0">
                 {unread!.count > 9 ? '9+' : unread!.count}
               </span>
             )}
           </button>
 
           {notifOpen && (
-            <>
-              <div className="fixed inset-0 z-30" onClick={() => setNotifOpen(false)} />
-              <div className="absolute right-0 top-10 z-40 w-80 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+            <div className="absolute right-0 top-10 z-40 w-80 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                  <h3 className="font-semibold text-sm text-gray-900">알림</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-sm text-gray-800">알림</h3>
+                    {(unread?.count ?? 0) > 0 && (
+                      <span className="min-w-[18px] h-[18px] bg-primary-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                        {unread!.count > 9 ? '9+' : unread!.count}
+                      </span>
+                    )}
+                  </div>
                   {(unread?.count ?? 0) > 0 && (
                     <button
                       onClick={() => markAll.mutate()}
-                      className="text-xs text-indigo-600 hover:text-indigo-800"
+                      disabled={markAll.isPending}
+                      className="flex items-center gap-1 text-xs font-medium text-primary-600 hover:text-primary-700 bg-primary-50 hover:bg-primary-100 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
                     >
-                      모두 읽음
+                      {markAll.isPending ? '처리 중...' : '모두 읽음'}
                     </button>
                   )}
                 </div>
@@ -347,15 +378,20 @@ export function Header() {
                         key={n.id}
                         className={cn(
                           'px-4 py-3 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors',
-                          !n.isRead && 'bg-indigo-50/50',
+                          !n.isRead && 'bg-primary-50/50',
                         )}
                         onClick={() => {
-                          if (n.link) navigate(n.link);
                           setNotifOpen(false);
+                          if (!n.isRead) markOne.mutate(n.id);
+                          if (n.type === 'MENTION' && n.link) {
+                            const userId = new URL(n.link, 'http://x').searchParams.get('to');
+                            if (userId) { openMessagePanel(userId); setMsgOpen(true); return; }
+                          }
+                          if (n.link) navigate(n.link);
                         }}
                       >
                         <div className="flex items-start gap-3">
-                          {!n.isRead && <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full mt-1.5 flex-shrink-0" />}
+                          {!n.isRead && <span className="w-1.5 h-1.5 bg-primary-500 rounded-full mt-1.5 flex-shrink-0" />}
                           <div className={cn('flex-1', n.isRead && 'ml-4')}>
                             <p className="text-xs font-medium text-gray-900">{n.title}</p>
                             <p className="text-xs text-gray-500 mt-0.5">{n.message}</p>
@@ -366,8 +402,7 @@ export function Header() {
                     ))
                   )}
                 </div>
-              </div>
-            </>
+            </div>
           )}
         </div>
 
@@ -378,7 +413,7 @@ export function Header() {
             className="flex items-center gap-1.5 rounded-lg px-1.5 py-1 hover:bg-gray-100 transition-colors"
           >
             <Avatar name={user?.name ?? ''} avatar={user?.avatar} size="sm" />
-            <span className="text-sm font-medium text-gray-700 max-w-[80px] truncate">{user?.name}님</span>
+            <span className="text-sm font-medium text-gray-600 max-w-[80px] truncate">{user?.name}님</span>
             <ChevronDown size={13} className={cn('text-gray-400 transition-transform', profileOpen && 'rotate-180')} />
           </button>
 
@@ -388,7 +423,7 @@ export function Header() {
               <div className="absolute right-0 top-11 z-40 w-56 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
                 {/* 유저 정보 */}
                 <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
+                  <p className="text-sm font-semibold text-gray-600 truncate">{user?.name}</p>
                   <p className="text-xs text-gray-400 truncate mt-0.5">
                     {user?.position ? `${user.position}${user.department ? ' · ' + user.department : ''}` : user?.email}
                   </p>
@@ -397,10 +432,17 @@ export function Header() {
                 <div className="py-1">
                   <button
                     onClick={() => { navigate('/settings/profile'); setProfileOpen(false); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
                   >
                     <Settings size={15} className="text-gray-400" />
                     프로필 설정
+                  </button>
+                  <button
+                    onClick={() => { navigate('/settings/password'); setProfileOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                  >
+                    <Lock size={15} className="text-gray-400" />
+                    비밀번호 변경
                   </button>
                   <div className="border-t border-gray-100 my-1" />
                   <button

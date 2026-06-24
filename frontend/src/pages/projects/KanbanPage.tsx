@@ -11,6 +11,7 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { ChevronRight, Plus, LayoutGrid, List } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { tasksApi } from '../../api/tasks';
+import { getAccessToken } from '../../utils/token';
 import { stepsApi } from '../../api/notifications';
 import { projectsApi } from '../../api/projects';
 import { KanbanColumn } from '../../components/kanban/KanbanColumn';
@@ -52,7 +53,7 @@ export function KanbanPage() {
   // SSE: 다른 사람이 태스크 변경 시 실시간 갱신
   useEffect(() => {
     if (!projectId || !currentUser) return;
-    const token = localStorage.getItem('accessToken');
+    const token = getAccessToken();
     const url = `/api/projects/${projectId}/tasks/events${token ? `?token=${token}` : ''}`;
     const es = new EventSource(url);
     es.onmessage = () => {
@@ -68,8 +69,15 @@ export function KanbanPage() {
       tasksApi.move(projectId!, taskId, stepId, order),
     onSuccess: (data, { taskId }) => {
       qc.setQueryData(['task', taskId], data);
-      qc.refetchQueries({ queryKey: ['kanban', projectId] });
       qc.invalidateQueries({ queryKey: ['project-stats', projectId] });
+      qc.invalidateQueries({ queryKey: ['gantt', projectId] });
+    },
+    onError: (e: any) => {
+      toast.error(e.response?.data?.message ?? '단계 이동에 실패했습니다.');
+    },
+    // 성공/실패 무관하게 서버 상태로 동기화(낙관적 업데이트 정합성 보장)
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['kanban', projectId] });
     },
   });
 
@@ -92,13 +100,13 @@ export function KanbanPage() {
 
   const collisionDetection = useCallback((args: any) => {
     const pointerCollisions = pointerWithin(args);
-    if (pointerCollisions.length > 0) {
-      const columnHit = pointerCollisions.find((c: any) => kanban?.some((col) => col.id === c.id));
-      if (columnHit) return [columnHit];
-      return pointerCollisions;
-    }
-    const rectCollisions = rectIntersection(args);
-    return getFirstCollision(rectCollisions) ? rectCollisions : [];
+    const collisions = pointerCollisions.length > 0 ? pointerCollisions : rectIntersection(args);
+    if (collisions.length === 0) return [];
+    // 컬럼보다 태스크 충돌을 우선 → 컬럼 안에서 카드 사이에 정확히 끼워넣기 가능
+    const isColumn = (c: any) => kanban?.some((col) => col.id === c.id);
+    const taskHit = collisions.find((c: any) => !isColumn(c));
+    if (taskHit) return [taskHit];
+    return collisions.length > 0 ? [collisions[0]] : [];
   }, [kanban]);
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -145,21 +153,8 @@ export function KanbanPage() {
       });
     });
 
+    // 단계로 옮기면 백엔드가 그 단계의 status를 자동 적용 (status는 단계를 따라감)
     moveTask.mutate({ taskId, stepId: targetStepId, order: targetOrder });
-
-    // 대상 컬럼 이름이 상태 라벨과 일치하면 상태도 동기화 (예: 완료 컬럼 → DONE)
-    const targetCol = kanban.find((c) => c.id === targetStepId);
-    const matchedStatus = (Object.keys(STATUS_CONFIG) as TaskStatus[]).find(
-      (k) => STATUS_CONFIG[k].label === targetCol?.name,
-    );
-    const movedTask = kanban.flatMap((c) => c.tasks).find((t) => t.id === taskId);
-    if (matchedStatus && movedTask && movedTask.status !== matchedStatus) {
-      tasksApi.update(projectId!, taskId, { status: matchedStatus }).then(() => {
-        qc.invalidateQueries({ queryKey: ['task', taskId] });
-        qc.invalidateQueries({ queryKey: ['gantt', projectId] });
-        qc.invalidateQueries({ queryKey: ['project-stats', projectId] });
-      });
-    }
   }, [kanban, projectId, qc, moveTask]);
 
   return (
@@ -167,9 +162,9 @@ export function KanbanPage() {
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center gap-1.5 text-sm text-gray-500">
-          <Link to="/projects" className="hover:text-gray-700">프로젝트</Link>
+          <Link to="/projects" className="hover:text-gray-600">프로젝트</Link>
           <ChevronRight size={14} />
-          <Link to={`/projects/${projectId}`} className="hover:text-gray-700">{project?.name}</Link>
+          <Link to={`/projects/${projectId}`} className="hover:text-gray-600">{project?.name}</Link>
           <ChevronRight size={14} />
           <span className="text-gray-900 font-medium">칸반보드</span>
         </div>
@@ -224,7 +219,7 @@ export function KanbanPage() {
                       if (e.key === 'Escape') { setAddingColumn(false); setNewColumnName(''); }
                     }}
                     placeholder="단계 이름 (예: 이슈)"
-                    className="w-full text-sm rounded-lg border border-gray-300 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-sm rounded-lg border border-gray-300 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <div className="flex gap-1.5 mt-2">
                     <Button size="sm" variant="primary" onClick={() => newColumnName.trim() && addColumn.mutate(newColumnName.trim())}>
@@ -238,7 +233,7 @@ export function KanbanPage() {
               ) : (
                 <button
                   onClick={() => setAddingColumn(true)}
-                  className="w-full flex items-center justify-center gap-1.5 text-sm text-gray-500 py-2.5 rounded-xl border-2 border-dashed border-gray-200 hover:border-indigo-300 hover:text-indigo-500 transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-center gap-1.5 text-sm text-gray-500 py-2.5 rounded-xl border-2 border-dashed border-gray-200 hover:border-gray-300 hover:text-red-600 transition-colors cursor-pointer"
                 >
                   <Plus size={15} /> 단계 추가
                 </button>

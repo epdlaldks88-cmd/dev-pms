@@ -20,7 +20,7 @@ export function PageHeader({ title, description, actions, className }: PageHeade
       )}
     >
       <div className="min-w-0">
-        <h1 className="text-lg font-bold text-gray-900 truncate">{title}</h1>
+        <h1 className="text-lg font-bold text-gray-700 truncate">{title}</h1>
         {description && <p className="text-xs text-gray-500 mt-0.5">{description}</p>}
       </div>
       {actions && <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>}

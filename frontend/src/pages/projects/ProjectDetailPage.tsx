@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Users, Activity, Calendar, Pencil, Megaphone, Pin, ChevronLeft, ChevronRight, ChevronDown, UserPlus, X, Crown, ShieldCheck, Eye, Search, ArrowRight, Trash2, MessageSquare } from 'lucide-react';
+import { Users, Activity, Calendar, Pencil, Megaphone, Pin, ChevronLeft, ChevronRight, ChevronDown, UserPlus, X, Crown, ShieldCheck, Eye, Search, ArrowRight, Trash2, MessageSquare, BarChart2, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { NavLink } from 'react-router-dom';
 import { projectsApi } from '../../api/projects';
@@ -20,7 +20,7 @@ import { PROJECT_STATUS_CONFIG, formatDate, formatRelativeTime, cn } from '../..
 import type { ActivityLog, ProjectRole, ProjectStatus } from '../../types';
 
 const PROJECT_COLORS = [
-  '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
+  '#e60012', '#e60012', '#ec4899', '#ef4444',
   '#f97316', '#eab308', '#22c55e', '#06b6d4', '#0ea5e9',
 ];
 
@@ -52,14 +52,23 @@ export function ProjectDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [form, setForm] = useState({
     name: '', description: '', status: 'ACTIVE' as ProjectStatus,
-    color: '#6366f1', icon: '📁', startDate: '', endDate: '',
+    color: '#e60012', icon: '📁', startDate: '', endDate: '', openDate: '',
   });
 
-  const { data: project, isLoading, isError, refetch } = useQuery({
+  const navigate = useNavigate();
+  const { data: project, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['project', projectId],
     queryFn: () => projectsApi.getOne(projectId!),
     enabled: !!projectId,
+    retry: (count, err: any) => err?.response?.status === 404 ? false : count < 1,
   });
+
+  // 삭제된 프로젝트(404) 감지 시 목록 캐시도 최신화 (사이드바/대시보드 반영)
+  useEffect(() => {
+    if (isError && (error as any)?.response?.status === 404) {
+      qc.invalidateQueries({ queryKey: ['projects'] });
+    }
+  }, [isError, error, qc]);
 
   const updateProject = useMutation({
     mutationFn: (data: any) => projectsApi.update(projectId!, data),
@@ -75,6 +84,10 @@ export function ProjectDetailPage() {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === 'ADMIN';
 
+  // 온라인 상태
+  const { data: onlineIds } = useQuery({ queryKey: ['online-users'], queryFn: usersApi.getOnlineIds, refetchInterval: 30_000 });
+  const onlineSet = new Set(onlineIds ?? []);
+
   // 메시지 패널
   const [msgPanelOpen, setMsgPanelOpen] = useState(false);
   const [expandedNoticeId, setExpandedNoticeId] = useState<string | null>(null);
@@ -84,6 +97,9 @@ export function ProjectDetailPage() {
     setMsgTargetId(userId);
     setMsgPanelOpen(true);
   };
+
+  // 프로필 팝업
+  const [profilePopup, setProfilePopup] = useState<any | null>(null);
 
   // 멤버 관리
   const [memberOpen, setMemberOpen] = useState(false);
@@ -124,6 +140,20 @@ export function ProjectDetailPage() {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+
+  // 오픈예정일 달력 팝업
+  const [openDatePopup, setOpenDatePopup] = useState(false);
+  const [openDateMonth, setOpenDateMonth] = useState(() => new Date());
+  const openDatePopupDays = useMemo(() => {
+    const year = openDateMonth.getFullYear();
+    const month = openDateMonth.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const lastDate = new Date(year, month + 1, 0).getDate();
+    const days: (number | null)[] = Array(firstDay).fill(null);
+    for (let d = 1; d <= lastDate; d++) days.push(d);
+    while (days.length % 7 !== 0) days.push(null);
+    return days;
+  }, [openDateMonth]);
 
   const { data: tasks } = useQuery({
     queryKey: ['tasks', projectId],
@@ -177,6 +207,7 @@ export function ProjectDetailPage() {
       icon: project.icon ?? '📁',
       startDate: project.startDate ? project.startDate.slice(0, 10) : '',
       endDate: project.endDate ? project.endDate.slice(0, 10) : '',
+      openDate: project.openDate ? project.openDate.slice(0, 10) : '',
     });
     setEditOpen(true);
   };
@@ -202,6 +233,26 @@ export function ProjectDetailPage() {
     );
   }
 
+  // 삭제됐거나 접근 권한이 없는 프로젝트
+  if (isError && (error as any)?.response?.status === 404) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+          <X size={28} className="text-gray-400" />
+        </div>
+        <h2 className="text-lg font-bold text-gray-800 mb-1.5">프로젝트를 찾을 수 없습니다</h2>
+        <p className="text-sm text-gray-400 mb-6 max-w-sm">
+          삭제되었거나 접근 권한이 없는 프로젝트입니다.
+        </p>
+        <button
+          onClick={() => navigate('/projects')}
+          className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors"
+        >
+          프로젝트 목록으로
+        </button>
+      </div>
+    );
+  }
   if (isError) return <ErrorState className="p-12" onRetry={refetch} />;
   if (!project) return null;
 
@@ -221,7 +272,7 @@ export function ProjectDetailPage() {
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-xl font-bold text-gray-900">{project.name}</h1>
+            <h1 className="text-xl font-bold text-gray-700">{project.name}</h1>
             <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', cfg.color, cfg.bg)}>
               {cfg.label}
             </span>
@@ -241,7 +292,7 @@ export function ProjectDetailPage() {
         {canManageProject && (
           <button
             onClick={openEdit}
-            className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-indigo-600 border border-gray-200 hover:border-indigo-300 px-3 py-1.5 rounded-lg transition-colors flex-shrink-0"
+            className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-red-600 border border-gray-200 hover:border-gray-300 px-3 py-1.5 rounded-lg transition-colors flex-shrink-0"
           >
             <Pencil size={14} /> 정보 수정
           </button>
@@ -254,13 +305,113 @@ export function ProjectDetailPage() {
           { label: '전체 태스크', value: stats?.total ?? 0, color: 'text-gray-900' },
           { label: '완료율', value: `${completionRate}%`, color: 'text-emerald-600' },
           { label: '기한 초과', value: stats?.overdue ?? 0, color: 'text-red-600' },
-          { label: '멤버', value: project.members.length, color: 'text-indigo-600' },
         ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+          <div key={s.label} className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 p-4">
             <p className={cn('text-2xl font-bold', s.color)}>{s.value}</p>
             <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
           </div>
         ))}
+        {/* 오픈예정일 카드 — 그래디언트 */}
+        {(() => {
+          const dday = project.openDate ? (() => {
+            const today = new Date(); today.setHours(0,0,0,0);
+            const open  = new Date(project.openDate); open.setHours(0,0,0,0);
+            return Math.round((open.getTime() - today.getTime()) / 86400000);
+          })() : null;
+          const ddayLabel = dday === null ? null : dday === 0 ? 'D-Day' : dday > 0 ? `D-${dday}` : `D+${Math.abs(dday)}`;
+          const openDateObj = project.openDate ? new Date(project.openDate) : null;
+          return (
+            <div className="relative">
+              <div
+                className="rounded-xl p-4 text-white cursor-pointer hover:opacity-90 transition-opacity"
+                style={{ background: 'linear-gradient(135deg, #f85032, #e73827)', boxShadow: '0 4px 16px rgba(248,80,50,0.35)' }}
+                onClick={() => {
+                  setOpenDateMonth(openDateObj ? new Date(openDateObj.getFullYear(), openDateObj.getMonth(), 1) : new Date());
+                  setOpenDatePopup(v => !v);
+                }}
+              >
+                <div className="flex items-center justify-between h-full">
+                  <div>
+                    <div className="flex items-baseline gap-1.5">
+                      <p className="text-2xl font-bold">{project.openDate ? formatDate(project.openDate) : '-'}</p>
+                      {project.openDate && (
+                        <span className="text-sm font-medium text-white/80">
+                          {['일', '월', '화', '수', '목', '금', '토'][new Date(project.openDate).getDay()]}요일
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs mt-0.5 text-white/70">오픈예정일</p>
+                  </div>
+                  {ddayLabel && (
+                    <div className={`px-3 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${dday === 0 ? 'bg-white text-orange-500' : dday! < 0 ? 'bg-white/20 text-white' : 'bg-white/25 text-white'}`}>
+                      {ddayLabel}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 달력 팝업 */}
+              {openDatePopup && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setOpenDatePopup(false)} />
+                  <div className="absolute left-0 top-full mt-2 z-50 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
+                    {/* 팝업 헤더 */}
+                    <div className="px-4 py-3 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
+                      <button onClick={(e) => { e.stopPropagation(); setOpenDateMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1)); }}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/20 text-white transition-colors">
+                        <ChevronLeft size={15} />
+                      </button>
+                      <span className="text-sm font-bold text-white">
+                        {openDateMonth.getFullYear()}년 {openDateMonth.getMonth() + 1}월
+                      </span>
+                      <button onClick={(e) => { e.stopPropagation(); setOpenDateMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1)); }}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/20 text-white transition-colors">
+                        <ChevronRight size={15} />
+                      </button>
+                    </div>
+                    {/* 요일 헤더 */}
+                    <div className="grid grid-cols-7 px-3 pt-3 pb-1">
+                      {['일','월','화','수','목','금','토'].map((d, i) => (
+                        <div key={d} className={cn('text-center text-[10px] font-semibold pb-1', i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-gray-400')}>{d}</div>
+                      ))}
+                    </div>
+                    {/* 날짜 그리드 */}
+                    <div className="grid grid-cols-7 px-3 pb-3 gap-y-0.5">
+                      {openDatePopupDays.map((day, idx) => {
+                        if (!day) return <div key={idx} />;
+                        const isOpenDate = openDateObj &&
+                          openDateObj.getFullYear() === openDateMonth.getFullYear() &&
+                          openDateObj.getMonth() === openDateMonth.getMonth() &&
+                          openDateObj.getDate() === day;
+                        const col = idx % 7;
+                        return (
+                          <div key={idx} className="flex items-center justify-center py-0.5">
+                            <div className={cn(
+                              'w-8 h-8 flex items-center justify-center rounded-full text-xs font-medium',
+                              isOpenDate ? 'text-white font-bold shadow-md' : col === 0 ? 'text-red-400' : col === 6 ? 'text-blue-400' : 'text-gray-700',
+                            )}
+                            style={isOpenDate ? { background: 'linear-gradient(135deg, #f85032, #e73827)' } : undefined}>
+                              {day}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {/* 오픈예정일 표시 하단 */}
+                    {openDateObj && (
+                      <div className="mx-3 mb-3 px-3 py-2 rounded-xl text-xs font-semibold text-white flex items-center gap-2"
+                        style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
+                        <Calendar size={12} />
+                        오픈예정일: {formatDate(project.openDate!)}
+                        {ddayLabel && <span className="ml-auto bg-white/25 px-2 py-0.5 rounded-full">{ddayLabel}</span>}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* 메인 3열 레이아웃: 왼쪽 2열(콘텐츠) + 오른쪽 1열(팀 멤버) */}
@@ -269,9 +420,115 @@ export function ProjectDetailPage() {
         {/* ── 왼쪽 2열 영역 ── */}
         <div className="lg:col-span-3 flex flex-col gap-6">
 
+          {/* 공지사항 */}
+          <div className="bg-white/85 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
+            {/* 헤더 */}
+            <div className="flex items-center justify-between px-5 py-4">
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 rounded-md flex items-center justify-center shadow-sm flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
+                  <Megaphone size={12} className="text-white" />
+                </div>
+                <div>
+                  <span className="text-sm font-bold text-gray-800">공지사항</span>
+                  {notices && notices.length > 0 && (
+                    <span className="ml-2 text-[10px] font-bold text-[#e73827] bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-full">{notices.length}</span>
+                  )}
+                </div>
+              </div>
+              <NavLink to="notices" relative="route" className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 hover:text-[#e73827] transition-colors group">
+                전체보기 <ArrowRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
+              </NavLink>
+            </div>
+
+            {!notices?.length ? (
+              <div className="flex flex-col items-center justify-center py-12 px-6">
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'linear-gradient(135deg, #fff0f0, #ffe0e0)' }}>
+                  <Megaphone size={20} className="text-red-300" />
+                </div>
+                <p className="text-sm font-semibold text-gray-400 mb-1">등록된 공지사항이 없습니다</p>
+                {canManageProject && (
+                  <NavLink to="notices" relative="route" className="mt-1 text-xs text-[#e73827] hover:underline font-medium">
+                    공지사항 작성하기 →
+                  </NavLink>
+                )}
+              </div>
+            ) : (
+              <div className="px-4 pb-4 space-y-2">
+                {/* 고정 공지 */}
+                {notices.filter((n) => n.isPinned).slice(0, 1).map((n) => {
+                  const isOpen = expandedNoticeId === n.id;
+                  return (
+                    <div key={n.id} className="rounded-xl overflow-hidden border border-amber-200/80 bg-gradient-to-r from-amber-50 to-orange-50/40">
+                      <button
+                        onClick={() => setExpandedNoticeId(isOpen ? null : n.id)}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-amber-50/60 transition-colors text-left"
+                      >
+                        <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                          <Pin size={11} className="text-amber-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-bold text-amber-600 mb-0.5">고정 공지</p>
+                          <p className="text-sm font-semibold text-gray-800 truncate leading-snug">{n.title}</p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-[10px] text-gray-400 whitespace-nowrap">{formatRelativeTime(n.createdAt)}</span>
+                          <ChevronDown size={13} className={cn('text-amber-400 transition-transform duration-200', isOpen && 'rotate-180')} />
+                        </div>
+                      </button>
+                      {isOpen && n.content && (
+                        <div className="border-t border-amber-200 px-4 py-3 bg-white">
+                          <p className="text-[10px] text-gray-400 mb-2 font-medium">{n.createdBy.name} · {formatDate(n.createdAt)}</p>
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{n.content}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {/* 일반 공지 */}
+                {notices.filter((n) => !n.isPinned).slice(0, 3).map((n) => {
+                  const isOpen = expandedNoticeId === n.id;
+                  return (
+                    <div key={n.id} className="rounded-xl overflow-hidden border border-gray-100 bg-gray-50/60 hover:border-gray-200 transition-colors">
+                      <button
+                        onClick={() => setExpandedNoticeId(isOpen ? null : n.id)}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-100/50 transition-colors text-left"
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#e73827]/40 flex-shrink-0 mt-0.5" />
+                        <p className="flex-1 text-sm font-medium text-gray-700 truncate">{n.title}</p>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-[10px] text-gray-400 hidden sm:block">{n.createdBy.name}</span>
+                          <span className="text-[10px] text-gray-400 whitespace-nowrap">{formatRelativeTime(n.createdAt)}</span>
+                          <ChevronDown size={13} className={cn('text-gray-300 transition-transform duration-200', isOpen && 'rotate-180')} />
+                        </div>
+                      </button>
+                      {isOpen && n.content && (
+                        <div className="border-t border-gray-100 px-4 py-3 bg-white/80">
+                          <p className="text-[10px] text-gray-400 mb-2 font-medium">{n.createdBy.name} · {formatDate(n.createdAt)}</p>
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{n.content}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {notices.length > 4 && (
+                  <NavLink to="notices" relative="route"
+                    className="flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-gray-400 hover:text-[#e73827] transition-colors rounded-xl hover:bg-red-50">
+                    +{notices.length - 4}개 더 보기 <ArrowRight size={11} />
+                  </NavLink>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* 상태별 태스크 */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-            <h3 className="font-semibold text-sm text-gray-900 mb-4">상태별 태스크</h3>
+          <div className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-gray-200/70 flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded-md flex items-center justify-center shadow-sm flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
+                <BarChart2 size={12} className="text-white" />
+              </div>
+              <span className="text-xs font-semibold text-gray-600">상태별 태스크</span>
+            </div>
+            <div className="p-5">
             {stats?.byStatus?.length ? (
               <div className="space-y-2.5">
                 {stats.byStatus.map((s) => {
@@ -300,114 +557,24 @@ export function ProjectDetailPage() {
             ) : (
               <p className="text-sm text-gray-400">태스크가 없습니다.</p>
             )}
-          </div>
-
-          {/* 공지사항 */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 bg-gradient-to-r from-indigo-50/60 to-transparent">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-md bg-indigo-100 flex items-center justify-center">
-                  <Megaphone size={13} className="text-indigo-600" />
-                </div>
-                <span className="text-sm font-bold text-gray-900">공지사항</span>
-                {notices && notices.length > 0 && (
-                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold">
-                    {notices.length}
-                  </span>
-                )}
-              </div>
-              <NavLink to="notices" relative="route" className="flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-600 font-medium transition-colors group">
-                모두 보기 <ArrowRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
-              </NavLink>
             </div>
-            {!notices?.length ? (
-              <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center mb-2.5">
-                  <Megaphone size={18} className="opacity-40" />
-                </div>
-                <p className="text-xs font-medium">등록된 공지사항이 없습니다</p>
-                {canManageProject && (
-                  <NavLink to="notices" relative="route" className="mt-2 text-xs text-indigo-500 hover:text-indigo-700 font-medium">
-                    공지사항 작성하기
-                  </NavLink>
-                )}
-              </div>
-            ) : (
-              <div>
-                {notices.filter((n) => n.isPinned).slice(0, 1).map((n) => {
-                  const isOpen = expandedNoticeId === n.id;
-                  return (
-                    <div key={n.id} className="border-b border-gray-50 bg-indigo-50/40">
-                      <button
-                        onClick={() => setExpandedNoticeId(isOpen ? null : n.id)}
-                        className="w-full flex items-start gap-3 px-5 py-3 hover:bg-indigo-50/70 transition-colors group text-left"
-                      >
-                        <Pin size={12} className="text-indigo-500 mt-1 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-100 px-1.5 py-0.5 rounded-full flex-shrink-0">고정</span>
-                            <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-indigo-700 transition-colors">{n.title}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
-                          <span className="text-[10px] text-gray-300 whitespace-nowrap">{formatRelativeTime(n.createdAt)}</span>
-                          <ChevronDown size={13} className={cn('text-gray-400 transition-transform duration-200', isOpen && 'rotate-180')} />
-                        </div>
-                      </button>
-                      {isOpen && n.content && (
-                        <div className="px-5 pb-3 pt-0">
-                          <p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed bg-indigo-50 rounded-lg px-3 py-2.5">{n.content}</p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                {notices.filter((n) => !n.isPinned).slice(0, 3).map((n, i, arr) => {
-                  const isOpen = expandedNoticeId === n.id;
-                  return (
-                    <div key={n.id} className={cn(i < arr.length - 1 && 'border-b border-gray-50')}>
-                      <button
-                        onClick={() => setExpandedNoticeId(isOpen ? null : n.id)}
-                        className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors group text-left"
-                      >
-                        <div className="w-1.5 h-1.5 rounded-full bg-gray-300 flex-shrink-0" />
-                        <p className="flex-1 text-sm text-gray-700 truncate font-medium group-hover:text-indigo-600 transition-colors">{n.title}</p>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="text-[10px] text-gray-400 hidden sm:block">{n.createdBy.name}</span>
-                          <span className="text-[10px] text-gray-300 whitespace-nowrap">{formatRelativeTime(n.createdAt)}</span>
-                          <ChevronDown size={13} className={cn('text-gray-400 transition-transform duration-200', isOpen && 'rotate-180')} />
-                        </div>
-                      </button>
-                      {isOpen && n.content && (
-                        <div className="px-5 pb-3 pt-0">
-                          <p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed bg-gray-50 rounded-lg px-3 py-2.5">{n.content}</p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                {notices.length > 4 && (
-                  <NavLink to="notices" relative="route"
-                    className="flex items-center justify-center gap-1 py-2.5 text-xs text-gray-400 hover:text-indigo-600 hover:bg-gray-50 transition-colors border-t border-gray-50">
-                    <span>+{notices.length - 4}개 더</span><ArrowRight size={11} />
-                  </NavLink>
-                )}
-              </div>
-            )}
           </div>
 
           {/* 캘린더 */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Calendar size={15} className="text-indigo-500" />
-                <h3 className="font-semibold text-sm text-gray-900">{calMonth.getFullYear()}년 {calMonth.getMonth() + 1}월</h3>
+          <div className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200/70">
+              <div className="flex items-center gap-2.5">
+                <div className="w-6 h-6 rounded-md flex items-center justify-center shadow-sm flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
+                  <Calendar size={12} className="text-white" />
+                </div>
+                <span className="text-xs font-semibold text-gray-600">{calMonth.getFullYear()}년 {calMonth.getMonth() + 1}월</span>
               </div>
               <div className="flex gap-1">
-                <button onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1))} className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"><ChevronLeft size={15} /></button>
-                <button onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1))} className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"><ChevronRight size={15} /></button>
+                <button onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1))} className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-600 transition-colors"><ChevronLeft size={15} /></button>
+                <button onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1))} className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-600 transition-colors"><ChevronRight size={15} /></button>
               </div>
             </div>
+            <div className="p-5">
             <div className="grid grid-cols-7 mb-1">
               {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => (
                 <div key={d} className={cn('text-center text-[11px] font-medium py-1', i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-gray-400')}>{d}</div>
@@ -426,7 +593,7 @@ export function ProjectDetailPage() {
                     {day && (
                       <>
                         <span className={cn('inline-flex w-5 h-5 items-center justify-center text-[11px] font-medium rounded-full mb-0.5',
-                          isToday ? 'bg-indigo-600 text-white' : col === 0 ? 'text-red-400' : col === 6 ? 'text-blue-400' : 'text-gray-600')}>
+                          isToday ? 'bg-primary-600 text-white' : col === 0 ? 'text-red-400' : col === 6 ? 'text-blue-400' : 'text-gray-600')}>
                           {day}
                         </span>
                         <div className="space-y-0.5">
@@ -452,14 +619,19 @@ export function ProjectDetailPage() {
                 </div>
               ))}
             </div>
+            </div>
           </div>
 
           {/* Activity Feed */}
           {activity && activity.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-              <h3 className="font-semibold text-sm text-gray-900 mb-4 flex items-center gap-2">
-                <Activity size={16} /> 최근 활동
-              </h3>
+            <div className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-gray-200/70 flex items-center gap-2.5">
+                <div className="w-6 h-6 rounded-md flex items-center justify-center shadow-sm flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
+                  <Activity size={12} className="text-white" />
+                </div>
+                <span className="text-xs font-semibold text-gray-600">최근 활동</span>
+              </div>
+              <div className="p-5">
               <div className="space-y-3">
                 {(activity as ActivityLog[]).map((log) => (
                   <div key={log.id} className="flex items-start gap-3">
@@ -475,22 +647,25 @@ export function ProjectDetailPage() {
                 ))}
               </div>
             </div>
+            </div>
           )}
         </div>
 
         {/* ── 오른쪽 1열: 팀 멤버 (전체 높이) ── */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col">
+        <div className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 flex flex-col">
           {/* 멤버 헤더 */}
-          <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100 flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <Users size={14} className="text-indigo-500" />
-              <h3 className="font-semibold text-sm text-gray-900">팀 멤버</h3>
+          <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-200/70 flex-shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded-md flex items-center justify-center shadow-sm flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
+                <Users size={12} className="text-white" />
+              </div>
+              <span className="text-xs font-semibold text-gray-600">팀 멤버</span>
               <span className="text-[11px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{project.members.length}명</span>
             </div>
             {canManageMembers && (
               <button
                 onClick={() => setMemberOpen(true)}
-                className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-2 py-1 rounded-lg transition-colors font-medium"
+                className="flex items-center gap-1 text-xs text-gray-600 hover:text-red-600 hover:bg-primary-50 px-2 py-1 rounded-lg transition-colors font-medium"
               >
                 <UserPlus size={13} /> 관리
               </button>
@@ -506,7 +681,7 @@ export function ProjectDetailPage() {
                 {project.members.map((m) => {
                   const roleIcon =
                     m.role === 'OWNER' ? <Crown size={10} className="text-amber-500" /> :
-                    m.role === 'ADMIN' ? <ShieldCheck size={10} className="text-indigo-500" /> :
+                    m.role === 'ADMIN' ? <ShieldCheck size={10} className="text-gray-600" /> :
                     m.role === 'VIEWER' ? <Eye size={10} className="text-gray-400" /> : null;
                   const roleLabel: Record<string, string> = { OWNER: '소유자', ADMIN: '관리자', MEMBER: '멤버', VIEWER: '뷰어' };
                   const isSelf = m.user.id === user?.id;
@@ -515,10 +690,19 @@ export function ProjectDetailPage() {
                       key={m.id}
                       className="group flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors"
                     >
-                      <Avatar name={m.user.name} avatar={m.user.avatar} size="sm" className="flex-shrink-0" />
+                      <div
+                        className="relative flex-shrink-0 cursor-pointer"
+                        onClick={() => setProfilePopup(m.user)}
+                      >
+                        <Avatar name={m.user.name} avatar={m.user.avatar} size="sm" />
+                        <span className={cn(
+                          'absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-white rounded-full',
+                          onlineSet.has(m.user.id) ? 'bg-green-400' : 'bg-gray-300',
+                        )} />
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1 flex-wrap">
-                          <p className={cn('text-xs font-semibold truncate', isSelf ? 'text-indigo-600' : 'text-gray-900')}>{m.user.name}</p>
+                          <p className={cn('text-xs font-semibold truncate', isSelf ? 'text-gray-600' : 'text-gray-600')}>{m.user.name}</p>
                           <span className="flex items-center gap-0.5 text-[10px] text-gray-400">
                             {roleIcon}{roleLabel[m.role] ?? m.role}
                           </span>
@@ -532,10 +716,11 @@ export function ProjectDetailPage() {
                       {!isSelf && (
                         <button
                           onClick={() => openChat(m.user.id)}
-                          className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[10px] font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-md transition-all flex-shrink-0"
-                          title="멘션 보내기"
+                          className="opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 flex items-center gap-1 text-[10px] font-bold text-white px-2.5 py-1 rounded-full shadow-sm hover:shadow-md hover:brightness-105 transition-all duration-200 flex-shrink-0"
+                          style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}
+                          title="채팅 보내기"
                         >
-                          <MessageSquare size={11} /> 멘션
+                          <MessageSquare size={11} strokeWidth={2.5} /> 채팅
                         </button>
                       )}
                     </div>
@@ -554,6 +739,53 @@ export function ProjectDetailPage() {
         initialUserId={msgTargetId}
       />
 
+      {/* 프로필 팝업 */}
+      {profilePopup && (
+        <>
+          <div className="fixed inset-0 z-[60] bg-black/30 backdrop-blur-[2px]" onClick={() => setProfilePopup(null)} />
+          <div className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-none">
+            <div className="bg-white rounded-2xl shadow-2xl w-80 overflow-hidden pointer-events-auto">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
+                    <User size={13} className="text-white" />
+                  </div>
+                  <span className="text-sm font-bold text-gray-800">프로필 정보</span>
+                </div>
+                <button onClick={() => setProfilePopup(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="flex justify-center mt-5 mb-3">
+                <Avatar name={profilePopup.name} avatar={profilePopup.avatar} size="lg" />
+              </div>
+              <div className="text-center px-6 pb-5 space-y-1">
+                <p className="text-base font-bold text-gray-800">{profilePopup.name}</p>
+                {(profilePopup.statusEmoji || profilePopup.statusText) && (
+                  <p className="text-xs text-gray-400">{profilePopup.statusEmoji} {profilePopup.statusText}</p>
+                )}
+                {(profilePopup.position || profilePopup.department) && (
+                  <p className="text-xs text-gray-500">{[profilePopup.position, profilePopup.department].filter(Boolean).join(' · ')}</p>
+                )}
+                {profilePopup.email && <p className="text-xs text-gray-400">{profilePopup.email}</p>}
+                {profilePopup.phone && <p className="text-xs text-gray-400">{profilePopup.phone}</p>}
+                {profilePopup.id !== user?.id && (
+                  <div className="pt-3">
+                    <button
+                      onClick={() => { openChat(profilePopup.id); setProfilePopup(null); }}
+                      className="w-full py-2 text-sm font-semibold text-white rounded-xl transition-opacity hover:opacity-90"
+                      style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}
+                    >
+                      메시지 보내기
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Member Management Modal */}
       {memberOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -562,10 +794,10 @@ export function ProjectDetailPage() {
             {/* 헤더 */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
               <div>
-                <h2 className="text-base font-bold text-gray-900">팀 멤버 관리</h2>
+                <h2 className="text-base font-bold text-gray-700">팀 멤버 관리</h2>
                 <p className="text-xs text-gray-400 mt-0.5">멤버를 추가하거나 역할을 변경할 수 있습니다</p>
               </div>
-              <button onClick={() => setMemberOpen(false)} className="text-gray-400 hover:text-gray-600 p-1">
+              <button onClick={() => setMemberOpen(false)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
                 <X size={18} />
               </button>
             </div>
@@ -585,7 +817,7 @@ export function ProjectDetailPage() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 truncate">
                             {m.user.name}
-                            {isSelf && <span className="ml-1.5 text-[10px] text-indigo-500 font-semibold">나</span>}
+                            {isSelf && <span className="ml-1.5 text-[10px] text-gray-600 font-semibold">나</span>}
                           </p>
                           <p className="text-[11px] text-gray-400 truncate">{m.user.email}</p>
                         </div>
@@ -594,7 +826,7 @@ export function ProjectDetailPage() {
                           <select
                             value={m.role}
                             onChange={(e) => addMember.mutate({ userId: m.user.id, role: e.target.value })}
-                            className="text-[11px] border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-gray-600 bg-white"
+                            className="text-[11px] border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary-400 text-gray-600 bg-white"
                           >
                             <option value="ADMIN">관리자</option>
                             <option value="MEMBER">멤버</option>
@@ -608,7 +840,7 @@ export function ProjectDetailPage() {
                           <button
                             onClick={() => removeMember.mutate(m.user.id)}
                             disabled={removeMember.isPending}
-                            className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                            className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                             title="멤버 제거"
                           >
                             <Trash2 size={13} />
@@ -630,7 +862,7 @@ export function ProjectDetailPage() {
                     value={memberSearch}
                     onChange={(e) => setMemberSearch(e.target.value)}
                     placeholder="이름 또는 이메일 검색..."
-                    className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 {/* 역할 선택 */}
@@ -645,7 +877,7 @@ export function ProjectDetailPage() {
                         className={cn(
                           'flex-1 py-1.5 text-xs font-medium rounded-lg border transition-colors',
                           addingRole === r
-                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            ? 'bg-primary-600 text-white border-primary-600'
                             : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300',
                         )}
                       >
@@ -670,14 +902,14 @@ export function ProjectDetailPage() {
                         type="button"
                         onClick={() => addMember.mutate({ userId: u.id, role: addingRole })}
                         disabled={addMember.isPending}
-                        className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-indigo-50 transition-colors text-left group"
+                        className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-primary-50 transition-colors text-left group"
                       >
                         <Avatar name={u.name} avatar={u.avatar} size="sm" />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-800 truncate">{u.name}</p>
                           <p className="text-[11px] text-gray-400 truncate">{u.email}</p>
                         </div>
-                        <span className="opacity-0 group-hover:opacity-100 text-[11px] text-indigo-600 font-medium flex items-center gap-0.5 transition-opacity flex-shrink-0">
+                        <span className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto text-[11px] text-gray-600 font-medium flex items-center gap-0.5 transition-opacity flex-shrink-0">
                           <UserPlus size={12} /> 추가
                         </span>
                       </button>
@@ -692,7 +924,7 @@ export function ProjectDetailPage() {
             <div className="px-6 py-4 border-t border-gray-100 flex justify-end flex-shrink-0">
               <button
                 onClick={() => setMemberOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors"
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-xl transition-colors"
               >
                 완료
               </button>
@@ -715,13 +947,14 @@ export function ProjectDetailPage() {
               icon: form.icon,
               startDate: form.startDate || undefined,
               endDate: form.endDate || undefined,
+              openDate: form.openDate || undefined,
             });
           }}
           className="p-6 space-y-4"
         >
           {/* 아이콘 선택 */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-gray-700">아이콘</label>
+            <label className="text-sm font-medium text-gray-600">아이콘</label>
             <div className="flex gap-1.5 flex-wrap">
               {PROJECT_ICONS.map((ic) => (
                 <button
@@ -730,7 +963,7 @@ export function ProjectDetailPage() {
                   onClick={() => setForm({ ...form, icon: ic })}
                   className={cn(
                     'w-9 h-9 rounded-lg flex items-center justify-center text-lg transition-all',
-                    form.icon === ic ? 'bg-indigo-100 ring-2 ring-indigo-400' : 'bg-gray-50 hover:bg-gray-100',
+                    form.icon === ic ? 'bg-primary-100 ring-2 ring-primary-400' : 'bg-gray-50 hover:bg-gray-100',
                   )}
                 >
                   {ic}
@@ -748,22 +981,22 @@ export function ProjectDetailPage() {
           />
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-gray-700">설명</label>
+            <label className="text-sm font-medium text-gray-600">설명</label>
             <textarea
               placeholder="프로젝트 설명을 입력하세요."
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               rows={3}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-gray-700">상태</label>
+            <label className="text-sm font-medium text-gray-600">상태</label>
             <select
               value={form.status}
               onChange={(e) => setForm({ ...form, status: e.target.value as ProjectStatus })}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               {STATUS_OPTIONS.map((s) => (
                 <option key={s.value} value={s.value}>{s.label}</option>
@@ -772,24 +1005,32 @@ export function ProjectDetailPage() {
           </div>
 
           <div className="flex gap-4">
-            <Input
-              label="시작일"
-              type="date"
-              value={form.startDate}
-              onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-              className="flex-1"
-            />
-            <Input
-              label="마감일"
-              type="date"
-              value={form.endDate}
-              onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-              className="flex-1"
-            />
+            <div className="flex-1">
+              <Input
+                label="시작일"
+                type="date"
+                value={form.startDate}
+                onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+              />
+            </div>
+            <div className="flex-1">
+              <Input
+                label="종료일"
+                type="date"
+                value={form.endDate}
+                onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+              />
+            </div>
           </div>
+          <Input
+            label="오픈예정일"
+            type="date"
+            value={form.openDate}
+            onChange={(e) => setForm({ ...form, openDate: e.target.value })}
+          />
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-gray-700">색상</label>
+            <label className="text-sm font-medium text-gray-600">색상</label>
             <div className="flex gap-2 flex-wrap">
               {PROJECT_COLORS.map((c) => (
                 <button

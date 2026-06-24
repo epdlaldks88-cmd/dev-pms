@@ -2,7 +2,7 @@ export type Role = 'ADMIN' | 'MEMBER';
 export type ProjectRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
 export type ProjectStatus = 'ACTIVE' | 'COMPLETED' | 'ARCHIVED' | 'ON_HOLD';
 export type Priority = 'URGENT' | 'HIGH' | 'MEDIUM' | 'LOW';
-export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'CANCELLED';
+export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'ON_HOLD' | 'CANCELLED';
 export type NotificationType =
   | 'TASK_ASSIGNED'
   | 'TASK_UPDATED'
@@ -20,9 +20,12 @@ export interface User {
   name: string;
   avatar?: string;
   role: Role;
+  status?: 'PENDING' | 'ACTIVE' | 'INACTIVE';
   position?: string;
   department?: string;
   phone?: string;
+  statusEmoji?: string;
+  statusText?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -31,7 +34,7 @@ export interface ProjectMember {
   id: string;
   role: ProjectRole;
   joinedAt: string;
-  user: Pick<User, 'id' | 'name' | 'email' | 'avatar'>;
+  user: Pick<User, 'id' | 'name' | 'email' | 'avatar' | 'position'>;
 }
 
 export interface Project {
@@ -41,6 +44,7 @@ export interface Project {
   status: ProjectStatus;
   startDate?: string;
   endDate?: string;
+  openDate?: string;
   color: string;
   icon?: string;
   createdAt: string;
@@ -56,7 +60,7 @@ export interface Step {
   name: string;
   order: number;
   color: string;
-  isDone: boolean;
+  status: TaskStatus;
   projectId: string;
   createdAt: string;
   _count?: { tasks: number };
@@ -73,6 +77,7 @@ export interface Task {
   id: string;
   title: string;
   description?: string;
+  requester?: string;
   priority: Priority;
   status: TaskStatus;
   startDate?: string;
@@ -91,7 +96,8 @@ export interface Task {
   subTasks?: Task[];
   comments?: Comment[];
   attachments?: Attachment[];
-  _count: { comments: number; attachments: number; subTasks: number };
+  issues?: { id: string; title: string; riskLevel: IssueRisk; status: IssueStatus }[];
+  _count: { comments: number; attachments: number; subTasks: number; issues: number };
 }
 
 export interface KanbanColumn extends Step {
@@ -188,6 +194,8 @@ export interface Issue {
   createdAt: string;
   updatedAt: string;
   projectId: string;
+  taskId?: string | null;
+  task?: { id: string; title: string } | null;
   createdBy: Pick<User, 'id' | 'name' | 'avatar'>;
   assignee?: Pick<User, 'id' | 'name' | 'avatar'> | null;
 }
@@ -203,4 +211,27 @@ export interface AuthResponse {
   user: User;
   accessToken: string;
   refreshToken: string;
+}
+
+export interface TemplateFile {
+  id: string;
+  filename: string;
+  originalName: string;
+  mimetype: string;
+  size: number;
+  url: string;
+  createdAt: string;
+}
+
+export interface Template {
+  id: string;
+  title: string;
+  phase: string;
+  description?: string;
+  content?: string;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: Pick<User, 'id' | 'name' | 'avatar'>;
+  files: TemplateFile[];
 }

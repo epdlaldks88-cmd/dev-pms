@@ -12,4 +12,10 @@ export const authApi = {
     api.post('/auth/logout', { refreshToken }).then((r) => r.data),
 
   me: () => api.get<User>('/auth/me').then((r) => r.data),
+
+  findId: (name: string, phone: string) =>
+    api.post<{ email: string }>('/auth/find-id', { name, phone }).then((r) => r.data),
+
+  findPassword: (name: string, email: string) =>
+    api.post<{ tempPassword: string }>('/auth/find-password', { name, email }).then((r) => r.data),
 };

@@ -3,8 +3,41 @@ import { NavLink, useNavigate, useMatch } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard, FolderKanban, Bell, ChevronLeft, ChevronRight,
-  Zap, Building2, Users, CalendarDays, ShieldCheck, PenTool, Table2,
+  Building2, Users, CalendarDays, ShieldCheck, PenTool, Table2, FileText, FlaskConical,
 } from 'lucide-react';
+
+function Logo({ size = 28 }: { size?: number }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width={size} height={size}>
+      <defs>
+        <linearGradient id="sl-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#ff2828"/>
+          <stop offset="100%" stopColor="#a8000c"/>
+        </linearGradient>
+        <linearGradient id="sl-face" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff"/>
+          <stop offset="100%" stopColor="#e8e8e8"/>
+        </linearGradient>
+        <linearGradient id="sl-top" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff"/>
+          <stop offset="100%" stopColor="#cccccc"/>
+        </linearGradient>
+        <linearGradient id="sl-side" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#bbbbbb"/>
+          <stop offset="100%" stopColor="#888888"/>
+        </linearGradient>
+      </defs>
+      <rect width="32" height="32" rx="7" fill="url(#sl-bg)"/>
+      <rect x="8" y="6" width="5.5" height="19" rx="0.5" fill="url(#sl-face)"/>
+      <rect x="8" y="19.5" width="14" height="5.5" rx="0.5" fill="url(#sl-face)"/>
+      <rect x="8" y="6" width="5.5" height="1.5" rx="0.5" fill="url(#sl-top)" opacity="0.9"/>
+      <rect x="13.5" y="19.5" width="8.5" height="1.5" fill="url(#sl-top)" opacity="0.7"/>
+      <rect x="13" y="7.5" width="1.5" height="12" fill="url(#sl-side)" opacity="0.85"/>
+      <rect x="21.5" y="21" width="1.5" height="4" rx="0.5" fill="url(#sl-side)" opacity="0.85"/>
+      <rect x="13" y="19.5" width="1.5" height="1.5" fill="#999999"/>
+    </svg>
+  );
+}
 import { cn } from '../../lib/utils';
 import { useUiStore } from '../../store/ui.store';
 import { useAuthStore } from '../../store/auth.store';
@@ -16,7 +49,9 @@ const navItems = [
   { to: '/meeting-calendar', icon: CalendarDays, label: '일정관리' },
   { to: '/canvas', icon: PenTool, label: '캔버스' },
   { to: '/sheets', icon: Table2, label: '시트' },
+  { to: '/templates', icon: FileText, label: '템플릿' },
   { to: '/partners', icon: Building2, label: '파트너사 관리' },
+  { to: '/qa', icon: FlaskConical, label: 'QA 테스트' },
   { to: '/notifications', icon: Bell, label: '알림' },
 ];
 
@@ -54,15 +89,13 @@ export function Sidebar() {
       <div className="flex items-center justify-between px-3 h-14 border-b border-gray-800">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-indigo-500 rounded-lg flex items-center justify-center">
-              <Zap size={14} className="text-white" />
-            </div>
-            <span className="font-bold text-sm tracking-tight">L.PMS</span>
+            <Logo size={28} />
+            <span className="font-bold text-base tracking-tight">L.PMS</span>
           </div>
         )}
         {collapsed && (
-          <div className="w-7 h-7 bg-indigo-500 rounded-lg flex items-center justify-center mx-auto">
-            <Zap size={14} className="text-white" />
+          <div className="mx-auto">
+            <Logo size={28} />
           </div>
         )}
         {!collapsed && (
@@ -84,7 +117,7 @@ export function Sidebar() {
               const active = to === '/canvas' ? (isActive || !!canvasDrawMatch) : isActive;
               return cn(
                 'flex items-center gap-3 px-2 py-2 rounded-lg text-sm font-medium transition-colors',
-                active ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800',
+                active ? 'bg-primary-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800',
                 collapsed && 'justify-center px-0',
               );
             }}
@@ -139,7 +172,7 @@ export function Sidebar() {
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-3 px-2 py-2 rounded-lg text-sm font-medium transition-colors',
-                isActive ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800',
+                isActive ? 'bg-primary-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800',
                 collapsed && 'justify-center px-0',
               )
             }
@@ -156,7 +189,7 @@ export function Sidebar() {
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-3 px-2 py-2 rounded-lg text-sm font-medium transition-colors',
-                isActive ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800',
+                isActive ? 'bg-primary-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800',
                 collapsed && 'justify-center px-0',
               )
             }

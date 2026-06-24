@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { User, Lock, Phone, Briefcase, Building, Save, Eye, EyeOff, CheckCircle, Smile, Bell } from 'lucide-react';
+import { User, Phone, Briefcase, Building, Save, Smile, Bell, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { usersApi } from '../../api/users';
 import { useAuthStore } from '../../store/auth.store';
@@ -8,6 +8,18 @@ import { useUiStore } from '../../store/ui.store';
 import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
+
+const STATUS_PRESETS = [
+  { emoji: '🟢', text: '업무 중' },
+  { emoji: '🔴', text: '자리 비움' },
+  { emoji: '🟡', text: '잠깐 자리 비움' },
+  { emoji: '🎯', text: '집중 중 — 방해 금지' },
+  { emoji: '📅', text: '미팅 중' },
+  { emoji: '🏠', text: '재택 근무' },
+  { emoji: '🌴', text: '휴가 중' },
+  { emoji: '🤒', text: '병가' },
+  { emoji: '⛔', text: '오프라인' },
+];
 
 const EMOJI_LIST = [
   '😀','😎','🥸','🤓','🥳','😇','🥰','🤩','😜','🤪','😏','🙃','🤔','🤠','🧐','😴','🤗','😈',
@@ -20,6 +32,8 @@ export function ProfilePage() {
   const { user, updateUser } = useAuthStore();
   const mentionAlarm = useUiStore((s) => s.mentionAlarm);
   const setMentionAlarm = useUiStore((s) => s.setMentionAlarm);
+  const mentionPreview = useUiStore((s) => s.mentionPreview);
+  const setMentionPreview = useUiStore((s) => s.setMentionPreview);
   const pickerRef = useRef<HTMLDivElement>(null);
 
   const [profile, setProfile] = useState({
@@ -28,17 +42,15 @@ export function ProfilePage() {
     department: user?.department ?? '',
     phone: user?.phone ?? '',
     avatar: user?.avatar ?? '',
+    statusEmoji: user?.statusEmoji ?? '🟢',
+    statusText: user?.statusText ?? '',
   });
 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showStatusPopup, setShowStatusPopup] = useState(false);
+  const statusBadgeRef = useRef<HTMLButtonElement>(null);
+  const statusPopupRef = useRef<HTMLDivElement>(null);
 
-  const [pwForm, setPwForm] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-  });
-  const [showPw, setShowPw] = useState({ current: false, next: false, confirm: false });
-  const [pwChanged, setPwChanged] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -48,6 +60,8 @@ export function ProfilePage() {
         department: user.department ?? '',
         phone: user.phone ?? '',
         avatar: user.avatar ?? '',
+        statusEmoji: user.statusEmoji ?? '🟢',
+        statusText: user.statusText ?? '',
       });
     }
   }, [user]);
@@ -62,6 +76,19 @@ export function ProfilePage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showEmojiPicker]);
 
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        statusPopupRef.current && !statusPopupRef.current.contains(e.target as Node) &&
+        statusBadgeRef.current && !statusBadgeRef.current.contains(e.target as Node)
+      ) {
+        setShowStatusPopup(false);
+      }
+    }
+    if (showStatusPopup) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showStatusPopup]);
+
   const updateProfile = useMutation({
     mutationFn: () => usersApi.updateProfile(profile),
     onSuccess: (updated) => {
@@ -71,26 +98,6 @@ export function ProfilePage() {
     onError: () => toast.error('저장에 실패했습니다.'),
   });
 
-  const changePassword = useMutation({
-    mutationFn: () =>
-      usersApi.changePassword({
-        currentPassword: pwForm.currentPassword,
-        newPassword: pwForm.newPassword,
-      }),
-    onSuccess: () => {
-      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      setPwChanged(true);
-      setTimeout(() => setPwChanged(false), 3000);
-      toast.success('비밀번호가 변경되었습니다.');
-    },
-    onError: (e: any) =>
-      toast.error(e.response?.data?.message ?? '비밀번호 변경에 실패했습니다.'),
-  });
-
-  const pwValid =
-    pwForm.currentPassword.length > 0 &&
-    pwForm.newPassword.length >= 6 &&
-    pwForm.newPassword === pwForm.confirmPassword;
 
   return (
     <div className="flex flex-col h-full">
@@ -100,7 +107,7 @@ export function ProfilePage() {
         <div className="max-w-2xl mx-auto space-y-6">
 
           {/* Avatar + 이메일 */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className={`relative bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 p-6 overflow-visible ${showEmojiPicker || showStatusPopup ? 'z-50' : ''}`}>
             <div className="flex items-center gap-4">
               {/* 아바타 + 이모지 선택 버튼 */}
               <div className="relative flex-shrink-0" ref={pickerRef}>
@@ -108,7 +115,7 @@ export function ProfilePage() {
                 <button
                   type="button"
                   onClick={() => setShowEmojiPicker((v) => !v)}
-                  className="absolute -bottom-1 -right-1 w-5 h-5 bg-white border border-gray-300 rounded-full flex items-center justify-center shadow-sm hover:bg-indigo-50 hover:border-indigo-300 transition-colors"
+                  className="absolute -bottom-1 -right-1 w-5 h-5 bg-white border border-gray-300 rounded-full flex items-center justify-center shadow-sm hover:bg-primary-50 hover:border-gray-300 transition-colors"
                   title="이모지 변경"
                 >
                   <Smile size={11} className="text-gray-500" />
@@ -135,8 +142,8 @@ export function ProfilePage() {
                           key={emoji}
                           type="button"
                           onClick={() => { setProfile({ ...profile, avatar: emoji }); setShowEmojiPicker(false); }}
-                          className={`w-7 h-7 flex items-center justify-center text-lg rounded-lg transition-all hover:bg-indigo-50 hover:scale-110 ${
-                            profile.avatar === emoji ? 'bg-indigo-100 ring-2 ring-indigo-400' : ''
+                          className={`w-7 h-7 flex items-center justify-center text-lg rounded-lg transition-all hover:bg-primary-50 hover:scale-110 ${
+                            profile.avatar === emoji ? 'bg-primary-100 ring-2 ring-primary-400' : ''
                           }`}
                         >
                           {emoji}
@@ -147,13 +154,101 @@ export function ProfilePage() {
                 )}
               </div>
 
-              <div>
-                <p className="text-base font-bold text-gray-900">{user?.name}</p>
-                <p className="text-sm text-gray-500">{user?.email}</p>
+              <div className="flex-1 min-w-0">
+                {/* 이름 + 상태 뱃지 */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-base font-bold text-gray-600">{user?.name}</p>
+                  <div className="relative">
+                    <button
+                      ref={statusBadgeRef}
+                      type="button"
+                      onClick={() => setShowStatusPopup((v) => !v)}
+                      className="flex items-center gap-1.5 text-xs font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 px-2.5 py-1 rounded-full transition-colors"
+                    >
+                      <span className="text-sm leading-none">{profile.statusEmoji || '🟢'}</span>
+                      {profile.statusText
+                        ? <span className="max-w-[120px] truncate">{profile.statusText}</span>
+                        : <span className="text-gray-400">상태 설정</span>
+                      }
+                    </button>
+
+                    {/* 상태 팝오버 */}
+                    {showStatusPopup && (
+                      <div
+                        ref={statusPopupRef}
+                        className="absolute left-0 top-full mt-2 z-50 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden"
+                      >
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                          <p className="text-xs font-bold text-gray-700">내 상태</p>
+                          <button onClick={() => setShowStatusPopup(false)} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
+                        </div>
+
+                        {/* 프리셋 */}
+                        <div className="p-3 space-y-1">
+                          {STATUS_PRESETS.map((p) => (
+                            <button
+                              key={p.emoji + p.text}
+                              onClick={() => setProfile({ ...profile, statusEmoji: p.emoji, statusText: p.text })}
+                              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-xs transition-colors ${profile.statusEmoji === p.emoji && profile.statusText === p.text ? 'bg-primary-50 text-primary-700 font-semibold' : 'hover:bg-gray-50 text-gray-600'}`}
+                            >
+                              <span className="text-base leading-none flex-shrink-0">{p.emoji}</span>
+                              {p.text}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* 직접 입력 */}
+                        <div className="px-3 pb-3 border-t border-gray-50 pt-2">
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">직접 입력</p>
+                          <div className="flex gap-2">
+                            <div className="relative flex-shrink-0">
+                              <button
+                                onClick={() => setShowEmojiPicker((v) => !v)}
+                                className="w-9 h-9 flex items-center justify-center text-lg border border-gray-200 rounded-lg hover:border-gray-300 transition-colors bg-white"
+                              >
+                                {profile.statusEmoji || '🟢'}
+                              </button>
+                              {showEmojiPicker && (
+                                <div ref={pickerRef} className="absolute left-0 bottom-full mb-2 z-50 bg-white rounded-xl shadow-xl border border-gray-200 p-2 w-48 grid grid-cols-6 gap-1">
+                                  {['🟢','🟡','🔴','⛔','🎯','📅','🏠','🌴','🤒','💼','☕','🎉','✈️','💤','🔕','🤫'].map((e) => (
+                                    <button key={e} onClick={() => { setProfile({ ...profile, statusEmoji: e }); setShowEmojiPicker(false); }}
+                                      className="w-7 h-7 flex items-center justify-center text-base hover:bg-gray-100 rounded transition-colors">
+                                      {e}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <input
+                              type="text"
+                              value={profile.statusText}
+                              onChange={(e) => setProfile({ ...profile, statusText: e.target.value })}
+                              maxLength={80}
+                              placeholder="상태 메시지"
+                              className="flex-1 text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            />
+                          </div>
+                        </div>
+
+                        {/* 저장 */}
+                        <div className="px-3 pb-3">
+                          <button
+                            onClick={() => { updateProfile.mutate(); setShowStatusPopup(false); }}
+                            disabled={updateProfile.isPending}
+                            className="w-full py-2 text-xs font-semibold text-white rounded-xl disabled:opacity-40 transition-opacity"
+                            style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}
+                          >
+                            저장
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <p className="text-sm text-gray-500 mt-0.5">{user?.email}</p>
                 <span className={`mt-1 inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${
-                  user?.role === 'ADMIN'
-                    ? 'bg-indigo-100 text-indigo-700'
-                    : 'bg-gray-100 text-gray-600'
+                  user?.role === 'ADMIN' ? 'bg-primary-100 text-gray-800' : 'bg-gray-100 text-gray-600'
                 }`}>
                   {user?.role === 'ADMIN' ? '관리자' : '일반 사용자'}
                 </span>
@@ -163,9 +258,9 @@ export function ProfilePage() {
           </div>
 
           {/* 기본 정보 */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 p-6">
             <h2 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <User size={15} className="text-indigo-500" /> 기본 정보
+              <User size={15} className="text-gray-600" /> 기본 정보
             </h2>
             <div className="space-y-4">
               <div>
@@ -174,7 +269,7 @@ export function ProfilePage() {
                   type="text"
                   value={profile.name}
                   onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="이름을 입력하세요"
                 />
               </div>
@@ -188,7 +283,7 @@ export function ProfilePage() {
                     type="text"
                     value={profile.position}
                     onChange={(e) => setProfile({ ...profile, position: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="예: 과장, 시니어 개발자"
                   />
                 </div>
@@ -200,7 +295,7 @@ export function ProfilePage() {
                     type="text"
                     value={profile.department}
                     onChange={(e) => setProfile({ ...profile, department: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="예: 개발팀, 기획팀"
                   />
                 </div>
@@ -214,7 +309,7 @@ export function ProfilePage() {
                   type="tel"
                   value={profile.phone}
                   onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="예: 010-1234-5678"
                 />
               </div>
@@ -232,103 +327,10 @@ export function ProfilePage() {
             </div>
           </div>
 
-          {/* 비밀번호 변경 */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <Lock size={15} className="text-indigo-500" /> 비밀번호 변경
-            </h2>
-
-            {pwChanged && (
-              <div className="flex items-center gap-2 mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
-                <CheckCircle size={15} /> 비밀번호가 성공적으로 변경되었습니다.
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">현재 비밀번호</label>
-                <div className="relative">
-                  <input
-                    type={showPw.current ? 'text' : 'password'}
-                    value={pwForm.currentPassword}
-                    onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="현재 비밀번호"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPw({ ...showPw, current: !showPw.current })}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPw.current ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">새 비밀번호 (6자 이상)</label>
-                <div className="relative">
-                  <input
-                    type={showPw.next ? 'text' : 'password'}
-                    value={pwForm.newPassword}
-                    onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="새 비밀번호"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPw({ ...showPw, next: !showPw.next })}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPw.next ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">새 비밀번호 확인</label>
-                <div className="relative">
-                  <input
-                    type={showPw.confirm ? 'text' : 'password'}
-                    value={pwForm.confirmPassword}
-                    onChange={(e) => setPwForm({ ...pwForm, confirmPassword: e.target.value })}
-                    className={`w-full text-sm border rounded-lg px-3 py-2.5 pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                      pwForm.confirmPassword && pwForm.newPassword !== pwForm.confirmPassword
-                        ? 'border-red-300'
-                        : 'border-gray-300'
-                    }`}
-                    placeholder="새 비밀번호 재입력"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPw({ ...showPw, confirm: !showPw.confirm })}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPw.confirm ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-                {pwForm.confirmPassword && pwForm.newPassword !== pwForm.confirmPassword && (
-                  <p className="text-xs text-red-500 mt-1">비밀번호가 일치하지 않습니다.</p>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-5 flex justify-end">
-              <Button
-                variant="primary"
-                onClick={() => changePassword.mutate()}
-                disabled={!pwValid}
-                loading={changePassword.isPending}
-              >
-                <Lock size={14} /> 비밀번호 변경
-              </Button>
-            </div>
-          </div>
-
           {/* 알림 설정 */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 p-6">
             <h2 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <Bell size={15} className="text-indigo-500" /> 알림 설정
+              <Bell size={15} className="text-gray-600" /> 알림 설정
             </h2>
             <div className="flex items-center justify-between py-2">
               <div>
@@ -339,12 +341,33 @@ export function ProfilePage() {
                 type="button"
                 onClick={() => setMentionAlarm(!mentionAlarm)}
                 className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
-                  mentionAlarm ? 'bg-indigo-600' : 'bg-gray-200'
+                  mentionAlarm ? 'bg-primary-600' : 'bg-gray-200'
                 }`}
               >
                 <span
                   className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform duration-200 ${
                     mentionAlarm ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* 미리보기 토글 — 멘션 알림이 켜져 있을 때만 활성 */}
+            <div className={`flex items-center justify-between py-2 border-t border-gray-100 mt-1 pt-3 transition-opacity ${mentionAlarm ? '' : 'opacity-40 pointer-events-none'}`}>
+              <div>
+                <p className="text-sm font-medium text-gray-800">멘션 내용 미리보기</p>
+                <p className="text-xs text-gray-400 mt-0.5">끄면 팝업에 보낸 사람·메시지 내용 없이 도착 사실만 표시됩니다</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMentionPreview(!mentionPreview)}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
+                  mentionPreview ? 'bg-primary-600' : 'bg-gray-200'
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform duration-200 ${
+                    mentionPreview ? 'translate-x-5' : 'translate-x-0'
                   }`}
                 />
               </button>

@@ -5,6 +5,7 @@ import { Plus, Table2, Trash2, Pencil, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sheetsApi } from '../../api/sheets';
 import { projectsApi } from '../../api/projects';
+import { useAuthStore } from '../../store/auth.store';
 import { formatDate } from '../../lib/utils';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -12,6 +13,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 export function SheetListPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const me = useAuthStore((s) => s.user);
   const [searchParams, setSearchParams] = useSearchParams();
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
@@ -73,13 +75,13 @@ export function SheetListPage() {
       <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 className="text-lg font-bold text-gray-900">시트</h1>
+            <h1 className="text-lg font-bold text-gray-700">시트</h1>
             <p className="text-sm text-gray-400 mt-0.5">엑셀처럼 데이터를 정리하고 관리하세요</p>
           </div>
           {projectId && (
             <button
               onClick={() => setCreating(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors"
             >
               <Plus size={15} /> 새 시트
             </button>
@@ -96,7 +98,7 @@ export function SheetListPage() {
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
                   projectId === p.id
                     ? 'text-white border-transparent'
-                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-700'
+                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-600'
                 }`}
                 style={projectId === p.id ? { backgroundColor: p.color, borderColor: p.color } : {}}
               >
@@ -115,7 +117,7 @@ export function SheetListPage() {
       <div className="flex-1 overflow-auto p-6">
         {/* 새 시트 이름 입력 */}
         {creating && (
-          <div className="mb-4 flex items-center gap-2 p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+          <div className="mb-4 flex items-center gap-2 p-3 bg-primary-50 border border-gray-200 rounded-xl">
             <input
               autoFocus
               value={newName}
@@ -125,9 +127,9 @@ export function SheetListPage() {
                 if (e.key === 'Escape') { setCreating(false); setNewName(''); }
               }}
               placeholder="시트 이름 (Enter로 생성)"
-              className="flex-1 text-sm bg-transparent outline-none placeholder-indigo-300 text-indigo-800"
+              className="flex-1 text-sm bg-transparent outline-none placeholder-primary-300 text-gray-900"
             />
-            <button onClick={handleCreate} className="text-xs font-medium text-indigo-600 hover:text-indigo-800 px-2">생성</button>
+            <button onClick={handleCreate} className="text-xs font-medium text-gray-600 hover:text-red-600 px-2">생성</button>
             <button onClick={() => { setCreating(false); setNewName(''); }} className="text-xs text-gray-400 hover:text-gray-600 px-2">취소</button>
           </div>
         )}
@@ -148,31 +150,26 @@ export function SheetListPage() {
             action={
               <button
                 onClick={() => setCreating(true)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+                className="flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors"
               >
                 <Plus size={15} /> 새 시트 만들기
               </button>
             }
           />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {sheets.map((sheet: any) => (
               <div
                 key={sheet.id}
-                className="group relative bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer"
+                className="group relative bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
                 onClick={() => navigate(`/projects/${projectId}/sheet/${sheet.id}`)}
               >
                 {/* 썸네일 */}
-                <div className="h-36 bg-gradient-to-br from-emerald-50 via-teal-50 to-white flex items-center justify-center">
-                  <div className="grid grid-cols-4 gap-0.5 opacity-30">
-                    {Array.from({ length: 16 }).map((_, i) => (
-                      <div key={i} className="w-6 h-4 border border-emerald-400 bg-emerald-100 rounded-sm" />
-                    ))}
-                  </div>
-                  <Table2 size={36} className="text-emerald-300 absolute" />
+                <div className="h-20 bg-gradient-to-br from-emerald-50 via-teal-50 to-white flex items-center justify-center">
+                  <Table2 size={24} className="text-emerald-300" />
                 </div>
 
-                <div className="px-3 py-2.5 border-t border-gray-100">
+                <div className="px-3 py-2 border-t border-gray-100">
                   {renamingId === sheet.id ? (
                     <input
                       autoFocus
@@ -185,7 +182,7 @@ export function SheetListPage() {
                         if (e.key === 'Escape') setRenamingId(null);
                       }}
                       onBlur={() => renameSheet.mutate({ id: sheet.id, name: renameValue })}
-                      className="w-full text-sm font-medium text-gray-900 outline-none border-b border-indigo-400 bg-transparent"
+                      className="w-full text-sm font-medium text-gray-900 outline-none border-b border-primary-400 bg-transparent"
                     />
                   ) : (
                     <p className="text-sm font-medium text-gray-900 truncate">{sheet.name}</p>
@@ -193,14 +190,15 @@ export function SheetListPage() {
                   <p className="text-xs text-gray-400 mt-0.5">{formatDate(sheet.updatedAt)} 수정</p>
                 </div>
 
-                {/* 액션 버튼 */}
+                {/* 액션 버튼 — 등록자/관리자만 */}
+                {(me?.role === 'ADMIN' || (sheet as any).createdBy?.id === me?.id) && (
                 <div
-                  className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-2 right-2 flex gap-1 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
                     onClick={() => { setRenamingId(sheet.id); setRenameValue(sheet.name); }}
-                    className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow border border-gray-200 text-gray-500 hover:text-indigo-600 transition-colors"
+                    className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow border border-gray-200 text-gray-500 hover:text-red-600 transition-colors"
                   >
                     <Pencil size={12} />
                   </button>
@@ -211,6 +209,7 @@ export function SheetListPage() {
                     <Trash2 size={12} />
                   </button>
                 </div>
+                )}
               </div>
             ))}
           </div>

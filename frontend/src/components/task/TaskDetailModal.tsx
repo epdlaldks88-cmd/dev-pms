@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   X, Calendar, MessageSquare, Paperclip,
@@ -7,6 +7,7 @@ import {
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import { tasksApi, commentsApi, attachmentsApi, labelsApi } from '../../api/tasks';
+import { openFileInNewTab } from '../../lib/download';
 import { activityApi, stepsApi } from '../../api/notifications';
 import { partnersApi } from '../../api/partners';
 import { usersApi } from '../../api/users';
@@ -20,7 +21,7 @@ import { formatDate, formatRelativeTime, formatFileSize, cn, STATUS_CONFIG, PRIO
 import type { TaskStatus, Priority, Comment, Label } from '../../types';
 
 const LABEL_COLORS = [
-  '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
+  '#e60012', '#e60012', '#ec4899', '#ef4444',
   '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6',
 ];
 
@@ -31,6 +32,10 @@ export function TaskDetailModal() {
 
   const [comment, setComment] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    if (!taskModalOpen) setIsEditing(false);
+  }, [taskModalOpen]);
   const [editForm, setEditForm] = useState({
     title: '', description: '', priority: '', startDate: '', dueDate: '',
     assigneeIds: [] as string[], personnelIds: [] as string[], labelIds: [] as string[],
@@ -111,10 +116,9 @@ export function TaskDetailModal() {
     });
   };
 
-  const handleStatusChange = (status: string) => {
-    const label = STATUS_CONFIG[status as TaskStatus]?.label;
-    const matchedStep = steps?.find((s: any) => s.name === label);
-    updateTask.mutate(matchedStep ? { status, stepId: matchedStep.id } : { status });
+  // 단계(컬럼)를 바꾸면 백엔드가 그 단계의 status를 자동 적용한다
+  const handleStepChange = (stepId: string) => {
+    updateTask.mutate({ stepId });
   };
 
   const invalidateTask = () => {
@@ -130,6 +134,7 @@ export function TaskDetailModal() {
     onSuccess: () => {
       invalidateTask();
       setIsEditing(false);
+      closeTaskModal();
       toast.success('변경사항이 저장되었습니다.');
     },
     onError: () => toast.error('저장에 실패했습니다.'),
@@ -148,7 +153,7 @@ export function TaskDetailModal() {
   });
 
   const toggleSubtask = useMutation({
-    mutationFn: ({ subId, status }: { subId: string; status: string }) =>
+    mutationFn: ({ subId, status }: { subId: string; status: TaskStatus }) =>
       tasksApi.update(task!.projectId, subId, { status }),
     onSuccess: () => invalidateTask(),
   });
@@ -235,7 +240,7 @@ export function TaskDetailModal() {
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-br from-indigo-50 via-white to-violet-50 border-b border-gray-200 flex-shrink-0">
+          <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
             <div className="flex items-center gap-2 flex-wrap">
               {task && <StatusBadge status={task.status} />}
               {task && <PriorityBadge priority={task.priority} />}
@@ -251,7 +256,7 @@ export function TaskDetailModal() {
             </div>
             <div className="flex items-center gap-2">
               {task && !isEditing && canEditTask && (
-                <button onClick={startEdit} className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 border border-indigo-200 hover:border-indigo-400 px-2.5 py-1 rounded-lg transition-colors">
+                <button onClick={startEdit} className="flex items-center gap-1 text-xs text-gray-600 hover:text-red-600 border border-gray-200 hover:border-primary-400 px-2.5 py-1 rounded-lg transition-colors">
                   <Pencil size={12} /> 편집
                 </button>
               )}
@@ -275,7 +280,7 @@ export function TaskDetailModal() {
                       <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">제목 *</label>
                       <input
                         autoFocus
-                        className="w-full text-base font-semibold text-gray-900 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full text-base font-semibold text-gray-600 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                         value={editForm.title}
                         onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
                       />
@@ -283,18 +288,18 @@ export function TaskDetailModal() {
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">설명</label>
                       <textarea
-                        className="w-full text-sm text-gray-700 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                        className="w-full text-sm text-gray-600 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
                         rows={4}
                         placeholder="태스크 설명을 입력하세요..."
                         value={editForm.description}
                         onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">우선순위</label>
                         <select
-                          className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="w-full text-sm border border-gray-300 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                           value={editForm.priority}
                           onChange={(e) => setEditForm((f) => ({ ...f, priority: e.target.value }))}
                         >
@@ -307,21 +312,21 @@ export function TaskDetailModal() {
                         <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">시작일</label>
                         <input
                           type="date"
-                          className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="w-full text-sm border border-gray-300 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                           value={editForm.startDate}
                           onChange={(e) => setEditForm((f) => ({ ...f, startDate: e.target.value }))}
                         />
                       </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">마감일</label>
-                      <input
-                        type="date"
-                        className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        value={editForm.dueDate}
-                        min={editForm.startDate || undefined}
-                        onChange={(e) => setEditForm((f) => ({ ...f, dueDate: e.target.value }))}
-                      />
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">종료일</label>
+                        <input
+                          type="date"
+                          className="w-full text-sm border border-gray-300 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          value={editForm.dueDate}
+                          min={editForm.startDate || undefined}
+                          onChange={(e) => setEditForm((f) => ({ ...f, dueDate: e.target.value }))}
+                        />
+                      </div>
                     </div>
 
                     {/* 레이블 */}
@@ -333,7 +338,7 @@ export function TaskDetailModal() {
                         <button
                           type="button"
                           onClick={() => setShowLabelCreate((v) => !v)}
-                          className="text-[11px] text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"
+                          className="text-[11px] text-gray-600 hover:text-red-600 flex items-center gap-0.5"
                         >
                           <Plus size={11} /> 새 레이블
                         </button>
@@ -343,7 +348,7 @@ export function TaskDetailModal() {
                         <div className="mb-2 p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
                           <div className="flex gap-2">
                             <input
-                              className="flex-1 text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              className="flex-1 text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500"
                               placeholder="레이블 이름"
                               value={newLabelName}
                               onChange={(e) => setNewLabelName(e.target.value)}
@@ -355,7 +360,7 @@ export function TaskDetailModal() {
                               type="button"
                               onClick={() => newLabelName.trim() && createLabel.mutate()}
                               disabled={!newLabelName.trim() || createLabel.isPending}
-                              className="px-2.5 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-40"
+                              className="px-2.5 py-1 bg-primary-600 text-white text-xs rounded hover:bg-primary-700 disabled:opacity-40"
                             >
                               추가
                             </button>
@@ -387,29 +392,41 @@ export function TaskDetailModal() {
                         {projectLabels?.map((label) => {
                           const selected = editForm.labelIds.includes(label.id);
                           return (
-                            <button
+                            <div
                               key={label.id}
-                              type="button"
-                              onClick={() => setEditForm((f) => ({
-                                ...f,
-                                labelIds: selected
-                                  ? f.labelIds.filter((id) => id !== label.id)
-                                  : [...f.labelIds, label.id],
-                              }))}
-                              className={cn(
-                                'group flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border transition-all',
-                                selected ? 'ring-2 ring-offset-1' : 'opacity-60 hover:opacity-100',
-                              )}
-                              style={{
-                                backgroundColor: label.color + '20',
-                                color: label.color,
-                                borderColor: label.color + '60',
-                                ringColor: label.color,
-                              }}
+                              className="group relative flex items-center"
                             >
-                              {selected && <Check size={10} />}
-                              {label.name}
-                            </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditForm((f) => ({
+                                  ...f,
+                                  labelIds: selected
+                                    ? f.labelIds.filter((id) => id !== label.id)
+                                    : [...f.labelIds, label.id],
+                                }))}
+                                className={cn(
+                                  'flex items-center gap-1 pl-2.5 pr-6 py-0.5 rounded-full text-xs font-medium border transition-all',
+                                  selected ? 'ring-2 ring-offset-1' : 'opacity-60 hover:opacity-100',
+                                )}
+                                style={{
+                                  backgroundColor: label.color + '20',
+                                  color: label.color,
+                                  borderColor: label.color + '60',
+                                }}
+                              >
+                                {selected && <Check size={10} />}
+                                {label.name}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); deleteLabel.mutate(label.id); }}
+                                className="absolute right-1.5 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity rounded-full hover:bg-black/10 p-0.5"
+                                style={{ color: label.color }}
+                                title="레이블 삭제"
+                              >
+                                <X size={9} />
+                              </button>
+                            </div>
                           );
                         })}
                         {!projectLabels?.length && (
@@ -437,13 +454,12 @@ export function TaskDetailModal() {
                               className={cn(
                                 'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-colors',
                                 selected
-                                  ? 'bg-indigo-600 text-white border-indigo-600'
-                                  : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400'
+                                  ? 'bg-primary-50 text-primary-700 border-primary-300'
+                                  : 'bg-white text-gray-600 border-gray-300 hover:border-primary-300'
                               )}
                             >
                               <Avatar name={u.name} avatar={u.avatar} size="xs" />
                               {u.name}
-                              {selected && <Check size={11} />}
                             </button>
                           );
                         })}
@@ -470,13 +486,12 @@ export function TaskDetailModal() {
                                 className={cn(
                                   'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-colors',
                                   selected
-                                    ? 'bg-emerald-600 text-white border-emerald-600'
-                                    : 'bg-white text-gray-600 border-gray-300 hover:border-emerald-400'
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                    : 'bg-white text-gray-600 border-gray-300 hover:border-emerald-300'
                                 )}
                               >
                                 {p.name}
                                 <span className="text-[10px] opacity-70">{p.partner?.name}</span>
-                                {selected && <Check size={11} />}
                               </button>
                             );
                           })}
@@ -488,13 +503,13 @@ export function TaskDetailModal() {
                       <button
                         onClick={saveEdit}
                         disabled={!editForm.title.trim() || updateTask.isPending}
-                        className="flex-1 flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-sm font-medium py-2 rounded-lg transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white text-sm font-medium py-2 rounded-lg transition-colors"
                       >
                         <Check size={15} /> 저장
                       </button>
                       <button
                         onClick={() => setIsEditing(false)}
-                        className="flex-1 flex items-center justify-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium py-2 rounded-lg transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-medium py-2 rounded-lg transition-colors"
                       >
                         <X size={15} /> 취소
                       </button>
@@ -502,7 +517,7 @@ export function TaskDetailModal() {
                   </div>
                 ) : (
                   <>
-                    <h1 className="text-xl font-bold text-gray-900 mb-3 leading-snug">{task.title}</h1>
+                    <h1 className="text-xl font-bold text-gray-700 mb-3 leading-snug">{task.title}</h1>
                     {task.description && (
                       <p className="text-sm text-gray-600 mb-5 whitespace-pre-wrap leading-relaxed">{task.description}</p>
                     )}
@@ -512,7 +527,7 @@ export function TaskDetailModal() {
                 {/* ─── 서브태스크 ─── */}
                 <div className="mb-5">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
                       서브태스크
                       {totalCount > 0 && (
                         <span className="text-[10px] font-normal bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full">
@@ -526,7 +541,7 @@ export function TaskDetailModal() {
                         setShowSubtaskInput(true);
                         setTimeout(() => subtaskInputRef.current?.focus(), 50);
                       }}
-                      className="text-[11px] text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"
+                      className="text-[11px] text-gray-600 hover:text-red-600 flex items-center gap-0.5"
                     >
                       <Plus size={11} /> 추가
                     </button>
@@ -565,7 +580,7 @@ export function TaskDetailModal() {
                             type="button"
                             onClick={() => openTaskModal(sub.id)}
                             className={cn(
-                              'flex-1 text-sm text-left hover:text-indigo-600 transition-colors',
+                              'flex-1 text-sm text-left hover:text-red-600 transition-colors',
                               sub.status === 'DONE' && 'line-through text-gray-400',
                             )}
                           >
@@ -574,11 +589,11 @@ export function TaskDetailModal() {
                           <button
                             type="button"
                             onClick={() => deleteSubtask.mutate(sub.id)}
-                            className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-all"
+                            className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto text-red-400 hover:text-red-600 transition-all"
                           >
                             <Trash2 size={12} />
                           </button>
-                          <ChevronRight size={12} className="text-gray-300 opacity-0 group-hover:opacity-100" />
+                          <ChevronRight size={12} className="text-gray-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto" />
                         </div>
                       ))}
                     </div>
@@ -588,7 +603,7 @@ export function TaskDetailModal() {
                     <div className="flex gap-2 mt-2">
                       <input
                         ref={subtaskInputRef}
-                        className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500"
                         placeholder="서브태스크 제목..."
                         value={newSubtaskTitle}
                         onChange={(e) => setNewSubtaskTitle(e.target.value)}
@@ -606,14 +621,14 @@ export function TaskDetailModal() {
                         type="button"
                         onClick={() => newSubtaskTitle.trim() && createSubtask.mutate(newSubtaskTitle.trim())}
                         disabled={!newSubtaskTitle.trim() || createSubtask.isPending}
-                        className="px-2.5 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 disabled:opacity-40"
+                        className="px-2.5 py-1.5 bg-primary-600 text-white text-xs rounded-lg hover:bg-primary-700 disabled:opacity-40"
                       >
                         추가
                       </button>
                       <button
                         type="button"
                         onClick={() => { setShowSubtaskInput(false); setNewSubtaskTitle(''); }}
-                        className="px-2 py-1.5 text-gray-500 hover:text-gray-700 text-xs"
+                        className="px-2 py-1.5 text-gray-500 hover:text-gray-600 text-xs"
                       >
                         취소
                       </button>
@@ -624,18 +639,21 @@ export function TaskDetailModal() {
                 {/* Attachments */}
                 {task.attachments && task.attachments.length > 0 && (
                   <div className="mb-5">
-                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">첨부파일</h3>
+                    <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">첨부파일</h3>
                     <div className="space-y-1.5">
                       {task.attachments.map((att: any) => (
                         <div key={att.id} className="flex items-center gap-2 p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 group">
                           <Paperclip size={14} className="text-gray-400 flex-shrink-0" />
-                          <a href={att.url} target="_blank" rel="noopener noreferrer" className="flex-1 text-sm text-indigo-600 hover:underline truncate">
+                          <button
+                            onClick={() => openFileInNewTab(`/attachments/${att.id}/download`)}
+                            className="flex-1 text-left text-sm text-gray-600 hover:underline truncate"
+                          >
                             {att.originalName}
-                          </a>
+                          </button>
                           <span className="text-xs text-gray-400">{formatFileSize(att.size)}</span>
                           <button
                             onClick={() => deleteAttachment.mutate(att.id)}
-                            className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-all"
+                            className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto text-red-400 hover:text-red-600 transition-all"
                           >
                             <Trash2 size={13} />
                           </button>
@@ -647,7 +665,7 @@ export function TaskDetailModal() {
 
                 {/* File Upload */}
                 <div className="mb-5">
-                  <label className="flex items-center gap-2 text-xs text-indigo-600 cursor-pointer hover:text-indigo-800 w-fit">
+                  <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer hover:text-red-600 w-fit">
                     <Paperclip size={14} />
                     파일 첨부
                     <input
@@ -660,7 +678,7 @@ export function TaskDetailModal() {
 
                 {/* Comments */}
                 <div>
-                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                  <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3">
                     댓글 {task.comments?.length ? `(${task.comments.length})` : ''}
                   </h3>
                   <div className="space-y-4">
@@ -669,16 +687,16 @@ export function TaskDetailModal() {
                         <Avatar name={c.author.name} avatar={c.author.avatar} size="sm" className="flex-shrink-0 mt-0.5" />
                         <div className="flex-1">
                           <div className="flex items-baseline gap-2 mb-1">
-                            <span className="text-sm font-semibold text-gray-900">{c.author.name}</span>
+                            <span className="text-sm font-semibold text-gray-600">{c.author.name}</span>
                             <span className="text-xs text-gray-400">{formatRelativeTime(c.createdAt)}</span>
                           </div>
-                          <div className="bg-gray-50 rounded-lg px-3 py-2.5 text-sm text-gray-700 whitespace-pre-wrap">
+                          <div className="bg-gray-50 rounded-lg px-3 py-2.5 text-sm text-gray-600 whitespace-pre-wrap">
                             {c.content}
                           </div>
                           {c.author.id === user?.id && (
                             <button
                               onClick={() => deleteComment.mutate(c.id)}
-                              className="text-[11px] text-gray-400 hover:text-red-500 mt-1 opacity-0 group-hover:opacity-100 transition-all"
+                              className="text-[11px] text-gray-400 hover:text-red-500 mt-1 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all"
                             >
                               삭제
                             </button>
@@ -699,7 +717,7 @@ export function TaskDetailModal() {
             <div className="flex-shrink-0 border-t border-gray-200 p-4 bg-white">
               <div className="flex gap-3 items-start">
                 <Avatar name={user?.name ?? ''} avatar={user?.avatar} size="sm" className="flex-shrink-0 mt-1" />
-                <div className="flex-1 rounded-lg border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent overflow-hidden">
+                <div className="flex-1 rounded-lg border border-gray-300 focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-transparent overflow-hidden">
                   <textarea
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
@@ -718,7 +736,7 @@ export function TaskDetailModal() {
                     <button
                       onClick={() => comment.trim() && addComment.mutate()}
                       disabled={!comment.trim() || addComment.isPending}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-600 text-white text-xs font-medium rounded-md hover:bg-indigo-700 disabled:opacity-40 transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary-600 text-white text-xs font-medium rounded-md hover:bg-primary-700 disabled:opacity-40 transition-colors cursor-pointer"
                     >
                       <Send size={12} /> 전송
                     </button>
@@ -733,34 +751,24 @@ export function TaskDetailModal() {
         {task && (
           <div className="w-56 border-l border-gray-200 bg-gray-50/50 flex flex-col overflow-y-auto flex-shrink-0">
             <div className="p-4 space-y-4">
-              {/* Step */}
-              {steps && steps.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">단계 (칸반 컬럼)</p>
-                  <select
-                    value={task.stepId ?? ''}
-                    onChange={(e) => updateTask.mutate({ stepId: e.target.value })}
-                    className="w-full text-xs rounded-lg border border-gray-200 px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                  >
-                    {steps.map((s: any) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Status */}
+              {/* 단계 (칸반 컬럼) — status는 단계를 따라감 */}
               <div>
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">상태</p>
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">단계 (칸반 컬럼)</p>
                 <select
-                  value={task.status}
-                  onChange={(e) => handleStatusChange(e.target.value)}
-                  className="w-full text-xs rounded-lg border border-gray-200 px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  value={task.stepId ?? ''}
+                  onChange={(e) => handleStepChange(e.target.value)}
+                  className="w-full text-xs rounded-lg border border-gray-200 px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
                 >
-                  {Object.entries(STATUS_CONFIG).map(([k, v]) => (
-                    <option key={k} value={k}>{v.label}</option>
+                  {!task.stepId && <option value="">단계 미지정</option>}
+                  {steps?.map((s: any) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} · {STATUS_CONFIG[s.status as TaskStatus]?.label ?? s.status}
+                    </option>
                   ))}
                 </select>
+                <p className="text-[10px] text-gray-400 mt-1">
+                  현재 상태: {STATUS_CONFIG[task.status as TaskStatus]?.label ?? task.status} (단계에 따라 자동 설정)
+                </p>
               </div>
 
               {/* Priority */}
@@ -769,12 +777,24 @@ export function TaskDetailModal() {
                 <select
                   value={task.priority}
                   onChange={(e) => updateTask.mutate({ priority: e.target.value })}
-                  className="w-full text-xs rounded-lg border border-gray-200 px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full text-xs rounded-lg border border-gray-200 px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   {Object.entries(PRIORITY_CONFIG).map(([k, v]) => (
                     <option key={k} value={k}>{v.label}</option>
                   ))}
                 </select>
+              </div>
+
+              {/* 시작일 */}
+              <div>
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">시작일</p>
+                <p className="text-xs text-gray-600">{task.startDate ? formatDate(task.startDate) : <span className="text-gray-300">-</span>}</p>
+              </div>
+
+              {/* 종료일 */}
+              <div>
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">종료일</p>
+                <p className="text-xs text-gray-600">{task.dueDate ? formatDate(task.dueDate) : <span className="text-gray-300">-</span>}</p>
               </div>
 
               {/* Labels (read) */}
@@ -803,11 +823,11 @@ export function TaskDetailModal() {
                 {task.assignees.length === 0 ? (
                   <p className="text-xs text-gray-400">없음</p>
                 ) : (
-                  <div className="space-y-1.5">
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
                     {task.assignees.map(({ user: u }: any) => (
-                      <div key={u.id} className="flex items-center gap-1.5">
+                      <div key={u.id} className="flex items-center gap-1.5 min-w-0">
                         <Avatar name={u.name} avatar={u.avatar} size="xs" />
-                        <span className="text-xs text-gray-700">{u.name}</span>
+                        <span className="text-xs text-gray-600 truncate">{u.name}</span>
                       </div>
                     ))}
                   </div>
@@ -825,7 +845,7 @@ export function TaskDetailModal() {
                           <span className="text-[9px] font-semibold text-emerald-700">{p.name[0]}</span>
                         </div>
                         <div className="min-w-0">
-                          <span className="text-xs text-gray-700">{p.name}</span>
+                          <span className="text-xs text-gray-600">{p.name}</span>
                           <span className="text-[10px] text-gray-400 ml-1">{p.partner?.name}{p.position ? ` · ${p.position}` : ''}</span>
                         </div>
                       </div>
@@ -834,26 +854,6 @@ export function TaskDetailModal() {
                 </div>
               )}
 
-              {/* Dates */}
-              {(task.startDate || task.dueDate) && (
-                <div>
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">날짜</p>
-                  <div className="space-y-1">
-                    {task.startDate && (
-                      <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                        <Calendar size={11} className="text-gray-400" />
-                        시작: {formatDate(task.startDate)}
-                      </div>
-                    )}
-                    {task.dueDate && (
-                      <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                        <Clock size={11} className="text-gray-400" />
-                        마감: {formatDate(task.dueDate)}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
 
               {/* Meta */}
               <div className="pt-2 border-t border-gray-200">

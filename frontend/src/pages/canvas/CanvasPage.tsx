@@ -2,13 +2,14 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { canvasApi } from '../../api/canvas';
+import { getAccessToken } from '../../utils/token';
 import { usersApi } from '../../api/users';
 import {
   ReactFlow, Background, Controls, MiniMap,
   addEdge, useNodesState, useEdgesState,
   type Connection, type NodeTypes, type Node,
   Panel, BackgroundVariant, MarkerType, NodeResizer,
-  Handle, Position, useReactFlow, SelectionMode,
+  Handle, Position, useReactFlow, SelectionMode, PanOnScrollMode,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
@@ -16,12 +17,13 @@ import {
   Trash2, MousePointer2, Hand, ZoomIn, ZoomOut, ChevronLeft, Save,
   MessageSquare, Send, X, Undo2, Redo2,
   ImageIcon, Lock, Unlock, MagnetIcon, Tag, UserPlus,
+  Table2, Plus as PlusIcon, Trash,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
 import { cn } from '../../lib/utils';
 
-const RESIZER_STYLE = { borderColor: '#6366f1', borderWidth: 1 };
+const RESIZER_STYLE = { borderColor: '#e60012', borderWidth: 1 };
 
 // ── 노드 공통 오버레이: 잠금·담당자 ──────────────────
 function NodeOverlay({ data, selected }: { data: any; selected: boolean }) {
@@ -50,8 +52,8 @@ function NodeOverlay({ data, selected }: { data: any; selected: boolean }) {
   );
 }
 const HANDLE_STYLE = {
-  width: 10, height: 10, background: '#6366f1', border: '2px solid #fff',
-  borderRadius: '50%', boxShadow: '0 0 0 1px #6366f1',
+  width: 10, height: 10, background: '#e60012', border: '2px solid #fff',
+  borderRadius: '50%', boxShadow: '0 0 0 1px #e60012',
 };
 
 function NodeHandles() {
@@ -61,10 +63,10 @@ function NodeHandles() {
       <Handle id="b" type="target" position={Position.Bottom} style={HANDLE_STYLE} />
       <Handle id="l" type="target" position={Position.Left}   style={HANDLE_STYLE} />
       <Handle id="r" type="target" position={Position.Right}  style={HANDLE_STYLE} />
-      <Handle id="st" type="source" position={Position.Top}    style={{ ...HANDLE_STYLE, background: '#a5b4fc' }} />
-      <Handle id="sb" type="source" position={Position.Bottom} style={{ ...HANDLE_STYLE, background: '#a5b4fc' }} />
-      <Handle id="sl" type="source" position={Position.Left}   style={{ ...HANDLE_STYLE, background: '#a5b4fc' }} />
-      <Handle id="sr" type="source" position={Position.Right}  style={{ ...HANDLE_STYLE, background: '#a5b4fc' }} />
+      <Handle id="st" type="source" position={Position.Top}    style={{ ...HANDLE_STYLE, background: '#ff9090' }} />
+      <Handle id="sb" type="source" position={Position.Bottom} style={{ ...HANDLE_STYLE, background: '#ff9090' }} />
+      <Handle id="sl" type="source" position={Position.Left}   style={{ ...HANDLE_STYLE, background: '#ff9090' }} />
+      <Handle id="sr" type="source" position={Position.Right}  style={{ ...HANDLE_STYLE, background: '#ff9090' }} />
     </>
   );
 }
@@ -86,8 +88,8 @@ function RectNode({ id, data, selected }: any) {
       {!editing && <NodeHandles />}
       <NodeOverlay data={data} selected={selected} />
       <div
-        style={{ backgroundColor: data.bg ?? '#e0e7ff', borderColor: data.border ?? '#6366f1' }}
-        className={cn('w-full h-full rounded-lg border-2 flex items-center justify-center shadow-sm', selected && !editing && 'ring-2 ring-indigo-400 ring-offset-1')}
+        style={{ backgroundColor: data.bg ?? '#ffe0e0', borderColor: data.border ?? '#e60012' }}
+        className={cn('w-full h-full rounded-lg border-2 flex items-center justify-center shadow-sm', selected && !editing && 'ring-2 ring-primary-400 ring-offset-1')}
         onDoubleClick={(e) => { if (data.locked) return; e.stopPropagation(); setDraft(data.label ?? ''); setEditing(true); }}
       >
         {editing ? (
@@ -98,10 +100,10 @@ function RectNode({ id, data, selected }: any) {
             onBlur={commit}
             onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Escape') setEditing(false); if (e.key === 'Enter' && e.metaKey) commit(); }}
             className="nodrag nopan w-full h-full bg-transparent resize-none outline-none text-center p-2 text-sm font-medium"
-            style={{ color: data.color ?? '#3730a3', fontSize: data.fontSize ?? 13 }}
+            style={{ color: data.color ?? '#620007', fontSize: data.fontSize ?? 13 }}
           />
         ) : (
-          <span style={{ color: data.color ?? '#3730a3', fontSize: data.fontSize ?? 13 }} className="font-medium text-center px-2 break-words whitespace-pre-wrap w-full text-center leading-tight cursor-default select-none">
+          <span style={{ color: data.color ?? '#620007', fontSize: data.fontSize ?? 13 }} className="font-medium text-center px-2 break-words whitespace-pre-wrap w-full text-center leading-tight cursor-default select-none">
             {data.label}
           </span>
         )}
@@ -165,7 +167,7 @@ function DiamondNode({ id, data, selected }: any) {
       <div className="w-full h-full flex items-center justify-center"
         onDoubleClick={(e) => { if (data.locked) return; e.stopPropagation(); setDraft(data.label ?? ''); setEditing(true); }}>
         <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none"
-          style={{ filter: selected && !editing ? 'drop-shadow(0 0 0 2px #a5b4fc)' : undefined }}>
+          style={{ filter: selected && !editing ? 'drop-shadow(0 0 0 2px #ff9090)' : undefined }}>
           <polygon points="50,2 98,50 50,98 2,50" fill={data.bg ?? '#fef3c7'} stroke={data.border ?? '#f59e0b'} strokeWidth="3" />
         </svg>
         {editing ? (
@@ -201,7 +203,7 @@ function TextNode({ id, data, selected }: any) {
       <NodeResizer isVisible={selected && !editing && !data.locked} minWidth={40} minHeight={20} handleStyle={{ width: 8, height: 8, borderRadius: 2 }} lineStyle={RESIZER_STYLE} />
       {!editing && <NodeHandles />}
       <NodeOverlay data={data} selected={selected} />
-      <div className={cn('w-full h-full flex items-start px-2 py-1', selected && !editing && 'outline outline-2 outline-indigo-400 outline-offset-1 rounded')}>
+      <div className={cn('w-full h-full flex items-start px-2 py-1', selected && !editing && 'outline outline-2 outline-primary-400 outline-offset-1 rounded')}>
         {editing ? (
           <textarea ref={taRef} value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit}
             onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Escape') setEditing(false); if (e.key === 'Enter' && e.metaKey) commit(); }}
@@ -225,7 +227,7 @@ function EmojiNode({ data, selected }: any) {
     <>
       <NodeHandles />
       <NodeOverlay data={data} selected={selected} />
-      <div className={cn('cursor-default select-none', selected && 'outline outline-2 outline-indigo-400 rounded-full')}>
+      <div className={cn('cursor-default select-none', selected && 'outline outline-2 outline-primary-400 rounded-full')}>
         <span style={{ fontSize: data.fontSize ?? 40 }}>{data.label}</span>
       </div>
     </>
@@ -266,6 +268,160 @@ function StickyNode({ id, data, selected }: any) {
   );
 }
 
+// ── 커스텀 노드: ERD 테이블 ───────────────────────
+interface ErdColumn { id: string; name: string; type: string; pk: boolean; fk: boolean; notNull: boolean; }
+function ErdTableNode({ id, data, selected }: any) {
+  const { setNodes } = useReactFlow();
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(data.label ?? 'Table');
+  const titleRef = useRef<HTMLInputElement>(null);
+  const cols: ErdColumn[] = data.columns ?? [];
+
+  useEffect(() => { if (editingTitle && titleRef.current) { titleRef.current.focus(); titleRef.current.select(); } }, [editingTitle]);
+
+  const commitTitle = () => {
+    setNodes((ns) => ns.map((n) => n.id === id ? { ...n, data: { ...n.data, label: titleDraft } } : n));
+    setEditingTitle(false);
+  };
+
+  const updateCol = (colId: string, patch: Partial<ErdColumn>) => {
+    setNodes((ns) => ns.map((n) => {
+      if (n.id !== id) return n;
+      const next = (n.data.columns as ErdColumn[]).map((c) => c.id === colId ? { ...c, ...patch } : c);
+      return { ...n, data: { ...n.data, columns: next } };
+    }));
+  };
+
+  const addCol = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newCol: ErdColumn = { id: `col-${Date.now()}`, name: 'column', type: 'VARCHAR', pk: false, fk: false, notNull: false };
+    setNodes((ns) => ns.map((n) => {
+      if (n.id !== id) return n;
+      return { ...n, data: { ...n.data, columns: [...(n.data.columns ?? []), newCol] } };
+    }));
+  };
+
+  const removeCol = (colId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setNodes((ns) => ns.map((n) => {
+      if (n.id !== id) return n;
+      return { ...n, data: { ...n.data, columns: (n.data.columns as ErdColumn[]).filter((c) => c.id !== colId) } };
+    }));
+  };
+
+  const headerColor = data.headerColor ?? '#1e293b';
+  const borderColor = data.borderColor ?? '#334155';
+
+  return (
+    <>
+      <NodeResizer isVisible={selected && !data.locked} minWidth={200} minHeight={80} handleStyle={{ width: 8, height: 8, borderRadius: 2 }} lineStyle={{ borderColor: '#6366f1', borderWidth: 1 }} />
+      <NodeHandles />
+      <div
+        className={`w-full h-full flex flex-col rounded-xl overflow-hidden shadow-lg ${selected ? 'ring-2 ring-indigo-400 ring-offset-1' : ''}`}
+        style={{ border: `2px solid ${borderColor}`, background: '#ffffff', minHeight: 80 }}
+      >
+        {/* 테이블 헤더 */}
+        <div
+          className="flex items-center justify-between px-3 py-2 flex-shrink-0"
+          style={{ background: headerColor }}
+          onDoubleClick={(e) => { if (data.locked) return; e.stopPropagation(); setTitleDraft(data.label ?? ''); setEditingTitle(true); }}
+        >
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <Table2 size={12} className="text-white/70 flex-shrink-0" />
+            {editingTitle ? (
+              <input
+                ref={titleRef}
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onBlur={commitTitle}
+                onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') commitTitle(); if (e.key === 'Escape') setEditingTitle(false); }}
+                className="nodrag nopan flex-1 min-w-0 bg-white/20 text-white text-xs font-bold outline-none rounded px-1 py-0.5"
+              />
+            ) : (
+              <span className="text-white text-xs font-bold truncate cursor-default">{data.label ?? 'Table'}</span>
+            )}
+          </div>
+          <button
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={addCol}
+            className="nodrag ml-1 flex-shrink-0 w-5 h-5 flex items-center justify-center rounded bg-white/20 hover:bg-white/30 text-white transition-colors"
+            title="컬럼 추가"
+          >
+            <PlusIcon size={11} />
+          </button>
+        </div>
+
+        {/* 컬럼 행들 */}
+        <div className="flex-1 overflow-auto bg-white">
+          {cols.length === 0 && (
+            <div className="px-3 py-2 text-[10px] text-gray-300 italic text-center">컬럼 없음 — + 버튼으로 추가</div>
+          )}
+          {cols.map((col, idx) => (
+            <div
+              key={col.id}
+              className={`group flex items-center gap-1.5 px-2 py-1 border-b border-gray-100 last:border-0 hover:bg-indigo-50/40 ${col.pk ? 'bg-amber-50/60' : col.fk ? 'bg-blue-50/40' : ''}`}
+            >
+              {/* PK/FK 뱃지 */}
+              <button
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); updateCol(col.id, { pk: !col.pk, fk: col.pk ? col.fk : false }); }}
+                className={`nodrag flex-shrink-0 w-4 h-4 rounded text-[9px] font-bold flex items-center justify-center transition-colors ${col.pk ? 'bg-amber-400 text-white' : 'bg-gray-100 text-gray-400 hover:bg-amber-200'}`}
+                title="PK 토글"
+              >PK</button>
+              <button
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); updateCol(col.id, { fk: !col.fk }); }}
+                className={`nodrag flex-shrink-0 w-4 h-4 rounded text-[9px] font-bold flex items-center justify-center transition-colors ${col.fk ? 'bg-blue-400 text-white' : 'bg-gray-100 text-gray-400 hover:bg-blue-200'}`}
+                title="FK 토글"
+              >FK</button>
+
+              {/* 컬럼명 */}
+              <input
+                value={col.name}
+                onChange={(e) => updateCol(col.id, { name: e.target.value })}
+                onMouseDown={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+                className={`nodrag nopan flex-1 min-w-0 text-[11px] bg-transparent outline-none border-b border-transparent focus:border-indigo-300 truncate ${col.pk ? 'font-bold text-amber-700' : col.fk ? 'font-semibold text-blue-700' : 'text-gray-700'}`}
+                placeholder={`col_${idx + 1}`}
+              />
+
+              {/* 타입 */}
+              <select
+                value={col.type}
+                onChange={(e) => updateCol(col.id, { type: e.target.value })}
+                onMouseDown={(e) => e.stopPropagation()}
+                className="nodrag nopan text-[10px] text-gray-400 bg-transparent outline-none border-0 cursor-pointer pr-0"
+                style={{ maxWidth: 70 }}
+              >
+                {['INT','BIGINT','VARCHAR','TEXT','BOOLEAN','DATE','DATETIME','FLOAT','JSON','UUID'].map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+
+              {/* NN 표시 */}
+              <button
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); updateCol(col.id, { notNull: !col.notNull }); }}
+                className={`nodrag flex-shrink-0 text-[9px] font-bold transition-colors ${col.notNull ? 'text-rose-500' : 'text-gray-200 hover:text-gray-400'}`}
+                title="NOT NULL 토글"
+              >NN</button>
+
+              {/* 삭제 */}
+              <button
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => removeCol(col.id, e)}
+                className="nodrag flex-shrink-0 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto text-gray-300 hover:text-rose-400 transition-all"
+              >
+                <Trash size={10} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── 커스텀 노드: 이미지 ───────────────────────────
 function ImageNode({ id, data, selected }: any) {
   const { setNodes } = useReactFlow();
@@ -285,12 +441,12 @@ function ImageNode({ id, data, selected }: any) {
       <NodeHandles />
       <NodeOverlay data={data} selected={selected} />
       <div className={cn('w-full h-full rounded-lg overflow-hidden border-2 flex items-center justify-center bg-gray-50',
-        selected ? 'border-indigo-400 ring-2 ring-indigo-200' : 'border-gray-200')}>
+        selected ? 'border-primary-400 ring-2 ring-primary-200' : 'border-gray-200')}>
         {data.src ? (
           <img src={data.src} alt={data.label ?? ''} className="w-full h-full object-contain" />
         ) : (
           <button type="button" onClick={() => fileRef.current?.click()}
-            className="nodrag flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500 transition-colors p-4">
+            className="nodrag flex flex-col items-center gap-1 text-gray-400 hover:text-red-600 transition-colors p-4">
             <ImageIcon size={28} />
             <span className="text-xs">이미지 선택</span>
           </button>
@@ -308,6 +464,7 @@ const nodeTypes: NodeTypes = {
   text: TextNode,
   emoji: EmojiNode,
   sticky: StickyNode,
+  erd: ErdTableNode,
   image: ImageNode,
 };
 
@@ -319,7 +476,7 @@ const EMOJIS = ['😀','😎','🎉','🔥','✅','❌','⚠️','💡','🚀','
 
 // ── 색상 팔레트 ───────────────────────────────────
 const BG_COLORS = [
-  { bg: '#e0e7ff', border: '#6366f1', color: '#3730a3' },
+  { bg: '#ffe0e0', border: '#e60012', color: '#620007' },
   { bg: '#d1fae5', border: '#10b981', color: '#065f46' },
   { bg: '#fee2e2', border: '#ef4444', color: '#991b1b' },
   { bg: '#fef3c7', border: '#f59e0b', color: '#92400e' },
@@ -330,7 +487,7 @@ const BG_COLORS = [
 ];
 const STICKY_COLORS = ['#fef08a','#bbf7d0','#fde68a','#bfdbfe','#f5d0fe','#fed7aa'];
 
-type Tool = 'pan' | 'select' | 'rect' | 'circle' | 'diamond' | 'text' | 'emoji' | 'sticky' | 'image';
+type Tool = 'pan' | 'select' | 'rect' | 'circle' | 'diamond' | 'text' | 'emoji' | 'sticky' | 'erd' | 'image';
 
 const uid = () => `node-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
@@ -352,7 +509,11 @@ export function CanvasPage() {
   const saveCanvas = useMutation({
     mutationFn: (data: any) => canvasApi.save(projectId!, canvasId!, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['canvas', projectId, canvasId] });
+      // 저장 완료 후 pending 원격 변경이 있을 때만 refetch (무조건 invalidate 시 selected 상태 초기화됨)
+      if (pendingRemoteUpdate.current) {
+        pendingRemoteUpdate.current = false;
+        qc.invalidateQueries({ queryKey: ['canvas', projectId, canvasId] });
+      }
     },
   });
 
@@ -380,6 +541,8 @@ export function CanvasPage() {
   const [edges, setEdges, onEdgesChangeBase] = useEdgesState(EMPTY_EDGES);
   const [initialized, setInitialized] = useState(false);
   const isDirty = useRef(false); // 유저가 직접 조작했을 때만 true
+  const pendingRemoteUpdate = useRef(false); // 원격 변경이 왔는데 dirty라 바로 못 받았을 때
+  const lastServerUpdatedAt = useRef<string>(''); // 마지막으로 로드한 서버 updatedAt (중복 로드 방지)
 
   // 유저 상호작용 시에만 dirty 표시 (select 변경 제외)
   const onNodesChange = useCallback((changes: any[]) => {
@@ -389,20 +552,36 @@ export function CanvasPage() {
   }, [onNodesChangeBase]);
 
   const onEdgesChange = useCallback((changes: any[]) => {
-    isDirty.current = true;
+    const meaningful = changes.some((c: any) => c.type !== 'select');
+    if (meaningful) isDirty.current = true;
     onEdgesChangeBase(changes);
   }, [onEdgesChangeBase]);
 
-  // 서버에서 데이터 로드되면 노드/엣지 초기화 (dirty 건드리지 않음)
+  // 서버에서 데이터 로드되면 노드/엣지 초기화
   useEffect(() => {
-    if (!canvasData || initialized) return;
-    try {
-      const saved = typeof canvasData.data === 'string' ? JSON.parse(canvasData.data) : canvasData.data;
-      if (saved?.nodes) setNodes(saved.nodes);
-      if (saved?.edges) setEdges(saved.edges);
-    } catch {}
-    isDirty.current = false; // 서버 데이터 로드 후 초기화
-    setInitialized(true);
+    if (!canvasData) return;
+    const serverTime = canvasData.updatedAt ?? '';
+
+    const applyServerData = () => {
+      try {
+        const saved = typeof canvasData.data === 'string' ? JSON.parse(canvasData.data) : canvasData.data;
+        if (saved?.nodes) setNodes(saved.nodes);
+        if (saved?.edges) setEdges(saved.edges);
+      } catch {}
+      isDirty.current = false;
+      lastServerUpdatedAt.current = serverTime;
+    };
+
+    // 초기 로드
+    if (!initialized) {
+      applyServerData();
+      setInitialized(true);
+      return;
+    }
+    // 원격 변경 반영: idle 상태 + 서버 타임스탬프가 달라졌을 때
+    if (!isDirty.current && serverTime !== lastServerUpdatedAt.current) {
+      applyServerData();
+    }
   }, [canvasData, initialized, setNodes, setEdges]);
   const [tool, setTool] = useState<Tool>('pan');
   const [showEmoji, setShowEmoji] = useState(false);
@@ -439,7 +618,7 @@ export function CanvasPage() {
   // SSE: 다른 사람 변경 시 refetch
   useEffect(() => {
     if (!projectId || !canvasId) return;
-    const token = localStorage.getItem('accessToken');
+    const token = getAccessToken();
     const url = `/api/projects/${projectId}/canvases/${canvasId}/events${token ? `?token=${token}` : ''}`;
     const es = new EventSource(url);
     es.onmessage = (e) => {
@@ -447,9 +626,11 @@ export function CanvasPage() {
       if (payload.type === 'comment') {
         qc.invalidateQueries({ queryKey: ['canvas-comments', projectId, canvasId] });
       } else if (!isDirty.current) {
-        // 로컬 미저장 변경사항이 없을 때만 원격 업데이트 반영 (내 auto-save SSE 포함)
+        // idle 상태: 즉시 최신 데이터 요청 (로드 effect가 변경 감지 후 반영)
         qc.invalidateQueries({ queryKey: ['canvas', projectId, canvasId] });
-        setInitialized(false);
+      } else {
+        // 작업 중: 저장 완료 후 반영 예약
+        pendingRemoteUpdate.current = true;
       }
     };
     es.onerror = () => es.close();
@@ -546,7 +727,7 @@ export function CanvasPage() {
       if (!isDirty.current) return;
       const cleanNodes = nodesRef.current.map(({ selected: _, ...n }) => n);
       const cleanEdges = edgesRef.current.map(({ selected: _, ...e }) => e);
-      const token = localStorage.getItem('accessToken');
+      const token = getAccessToken();
       fetch(`/api/projects/${projectId}/canvases/${canvasId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token ?? ''}` },
@@ -560,7 +741,7 @@ export function CanvasPage() {
   useEffect(() => {
     const TOOL_MAP: Record<string, Tool> = {
       h: 'pan', v: 'select', r: 'rect', c: 'circle',
-      d: 'diamond', t: 'text', n: 'sticky', i: 'image',
+      d: 'diamond', t: 'text', n: 'sticky', e: 'erd', i: 'image',
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -642,7 +823,7 @@ export function CanvasPage() {
     setEdges((eds) => addEdge({
       ...params,
       markerEnd: { type: MarkerType.ArrowClosed },
-      style: { stroke: '#6366f1', strokeWidth: 2 },
+      style: { stroke: '#e60012', strokeWidth: 2 },
       interactionWidth: 20,
     }, eds));
   }, [setEdges]);
@@ -667,6 +848,28 @@ export function CanvasPage() {
       newNode = { id: uid(), type: 'text', position: pos, data: { label, color: '#111827', fontSize: 16 }, style: { width: 160, height: 40 } };
     } else if (tool === 'sticky') {
       newNode = { id: uid(), type: 'sticky', position: pos, data: { label, bg: stickyBg }, style: { width: 200, height: 140 } };
+    } else if (tool === 'erd') {
+      const erdColors = [
+        { header: '#1e293b', border: '#334155' },
+        { header: '#1d4ed8', border: '#1e40af' },
+        { header: '#7c3aed', border: '#6d28d9' },
+        { header: '#059669', border: '#047857' },
+        { header: '#dc2626', border: '#b91c1c' },
+        { header: '#d97706', border: '#b45309' },
+      ];
+      const ec = erdColors[selectedColor] ?? erdColors[0];
+      newNode = {
+        id: uid(), type: 'erd', position: pos,
+        data: {
+          label: label || 'Table',
+          headerColor: ec.header,
+          borderColor: ec.border,
+          columns: [
+            { id: `col-${Date.now()}-1`, name: 'id', type: 'INT', pk: true, fk: false, notNull: true },
+          ],
+        },
+        style: { width: 260, height: 'auto' },
+      };
     } else if (tool === 'image') {
       newNode = { id: uid(), type: 'image', position: pos, data: { label: '' }, style: { width: 200, height: 150 } };
     } else {
@@ -691,7 +894,7 @@ export function CanvasPage() {
       setTool('pan');
       return;
     }
-    if (tool === 'rect' || tool === 'circle' || tool === 'diamond' || tool === 'text' || tool === 'sticky') {
+    if (tool === 'rect' || tool === 'circle' || tool === 'diamond' || tool === 'text' || tool === 'sticky' || tool === 'erd') {
       setPendingNode(pos);
       setLabelInput('');
       setShowLabelModal(true);
@@ -796,7 +999,7 @@ export function CanvasPage() {
     isDirty.current = true;
     setNodes((ns) => ns.map((n) => {
       if (n.id !== nodeId) return n;
-      const cur: any[] = n.data.assignees ?? [];
+      const cur: any[] = (n.data.assignees as any[]) ?? [];
       const exists = cur.some((a) => a.id === u.id);
       const next = exists ? cur.filter((a) => a.id !== u.id) : [...cur, { id: u.id, name: u.name, avatar: u.avatar }];
       return { ...n, data: { ...n.data, assignees: next } };
@@ -813,13 +1016,14 @@ export function CanvasPage() {
     { id: 'diamond', icon: Diamond,   label: '마름모',  shortcut: 'D' },
     { id: 'text',    icon: Type,      label: '텍스트',  shortcut: 'T' },
     { id: 'sticky',  icon: Minus,     label: '포스트잇',shortcut: 'N' },
+    { id: 'erd',     icon: Table2,    label: 'ERD',     shortcut: 'E' },
     { id: 'image',   icon: ImageIcon, label: '이미지',  shortcut: 'I' },
   ];
 
   if (dataLoading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-indigo-200 border-t-indigo-500 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-gray-200 border-t-primary-500 rounded-full animate-spin" />
       </div>
     );
   }
@@ -837,12 +1041,12 @@ export function CanvasPage() {
       {/* 툴바 */}
       <div className="flex items-center gap-2 px-4 py-2 bg-white border-b border-gray-200 flex-shrink-0 shadow-sm">
         <button
-          onClick={() => navigate(`/projects/${projectId}/canvas`)}
-          className="flex items-center gap-1 text-gray-400 hover:text-gray-700 transition-colors mr-1"
+          onClick={() => navigate('/canvas')}
+          className="flex items-center gap-1 text-gray-400 hover:text-gray-600 transition-colors mr-1"
         >
           <ChevronLeft size={16} />
         </button>
-        <span className="text-sm font-bold text-gray-700 truncate max-w-[140px]" title={canvasData?.name}>
+        <span className="text-sm font-bold text-gray-600 truncate max-w-[140px]" title={canvasData?.name}>
           {canvasData?.name ?? '캔버스'}
         </span>
         <Save size={12} className={cn('ml-1 transition-opacity duration-200', saveCanvas.isPending ? 'text-gray-400 animate-pulse opacity-100' : 'opacity-0')} />
@@ -878,11 +1082,11 @@ export function CanvasPage() {
               title={`${label} (${shortcut})`}
               className={cn(
                 'group relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
-                tool === id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+                tool === id ? 'bg-white text-gray-600 shadow-sm' : 'text-gray-500 hover:text-gray-600',
               )}
             >
               <Icon size={14} /> {label}
-              <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity z-50">
+              <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-white opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50">
                 {label} <kbd className="ml-1 font-mono opacity-70">{shortcut}</kbd>
               </span>
             </button>
@@ -893,11 +1097,11 @@ export function CanvasPage() {
             title="격자 스냅 (16px 단위로 정렬)"
             className={cn(
               'group relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
-              snapToGrid ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+              snapToGrid ? 'bg-white text-gray-600 shadow-sm' : 'text-gray-500 hover:text-gray-600',
             )}
           >
             <MagnetIcon size={14} /> 스냅
-            <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity z-50">
+            <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-white opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50">
               스냅 — 도형을 격자(16px)에 맞춤
             </span>
           </button>
@@ -914,11 +1118,11 @@ export function CanvasPage() {
               title={`${label} (${shortcut})`}
               className={cn(
                 'group relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
-                tool === id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+                tool === id ? 'bg-white text-gray-600 shadow-sm' : 'text-gray-500 hover:text-gray-600',
               )}
             >
               <Icon size={14} /> {label}
-              <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity z-50">
+              <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-white opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50">
                 {label} <kbd className="ml-1 font-mono opacity-70">{shortcut}</kbd>
               </span>
             </button>
@@ -968,6 +1172,28 @@ export function CanvasPage() {
           </div>
         )}
 
+        {/* ERD 헤더 색상 */}
+        {tool === 'erd' && (
+          <div className="flex items-center gap-1 ml-2">
+            <span className="text-xs text-gray-400">헤더:</span>
+            {[
+              { header: '#1e293b', border: '#334155' },
+              { header: '#1d4ed8', border: '#1e40af' },
+              { header: '#7c3aed', border: '#6d28d9' },
+              { header: '#059669', border: '#047857' },
+              { header: '#dc2626', border: '#b91c1c' },
+              { header: '#d97706', border: '#b45309' },
+            ].map((c, i) => (
+              <button
+                key={i}
+                onClick={() => setSelectedColor(i)}
+                style={{ backgroundColor: c.header, borderColor: c.border }}
+                className={cn('w-5 h-5 rounded border-2 transition-transform', selectedColor === i && 'scale-125 shadow')}
+              />
+            ))}
+          </div>
+        )}
+
         {/* 포스트잇 색상 */}
         {tool === 'sticky' && (
           <div className="flex items-center gap-1 ml-2">
@@ -1003,13 +1229,13 @@ export function CanvasPage() {
             onClick={() => setCommentOpen((v) => !v)}
             className={cn(
               'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors',
-              commentOpen ? 'bg-indigo-50 border-indigo-300 text-indigo-600' : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700',
+              commentOpen ? 'bg-primary-50 border-gray-300 text-gray-600' : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-600',
             )}
           >
             <MessageSquare size={14} />
             댓글
             {comments.length > 0 && (
-              <span className="bg-indigo-100 text-indigo-600 rounded-full px-1.5 py-0.5 text-[10px] font-bold">{comments.length}</span>
+              <span className="bg-primary-100 text-gray-600 rounded-full px-1.5 py-0.5 text-[10px] font-bold">{comments.length}</span>
             )}
           </button>
         </div>
@@ -1041,13 +1267,18 @@ export function CanvasPage() {
           multiSelectionKeyCode="Shift"
           selectionOnDrag={tool === 'select'}
           panOnDrag={tool === 'select' ? [1, 2] : true}
+          panOnScroll
+          panOnScrollMode={PanOnScrollMode.Free}
+          zoomOnScroll={false}
+          zoomOnPinch
+          zoomActivationKeyCode="Control"
           selectionMode={SelectionMode.Full}
           snapToGrid={snapToGrid}
           snapGrid={[16, 16]}
-          connectionLineStyle={{ stroke: '#6366f1', strokeWidth: 2 }}
+          connectionLineStyle={{ stroke: '#e60012', strokeWidth: 2 }}
           defaultEdgeOptions={{
             markerEnd: { type: MarkerType.ArrowClosed },
-            style: { stroke: '#6366f1', strokeWidth: 2 },
+            style: { stroke: '#e60012', strokeWidth: 2 },
           }}
         >
           <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#d1d5db" />
@@ -1084,12 +1315,12 @@ export function CanvasPage() {
                       <span className="text-xs font-semibold text-gray-800">{c.user.name}</span>
                       <span className="text-[10px] text-gray-400">{new Date(c.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
-                    <p className="text-xs text-gray-700 whitespace-pre-wrap break-words leading-relaxed">{c.content}</p>
+                    <p className="text-xs text-gray-600 whitespace-pre-wrap break-words leading-relaxed">{c.content}</p>
                   </div>
                   {user?.id === c.user.id && (
                     <button
                       onClick={() => deleteComment.mutate(c.id)}
-                      className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all flex-shrink-0 mt-0.5"
+                      className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto text-gray-300 hover:text-red-400 transition-all flex-shrink-0 mt-0.5"
                     >
                       <X size={12} />
                     </button>
@@ -1114,12 +1345,12 @@ export function CanvasPage() {
                 }}
                 placeholder="댓글 입력... (Enter로 전송)"
                 rows={2}
-                className="flex-1 text-xs border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                className="flex-1 text-xs border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent"
               />
               <button
                 onClick={() => { if (commentInput.trim()) addComment.mutate(commentInput.trim()); }}
                 disabled={!commentInput.trim() || addComment.isPending}
-                className="w-8 h-8 flex items-center justify-center bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-40 transition-colors flex-shrink-0"
+                className="w-8 h-8 flex items-center justify-center bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-40 transition-colors flex-shrink-0"
               >
                 <Send size={13} />
               </button>
@@ -1178,13 +1409,13 @@ export function CanvasPage() {
                 {/* 잠금 / 담당자 */}
                 <div className="border-t border-gray-100 my-1" />
                 <button onClick={() => toggleLock(contextMenu.nodeId!)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
                   {nodes.find((n) => n.id === contextMenu.nodeId)?.data?.locked
                     ? <><Unlock size={14} /> 잠금 해제</>
                     : <><Lock size={14} /> 잠금</>}
                 </button>
                 <button onClick={() => { setAssigneeNodeId(contextMenu.nodeId!); setContextMenu(null); }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
                   <UserPlus size={14} /> 담당자 지정
                 </button>
                 <div className="border-t border-gray-100 my-1" />
@@ -1197,7 +1428,7 @@ export function CanvasPage() {
                   const edge = edges.find((e) => e.id === contextMenu.edgeId);
                   setEdgeLabelEdit({ edgeId: contextMenu.edgeId!, label: String(edge?.label ?? '') });
                   setContextMenu(null);
-                }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
                   <Tag size={14} /> 라벨 편집
                 </button>
                 <div className="border-t border-gray-100 my-1" />
@@ -1228,7 +1459,7 @@ export function CanvasPage() {
                 onChange={(e) => setLabelInput(e.target.value)}
                 placeholder="내용을 입력하세요..."
                 rows={4}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
               />
             ) : (
               <input
@@ -1240,14 +1471,14 @@ export function CanvasPage() {
                   if (e.key === 'Escape') setShowLabelModal(false);
                 }}
                 placeholder="레이블 입력 (비워도 됩니다)"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             )}
             <div className="flex justify-end gap-2 mt-3">
-              <button onClick={() => setShowLabelModal(false)} className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700">취소</button>
+              <button onClick={() => setShowLabelModal(false)} className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-600">취소</button>
               <button
                 onClick={() => { addNode(pendingNode, labelInput); setShowLabelModal(false); }}
-                className="px-4 py-1.5 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                className="px-4 py-1.5 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700"
               >
                 추가
               </button>
@@ -1271,12 +1502,12 @@ export function CanvasPage() {
                 if (e.key === 'Escape') setEdgeLabelEdit(null);
               }}
               placeholder="라벨 입력 (비우면 제거)"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
             <div className="flex justify-end gap-2 mt-3">
-              <button onClick={() => setEdgeLabelEdit(null)} className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700">취소</button>
+              <button onClick={() => setEdgeLabelEdit(null)} className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-600">취소</button>
               <button onClick={() => commitEdgeLabel(edgeLabelEdit.edgeId, edgeLabelEdit.label)}
-                className="px-4 py-1.5 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">확인</button>
+                className="px-4 py-1.5 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700">확인</button>
             </div>
           </div>
         </div>
@@ -1298,13 +1529,13 @@ export function CanvasPage() {
                 return (
                   <button key={u.id} onClick={() => toggleAssignee(assigneeNodeId, u)}
                     className={cn('w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left',
-                      checked ? 'bg-indigo-50' : 'hover:bg-gray-50')}>
+                      checked ? 'bg-primary-50' : 'hover:bg-gray-50')}>
                     <Avatar name={u.name} avatar={u.avatar} size="sm" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{u.name}</p>
                       <p className="text-xs text-gray-400 truncate">{u.position || u.email}</p>
                     </div>
-                    {checked && <div className="w-4 h-4 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0">
+                    {checked && <div className="w-4 h-4 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0">
                       <svg viewBox="0 0 12 12" className="w-2.5 h-2.5 text-white fill-current"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
                     </div>}
                   </button>
@@ -1313,7 +1544,7 @@ export function CanvasPage() {
             </div>
             <div className="px-4 py-3 border-t border-gray-100">
               <button onClick={() => setAssigneeNodeId(null)}
-                className="w-full py-1.5 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">완료</button>
+                className="w-full py-1.5 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700">완료</button>
             </div>
           </div>
         </div>
