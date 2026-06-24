@@ -31,29 +31,10 @@ export function TaskDetailModal() {
   const user = useAuthStore((s) => s.user);
 
   const [comment, setComment] = useState('');
-  const [isEditing, setIsEditing] = useState(() => {
-    // 모달이 editMode로 열릴 때 캐시에 데이터가 있으면 즉시 편집 모드로 시작
-    if (!taskModalEditMode || !taskModalId) return false;
-    const cached = qc.getQueryData<any>(['task', taskModalId]);
-    return !!cached;
-  });
-
-  useEffect(() => {
-    if (!taskModalOpen) setIsEditing(false);
-  }, [taskModalOpen]);
-  const [editForm, setEditForm] = useState(() => {
-    const cached = taskModalEditMode && taskModalId ? qc.getQueryData<any>(['task', taskModalId]) : null;
-    return {
-      title: cached?.title ?? '',
-      part: cached?.part ?? '',
-      description: cached?.description ?? '',
-      priority: cached?.priority ?? '',
-      startDate: cached?.startDate ? cached.startDate.slice(0, 10) : '',
-      dueDate: cached?.dueDate ? cached.dueDate.slice(0, 10) : '',
-      assigneeIds: cached?.assignees?.map((a: any) => a.user.id) ?? [] as string[],
-      personnelIds: cached?.personnel?.map((p: any) => p.personnel.id) ?? [] as string[],
-      labelIds: cached?.labels?.map((l: any) => l.label.id) ?? [] as string[],
-    };
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    title: '', part: '', description: '', priority: '', startDate: '', dueDate: '',
+    assigneeIds: [] as string[], personnelIds: [] as string[], labelIds: [] as string[],
   });
 
   // Sub-task state
@@ -66,10 +47,32 @@ export function TaskDetailModal() {
   const [newLabelName, setNewLabelName] = useState('');
   const [newLabelColor, setNewLabelColor] = useState(LABEL_COLORS[0]);
 
+  // 칸반/간트 캐시에서 해당 task(또는 서브태스크)를 즉시 찾아 placeholder로 사용 → 로딩 깜빡임 제거
+  const findCachedTask = (id: string): any => {
+    const sources = [
+      ...qc.getQueriesData<any>({ queryKey: ['kanban'] }),
+      ...qc.getQueriesData<any>({ queryKey: ['gantt'] }),
+    ];
+    for (const [, data] of sources) {
+      if (!data) continue;
+      // 칸반: steps[].tasks[],  간트: tasks[]
+      const lists: any[] = Array.isArray(data)
+        ? (data[0]?.tasks ? data.flatMap((c: any) => c.tasks ?? []) : data)
+        : [];
+      for (const t of lists) {
+        if (t.id === id) return t;
+        const sub = t.subTasks?.find((s: any) => s.id === id);
+        if (sub) return sub;
+      }
+    }
+    return undefined;
+  };
+
   const { data: task, isLoading } = useQuery({
     queryKey: ['task', taskModalId],
     queryFn: () => tasksApi.getById(taskModalId!),
     enabled: !!taskModalId && taskModalOpen,
+    placeholderData: () => (taskModalId ? findCachedTask(taskModalId) : undefined),
   });
 
   const { data: steps } = useQuery({
@@ -102,30 +105,47 @@ export function TaskDetailModal() {
     enabled: !!task?.projectId,
   });
 
+  const buildEditForm = (t: any) => ({
+    title: t.title,
+    part: t.part ?? '',
+    description: t.description ?? '',
+    priority: t.priority,
+    startDate: t.startDate ? t.startDate.slice(0, 10) : '',
+    dueDate: t.dueDate ? t.dueDate.slice(0, 10) : '',
+    assigneeIds: t.assignees?.map((a: any) => a.user.id) ?? [],
+    personnelIds: t.personnel?.map((p: any) => p.personnel.id) ?? [],
+    labelIds: t.labels?.map((l: any) => l.label.id) ?? [],
+  });
+
   const startEdit = () => {
     if (!task) return;
-    setEditForm({
-      title: task.title,
-      part: task.part ?? '',
-      description: task.description ?? '',
-      priority: task.priority,
-      startDate: task.startDate ? task.startDate.slice(0, 10) : '',
-      dueDate: task.dueDate ? task.dueDate.slice(0, 10) : '',
-      assigneeIds: task.assignees.map((a: any) => a.user.id),
-      personnelIds: task.personnel?.map((p: any) => p.personnel.id) ?? [],
-      labelIds: task.labels.map((l: any) => l.label.id),
-    });
+    setEditForm(buildEditForm(task));
     setShowLabelCreate(false);
     setIsEditing(true);
   };
 
-  // editMode 플래그가 있으면 데이터 로드 완료 시 바로 편집 모드 진입
+  // 모달 열림/대상 변경을 렌더 도중 감지해 편집 상태를 동기적으로 초기화 (깜빡임 없음).
+  // placeholderData 덕분에 칸반/간트에서 연 경우 task가 첫 렌더부터 존재 → 바로 편집 폼.
+  const [trackedKey, setTrackedKey] = useState<string | null>(null);
+  const openKey = taskModalOpen ? taskModalId : null;
+  if (openKey !== trackedKey) {
+    setTrackedKey(openKey);
+    if (openKey && taskModalEditMode && task) {
+      setEditForm(buildEditForm(task));
+      setShowLabelCreate(false);
+      setIsEditing(true);
+    } else {
+      setIsEditing(false);
+    }
+  }
+
+  // placeholder 없이(딥링크 등) 뒤늦게 task가 도착한 경우 fallback 으로 편집 모드 진입
   useEffect(() => {
-    if (task && taskModalEditMode && !isEditing) {
+    if (task && taskModalOpen && taskModalEditMode && !isEditing && openKey === trackedKey) {
       startEdit();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [task, taskModalEditMode]);
+  }, [task]);
 
   const saveEdit = () => {
     updateTask.mutate({
