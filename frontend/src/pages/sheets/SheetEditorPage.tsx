@@ -2,10 +2,11 @@ import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, mem
 import { createPortal, flushSync } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Plus, X, Check, Table2, Bold, Italic, AlignLeft, AlignCenter, AlignRight, ChevronDown, Download } from 'lucide-react';
+import { ArrowLeft, Plus, X, Check, Table2, Bold, Italic, AlignLeft, AlignCenter, AlignRight, ChevronDown, Download, ListTodo } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import { sheetsApi } from '../../api/sheets';
+import { tasksApi, type BulkTaskRow } from '../../api/tasks';
 import { getAccessToken } from '../../utils/token';
 import { cn } from '../../lib/utils';
 
@@ -348,6 +349,32 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
 
   useEffect(() => { if (editing && inputRef.current) inputRef.current.focus(); }, [editing]);
 
+  // 엑셀·외부 앱에서 복사한 데이터를 Ctrl+V로 붙여넣기
+  // navigator.clipboard.readText()는 권한이 필요하고 DRM 환경에서 막힐 수 있으므로
+  // paste 이벤트의 clipboardData를 직접 읽어 처리 (권한 불필요)
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (clipboardRef.current) return; // 내부 복사(시트 내 Ctrl+C)는 keydown에서 처리
+    const origin = selStartRef.current;
+    if (!origin) return;
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain');
+    if (!text) return;
+    const [pr, pc] = origin;
+    const lines = text.split(/\r?\n/).map(l => l.split('\t'));
+    if (lines.length > 0 && lines[lines.length - 1].every(v => v === '')) lines.pop();
+    const nd = dataRef.current;
+    const newCells = { ...nd.cells };
+    lines.forEach((row, dr) => row.forEach((val, dc) => {
+      if (pr + dr >= nd.rows || pc + dc >= nd.cols) return;
+      const dst = ck(pr + dr, pc + dc);
+      const existing = norm(newCells[dst]);
+      if (val) newCells[dst] = { ...existing, v: val };
+      else if (existing.s) newCells[dst] = { s: existing.s };
+      else delete newCells[dst];
+    }));
+    recordChange({ ...nd, cells: newCells });
+  }, [recordChange]);
+
   // 언마운트 시 진행 중인 셀 편집을 강제 커밋
   useEffect(() => {
     return () => {
@@ -513,23 +540,8 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
           }
           recordChange({ ...d, cells: newCells, merges: newMerges });
           setCopyRange(null);
-        } else {
-          navigator.clipboard.readText().then(text => {
-            if (!text) return;
-            const lines = text.split('\n').map(l => l.split('\t'));
-            const nd = dataRef.current;
-            const newCells = { ...nd.cells };
-            lines.forEach((row, dr) => row.forEach((val, dc) => {
-              if (pr+dr >= nd.rows || pc+dc >= nd.cols) return;
-              const dst = ck(pr+dr, pc+dc);
-              const existing = norm(newCells[dst]);
-              if (val) newCells[dst] = { ...existing, v: val };
-              else if (existing.s) newCells[dst] = { s: existing.s };
-              else delete newCells[dst];
-            }));
-            recordChange({ ...nd, cells: newCells });
-          }).catch(() => {});
         }
+        // 외부 클립보드(엑셀 등)는 onPaste 이벤트에서 처리
         return;
       }
     }
@@ -798,6 +810,7 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
         tabIndex={0}
         className="flex-1 overflow-auto outline-none"
         onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
       >
         <table ref={tableRef} className="border-collapse" style={{ tableLayout: 'fixed' }}>
           <colgroup>
@@ -866,6 +879,36 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
   );
 }
 
+// ── Sheet → BulkTaskRow 파서 ──────────────────────────────────────────────────
+const SHEET_HEADER_MAP: Record<string, keyof BulkTaskRow> = {
+  '업무구분': 'category', '요구사항': 'title', '제목': 'title',
+  '설명': 'description', '담당자': 'assigneeName',
+  '우선순위': 'priority', '시작일': 'startDate', '마감일': 'dueDate',
+};
+
+function parseSheetToRows(data: SheetData): BulkTaskRow[] {
+  const colMap: Record<number, keyof BulkTaskRow> = {};
+  let headerRow = -1;
+  for (let r = 0; r < data.rows && headerRow === -1; r++) {
+    for (let c = 0; c < data.cols; c++) {
+      const v = norm(data.cells[ck(r, c)]).v?.trim();
+      if (v && SHEET_HEADER_MAP[v]) colMap[c] = SHEET_HEADER_MAP[v];
+    }
+    if (Object.keys(colMap).length > 0) headerRow = r;
+  }
+  if (headerRow === -1) return [];
+  const rows: BulkTaskRow[] = [];
+  for (let r = headerRow + 1; r < data.rows; r++) {
+    const row: any = {};
+    for (const [cs, field] of Object.entries(colMap)) {
+      const v = norm(data.cells[ck(r, Number(cs))]).v?.trim();
+      if (v) row[field] = v;
+    }
+    if (row.category && row.title) rows.push(row as BulkTaskRow);
+  }
+  return rows;
+}
+
 // ── Sheet Editor Page ─────────────────────────────────────────────────────────
 export function SheetEditorPage() {
   const { projectId, sheetId } = useParams<{ projectId: string; sheetId: string }>();
@@ -878,6 +921,7 @@ export function SheetEditorPage() {
   const [renamingId, setRenamingId] = useState<string|null>(null);
   const [renameVal, setRenameVal] = useState('');
   const [saving, setSaving] = useState(false);
+  const [kanbanRows, setKanbanRows] = useState<BulkTaskRow[] | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const sheetDataRef = useRef<SheetData>(emptyData());
   const dataLoadedRef = useRef(false);
@@ -919,6 +963,16 @@ export function SheetEditorPage() {
     onMutate: () => setSaving(true),
     onSettled: () => setSaving(false),
     onError: () => toast.error('저장에 실패했습니다.'),
+  });
+
+  const bulkCreateMutation = useMutation({
+    mutationFn: (rows: BulkTaskRow[]) => tasksApi.bulkCreate(projectId!, rows),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['kanban', projectId] });
+      toast.success(`상위 ${res.parentCount}개 · 하위 ${res.childCount}개 칸반에 생성되었습니다.`);
+      setKanbanRows(null);
+    },
+    onError: () => toast.error('칸반 태스크 생성에 실패했습니다.'),
   });
 
   const handleChange = useCallback((d: SheetData) => {
@@ -1076,6 +1130,23 @@ export function SheetEditorPage() {
         <span className="text-sm font-semibold text-gray-800 truncate">{currentSheet?.name ?? '...'}</span>
         <div className="ml-auto flex items-center gap-3 flex-shrink-0">
           <span className="text-[11px] text-gray-400">{saving ? '저장 중...' : '자동 저장'}</span>
+          {projectId && (
+            <button
+              onClick={() => {
+                const rows = parseSheetToRows(sheetData);
+                if (rows.length === 0) {
+                  toast.error('업무구분·요구사항 헤더가 있는 행을 찾을 수 없습니다.\n1행에 헤더(업무구분, 요구사항 등)를 입력하세요.');
+                  return;
+                }
+                setKanbanRows(rows);
+              }}
+              className="flex items-center gap-1.5 text-xs font-medium text-white bg-violet-600 hover:bg-violet-700 px-3 py-1.5 rounded-lg transition-colors shadow-sm"
+              title="시트 데이터로 칸반 태스크 일괄 생성"
+            >
+              <ListTodo size={13} />
+              칸반 태스크 생성
+            </button>
+          )}
           <button
             onClick={exportExcel}
             className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-primary-600 bg-white hover:bg-primary-50 border border-gray-200 hover:border-primary-300 px-3 py-1.5 rounded-lg transition-colors"
@@ -1088,6 +1159,85 @@ export function SheetEditorPage() {
       </div>
 
       <SpreadsheetGrid data={sheetData} onChange={handleChange} />
+
+      {/* ── 칸반 태스크 생성 미리보기 모달 ── */}
+      {kanbanRows && (() => {
+        const groupCount = new Map<string, number>();
+        kanbanRows.forEach(r => groupCount.set(r.category, (groupCount.get(r.category) ?? 0) + 1));
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setKanbanRows(null)} />
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-200">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center text-white">
+                    <ListTodo size={18} />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-gray-800">칸반 태스크 생성</h2>
+                    <p className="text-[11px] text-gray-500">업무구분별 상위 태스크 + 하위 요구사항을 칸반에 생성합니다</p>
+                  </div>
+                </div>
+                <button onClick={() => setKanbanRows(null)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+              </div>
+
+              <div className="flex-1 overflow-auto px-6 py-5 space-y-4">
+                {/* 헤더 형식 안내 */}
+                <div className="rounded-xl border border-dashed border-violet-200 bg-violet-50 px-4 py-3 text-xs text-violet-700">
+                  <p className="font-semibold mb-0.5">시트 1행에 헤더가 있어야 합니다</p>
+                  <p className="text-violet-500">필수: <b>업무구분</b> · <b>요구사항</b>(또는 제목) / 선택: 설명 · 담당자 · 우선순위 · 시작일 · 마감일</p>
+                </div>
+
+                {/* 미리보기 */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-600 mb-1.5">
+                    생성 예정 — 업무구분 <b className="text-violet-600">{groupCount.size}</b>개 · 요구사항 <b className="text-violet-600">{kanbanRows.length}</b>개
+                  </p>
+                  <div className="rounded-xl border border-gray-200 overflow-hidden max-h-64 overflow-y-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-500">업무구분</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-500">요구사항</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-500">담당자</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-500">우선순위</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {kanbanRows.slice(0, 100).map((r, i) => (
+                          <tr key={i} className="hover:bg-gray-50">
+                            <td className="px-3 py-1.5 text-gray-600">{r.category}</td>
+                            <td className="px-3 py-1.5 text-gray-800 max-w-[240px] truncate">{r.title}</td>
+                            <td className="px-3 py-1.5 text-gray-500">{r.assigneeName || '-'}</td>
+                            <td className="px-3 py-1.5 text-gray-500">{r.priority || 'MEDIUM'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {kanbanRows.length > 100 && <p className="text-[11px] text-gray-400 mt-1">...외 {kanbanRows.length - 100}개 (전체 등록됨)</p>}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100">
+                <button
+                  onClick={() => setKanbanRows(null)}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={() => bulkCreateMutation.mutate(kanbanRows)}
+                  disabled={bulkCreateMutation.isPending}
+                  className="px-4 py-2 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-60 rounded-lg transition-colors"
+                >
+                  {bulkCreateMutation.isPending ? '생성 중...' : `${kanbanRows.length}개 생성`}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="flex-shrink-0 flex items-center border-t border-gray-200 bg-gray-50 h-9 px-2 gap-0.5 overflow-x-auto">
         {sheets.map((sheet: any) => (
