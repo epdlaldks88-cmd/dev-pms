@@ -115,7 +115,7 @@ export function TaskDetailModal() {
   const saveEdit = () => {
     updateTask.mutate({
       title: editForm.title,
-      part: editForm.part.trim() || undefined,
+      part: editForm.part.trim() || null,
       description: editForm.description,
       priority: editForm.priority,
       startDate: editForm.startDate ? new Date(editForm.startDate).toISOString() : null,
