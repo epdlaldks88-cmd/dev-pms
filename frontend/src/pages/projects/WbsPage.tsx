@@ -297,7 +297,6 @@ export function WbsPage() {
         <div className="min-w-[1000px]">
           {/* Header Row */}
           <div className="flex items-center gap-0 bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10">
-            <div className="w-8 flex-shrink-0" />
             {COLS.map((col) => (
               <div
                 key={col.key}
@@ -338,8 +337,6 @@ export function WbsPage() {
               return (
                 <div
                   key={item.id}
-                  draggable
-                  onDragStart={(e) => onDragStart(e, item.id)}
                   onDragOver={(e) => onDragOver(e, item.id)}
                   onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverId(null); }}
                   onDrop={(e) => onDrop(e, item.id)}
@@ -353,13 +350,15 @@ export function WbsPage() {
                     depth >= 3 && 'bg-gray-100/40',
                   )}
                 >
-                  {/* Drag handle */}
-                  <div className="w-8 flex-shrink-0 flex items-center justify-center cursor-grab opacity-0 group-hover:opacity-100 transition-opacity">
-                    <GripVertical size={14} className="text-gray-400" />
-                  </div>
-
-                  {/* WBS 번호 */}
-                  <div className={cn('px-3 py-0 border-r border-gray-100 flex items-center', COLS[0].w)} style={{ minHeight: 44 }}>
+                  {/* WBS 번호 — 드래그 핸들 */}
+                  <div
+                    draggable
+                    onDragStart={(e) => onDragStart(e, item.id)}
+                    className={cn('px-2 py-0 border-r border-gray-100 flex items-center gap-1.5 cursor-grab active:cursor-grabbing select-none', COLS[0].w)}
+                    style={{ minHeight: 44 }}
+                    title="드래그하여 순서 변경"
+                  >
+                    <GripVertical size={13} className="text-gray-300 group-hover:text-gray-400 flex-shrink-0 transition-colors" />
                     <span className={cn(
                       'font-mono text-xs font-bold',
                       depth === 0 ? 'text-primary-600' : depth === 1 ? 'text-gray-600' : 'text-gray-400',
