@@ -44,6 +44,7 @@ export const qaApi = {
   confirm: (id: string) => api.patch(`/qa/${id}/confirm`, {}).then((r) => r.data as QATest),
   reject:  (id: string) => api.patch(`/qa/${id}/reject`, {}).then((r) => r.data as QATest),
   cancel:  (id: string) => api.patch(`/qa/${id}/cancel`, {}).then((r) => r.data as QATest),
+  reopen:  (id: string) => api.patch(`/qa/${id}/reopen`, {}).then((r) => r.data as QATest),
   update: (id: string, data: { title?: string; content?: string; tester?: string }) =>
     api.patch(`/qa/${id}`, data).then((r) => r.data as QATest),
   remove: (id: string) =>

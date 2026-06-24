@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, X, Trash2, FlaskConical, RefreshCw } from 'lucide-react';
+import { Plus, X, FlaskConical, RefreshCw, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { qaApi, QA_STATUS_CONFIG, QA_RESULT_CONFIG, type QATest } from '../../api/qa';
 import { Button } from '../../components/ui/Button';
@@ -89,6 +89,12 @@ export function QATestPage() {
     onError: () => toast.error('처리에 실패했습니다.'),
   });
 
+  const reopenMutation = useMutation({
+    mutationFn: (id: string) => qaApi.reopen(id),
+    onSuccess: (data) => { invalidate(); setViewItem(data); toast.success('접수 상태로 되돌렸습니다.'); },
+    onError: () => toast.error('처리에 실패했습니다.'),
+  });
+
   const updateMutation = useMutation({
     mutationFn: () => qaApi.update(viewItem!.id, {
       title: detailForm.title || undefined,
@@ -97,11 +103,6 @@ export function QATestPage() {
     }),
     onSuccess: (data) => { invalidate(); setViewItem(data); toast.success('수정되었습니다.'); },
     onError: () => toast.error('수정에 실패했습니다.'),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => qaApi.remove(id),
-    onSuccess: () => { invalidate(); setViewItem(null); toast.success('삭제되었습니다.'); },
   });
 
   const isValidSR = SR_NUMBER_PATTERN.test(form.srNumber);
@@ -292,50 +293,104 @@ export function QATestPage() {
               </button>
             </div>
 
+            {/* 진행 단계 스테퍼 */}
+            <div className="px-6 pt-4">
+              <div className="flex items-center">
+                {([
+                  { key: 'PENDING', label: '요청' },
+                  { key: 'IN_PROGRESS', label: '접수' },
+                  { key: 'COMPLETED', label: '완료' },
+                ] as const).map((step, i, arr) => {
+                  const order = { PENDING: 0, IN_PROGRESS: 1, COMPLETED: 2, CANCELLED: -1 };
+                  const cur = order[viewItem.status];
+                  const done = viewItem.status !== 'CANCELLED' && cur >= i;
+                  return (
+                    <div key={step.key} className="flex items-center flex-1 last:flex-none">
+                      <div className="flex flex-col items-center">
+                        <div className={cn(
+                          'w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors',
+                          done ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-400',
+                        )}>
+                          {i + 1}
+                        </div>
+                        <span className={cn('text-[10px] mt-1 font-medium', done ? 'text-primary-600' : 'text-gray-400')}>{step.label}</span>
+                      </div>
+                      {i < arr.length - 1 && (
+                        <div className={cn('flex-1 h-0.5 mx-1 -mt-4', cur > i && viewItem.status !== 'CANCELLED' ? 'bg-primary-600' : 'bg-gray-200')} />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {viewItem.status === 'CANCELLED' && (
+                <p className="text-center text-xs font-semibold text-gray-400 mt-2">취소된 항목입니다.</p>
+              )}
+            </div>
+
             {/* 상태 변경 액션 바 */}
-            <div className="px-6 py-3 border-b border-gray-100 flex flex-wrap items-center gap-2">
+            <div className="px-6 py-3 mt-2 border-b border-gray-100">
               {viewItem.status === 'PENDING' && (
-                <button
-                  onClick={() => acceptMutation.mutate(viewItem.id)}
-                  disabled={acceptMutation.isPending}
-                  className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors"
-                >
-                  접수 (QA번호 발급)
-                </button>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-gray-500">접수하면 QA번호가 발급됩니다.</span>
+                  <button
+                    onClick={() => acceptMutation.mutate(viewItem.id)}
+                    disabled={acceptMutation.isPending}
+                    className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors disabled:opacity-50"
+                  >
+                    접수하기
+                  </button>
+                </div>
               )}
               {viewItem.status === 'IN_PROGRESS' && (
-                <>
-                  <button
-                    onClick={() => setConfirmState({
-                      title: 'QA 확인', message: '이 QA 항목을 확인 처리하시겠습니까?', confirmText: '확인', tone: 'primary',
-                      onConfirm: () => confirmMutation.mutate(viewItem.id),
-                    })}
-                    className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors"
-                  >
-                    확인
-                  </button>
-                  <button
-                    onClick={() => setConfirmState({
-                      title: 'QA 반려', message: '이 QA 항목을 반려 처리하시겠습니까?', confirmText: '반려', tone: 'danger',
-                      onConfirm: () => rejectMutation.mutate(viewItem.id),
-                    })}
-                    className="px-3 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm transition-colors"
-                  >
-                    반려
-                  </button>
+                <div className="flex items-center justify-between gap-2">
                   <button
                     onClick={() => setConfirmState({
                       title: 'QA 취소', message: '이 QA 항목을 취소 처리하시겠습니까?', confirmText: '취소 처리', tone: 'danger',
                       onConfirm: () => cancelMutation.mutate(viewItem.id),
                     })}
-                    className="px-3 py-1.5 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    className="px-3 py-2 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                   >
                     취소
                   </button>
-                </>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setConfirmState({
+                        title: 'QA 반려', message: '이 QA 항목을 반려 처리하시겠습니까?', confirmText: '반려', tone: 'danger',
+                        onConfirm: () => rejectMutation.mutate(viewItem.id),
+                      })}
+                      className="px-4 py-2 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                    >
+                      반려
+                    </button>
+                    <button
+                      onClick={() => setConfirmState({
+                        title: 'QA 확인', message: '이 QA 항목을 확인 처리하시겠습니까?', confirmText: '확인', tone: 'primary',
+                        onConfirm: () => confirmMutation.mutate(viewItem.id),
+                      })}
+                      className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors"
+                    >
+                      확인
+                    </button>
+                  </div>
+                </div>
               )}
               {(viewItem.status === 'COMPLETED' || viewItem.status === 'CANCELLED') && (
-                <span className="text-xs text-gray-400">처리 완료된 항목입니다.</span>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-gray-500">
+                    {viewItem.status === 'COMPLETED'
+                      ? (viewItem.result === 'PASS' ? '확인 완료된 항목입니다.' : '반려된 항목입니다.')
+                      : '취소된 항목입니다.'}
+                  </span>
+                  <button
+                    onClick={() => setConfirmState({
+                      title: 'QA 되돌리기', message: '접수(진행중) 상태로 되돌리시겠습니까?', confirmText: '되돌리기', tone: 'primary',
+                      onConfirm: () => reopenMutation.mutate(viewItem.id),
+                    })}
+                    className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  >
+                    <RotateCcw size={13} /> 되돌리기
+                  </button>
+                </div>
               )}
             </div>
 
@@ -372,22 +427,11 @@ export function QATestPage() {
             </div>
 
             {/* 푸터 */}
-            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
-              <button
-                onClick={() => setConfirmState({
-                  title: 'QA 삭제', message: '이 QA 항목을 삭제하시겠습니까? 되돌릴 수 없습니다.', confirmText: '삭제', tone: 'danger',
-                  onConfirm: () => deleteMutation.mutate(viewItem.id),
-                })}
-                className="flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
-              >
-                <Trash2 size={14} /> 삭제
-              </button>
-              <div className="flex gap-2">
-                <Button variant="ghost" onClick={() => setViewItem(null)}>닫기</Button>
-                <Button variant="primary" onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}>
-                  저장
-                </Button>
-              </div>
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100">
+              <Button variant="ghost" onClick={() => setViewItem(null)}>닫기</Button>
+              <Button variant="primary" onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}>
+                저장
+              </Button>
             </div>
           </div>
         </div>
