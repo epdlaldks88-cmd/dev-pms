@@ -528,6 +528,9 @@ export function TaskDetailModal() {
                   </div>
                 ) : (
                   <>
+                    {task.part && (
+                      <span className="inline-block text-xs font-medium text-violet-600 bg-violet-50 border border-violet-200 rounded px-2 py-0.5 mb-2">{task.part}</span>
+                    )}
                     <h1 className="text-xl font-bold text-gray-700 mb-3 leading-snug">{task.title}</h1>
                     {task.description && (
                       <p className="text-sm text-gray-600 mb-5 whitespace-pre-wrap leading-relaxed">{task.description}</p>

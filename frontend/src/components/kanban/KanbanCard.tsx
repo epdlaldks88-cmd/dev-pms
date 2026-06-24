@@ -146,6 +146,9 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
 
         {/* 제목 */}
         <p className="text-[13px] font-semibold text-gray-800 leading-snug mb-2 pr-16 group-hover:text-gray-600 transition-colors">
+          {task.part && (
+            <span className="inline-block text-[10px] font-medium text-violet-600 bg-violet-50 border border-violet-200 rounded px-1.5 py-0.5 mr-1.5 align-middle leading-none">{task.part}</span>
+          )}
           {task.title}
         </p>
 
