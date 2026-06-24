@@ -618,7 +618,7 @@ export function WbsPage() {
           </div>
           <div className="w-px h-8 bg-gray-200" />
           {/* 전체 진행률 */}
-          <div className="flex flex-col gap-1.5 min-w-[160px]">
+          <div className="flex flex-col gap-1.5 flex-1 max-w-sm">
             <div className="flex items-center justify-between">
               <span className="text-[11px] text-gray-400">전체 진행률</span>
               <span className="text-sm font-bold text-gray-700">{totalAvg}%</span>
