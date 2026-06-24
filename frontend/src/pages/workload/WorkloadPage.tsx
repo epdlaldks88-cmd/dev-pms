@@ -871,22 +871,32 @@ export function WorkloadPage() {
                         ? 'text-blue-700 bg-blue-50 border-blue-200'
                         : 'text-gray-500 bg-gray-100 border-gray-200'
                   : '';
+                const fmtDt = (iso?: string) => iso
+                  ? new Date(iso).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+                  : '—';
                 return (
                   <div className="flex items-center justify-between px-6 pt-3">
-                    {/* QA 현재 상태 */}
-                    <div className="flex items-center gap-1.5">
-                      {latestQa ? (
-                        <>
-                          <FlaskConical size={12} className="text-gray-400" />
-                          <span className={cn('text-[11px] font-semibold px-2 py-0.5 rounded-full border', qaStatusCls)}>
-                            {qaStatusLabel}
-                          </span>
-                          {latestQa.qaNumber && (
-                            <span className="text-[11px] font-mono text-gray-400">{latestQa.qaNumber}</span>
-                          )}
-                        </>
-                      ) : (
-                        <span className="text-[11px] text-gray-400">QA 없음</span>
+                    {/* QA 현재 상태 + 날짜 */}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-1.5">
+                        {latestQa ? (
+                          <>
+                            <span className={cn('text-[11px] font-semibold px-2 py-0.5 rounded-full border', qaStatusCls)}>
+                              {qaStatusLabel}
+                            </span>
+                            {latestQa.qaNumber && (
+                              <span className="text-[11px] font-mono text-gray-400">{latestQa.qaNumber}</span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-[11px] text-gray-400">QA 없음</span>
+                        )}
+                      </div>
+                      {latestQa && (
+                        <div className="space-y-0.5">
+                          <p className="text-[10px] text-gray-400">접수일시: <span className="font-mono">{fmtDt(latestQa.acceptedAt)}</span></p>
+                          <p className="text-[10px] text-gray-400">완료일시: <span className="font-mono">{fmtDt(latestQa.completedAt)}</span></p>
+                        </div>
                       )}
                     </div>
                     {/* QA 요청 버튼 */}

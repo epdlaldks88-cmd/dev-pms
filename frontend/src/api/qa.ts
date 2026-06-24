@@ -13,6 +13,8 @@ export interface QATest {
   result?: QATestResult;
   tester?: string;
   testDate?: string;
+  acceptedAt?: string;
+  completedAt?: string;
   workLogId?: string;
   workLogDeleted?: boolean;
   workLog?: { id: string; taskTitle?: string; srNumber?: string };
