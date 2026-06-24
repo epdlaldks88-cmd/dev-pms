@@ -4,7 +4,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, ChevronRight, ChevronDown, IndentIncrease, IndentDecrease, GripVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { wbsApi, type WbsItem } from '../../api/wbs';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { cn, formatDate } from '../../lib/utils';
+
+interface ConfirmState {
+  title: string;
+  message: string;
+  onConfirm: () => void;
+}
 
 const MAX_DEPTH = 3;
 
@@ -35,6 +42,7 @@ export function WbsPage() {
 
   const [editState, setEditState] = useState<EditState | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -482,11 +490,11 @@ export function WbsPage() {
                         <Plus size={13} />
                       </button>
                       <button
-                        onClick={() => {
-                          if (confirm(`"${item.title}" 항목을 삭제하시겠습니까?`)) {
-                            deleteMutation.mutate(item.id);
-                          }
-                        }}
+                        onClick={() => setConfirmState({
+                          title: '항목 삭제',
+                          message: `"${item.title}" 항목을 삭제하시겠습니까?`,
+                          onConfirm: () => deleteMutation.mutate(item.id),
+                        })}
                         className="p-1 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                       >
                         <Trash2 size={13} />
@@ -529,6 +537,16 @@ export function WbsPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!confirmState}
+        title={confirmState?.title ?? ''}
+        message={confirmState?.message}
+        confirmText="삭제"
+        tone="danger"
+        onConfirm={() => { confirmState?.onConfirm(); setConfirmState(null); }}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }
