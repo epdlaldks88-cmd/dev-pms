@@ -52,7 +52,10 @@ export function QATestPage() {
     queryFn: () => qaApi.getAll(filterSR || undefined),
   });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['qa-tests'] });
+  const invalidate = (workLogId?: string | null) => {
+    qc.invalidateQueries({ queryKey: ['qa-tests'] });
+    if (workLogId) qc.invalidateQueries({ queryKey: ['qa-by-worklog', workLogId] });
+  };
 
   const createMutation = useMutation({
     mutationFn: () => qaApi.create({
@@ -67,31 +70,31 @@ export function QATestPage() {
 
   const acceptMutation = useMutation({
     mutationFn: (id: string) => qaApi.accept(id),
-    onSuccess: (data) => { invalidate(); setViewItem(data); toast.success('QA 접수되었습니다. QA번호가 발급되었습니다.'); },
+    onSuccess: (data) => { invalidate(data.workLogId); setViewItem(data); toast.success('QA 접수되었습니다. QA번호가 발급되었습니다.'); },
     onError: () => toast.error('접수에 실패했습니다.'),
   });
 
   const confirmMutation = useMutation({
     mutationFn: (id: string) => qaApi.confirm(id),
-    onSuccess: (data) => { invalidate(); setViewItem(data); toast.success('QA 확인 처리되었습니다.'); },
+    onSuccess: (data) => { invalidate(data.workLogId); setViewItem(data); toast.success('QA 확인 처리되었습니다.'); },
     onError: () => toast.error('처리에 실패했습니다.'),
   });
 
   const rejectMutation = useMutation({
     mutationFn: (id: string) => qaApi.reject(id),
-    onSuccess: (data) => { invalidate(); setViewItem(data); toast.success('QA 반려 처리되었습니다.'); },
+    onSuccess: (data) => { invalidate(data.workLogId); setViewItem(data); toast.success('QA 반려 처리되었습니다.'); },
     onError: () => toast.error('처리에 실패했습니다.'),
   });
 
   const cancelMutation = useMutation({
     mutationFn: (id: string) => qaApi.cancel(id),
-    onSuccess: (data) => { invalidate(); setViewItem(data); toast.success('QA 취소 처리되었습니다.'); },
+    onSuccess: (data) => { invalidate(data.workLogId); setViewItem(data); toast.success('QA 취소 처리되었습니다.'); },
     onError: () => toast.error('처리에 실패했습니다.'),
   });
 
   const reopenMutation = useMutation({
     mutationFn: (id: string) => qaApi.reopen(id),
-    onSuccess: (data) => { invalidate(); setViewItem(data); toast.success('접수 상태로 되돌렸습니다.'); },
+    onSuccess: (data) => { invalidate(data.workLogId); setViewItem(data); toast.success('접수 상태로 되돌렸습니다.'); },
     onError: () => toast.error('처리에 실패했습니다.'),
   });
 
@@ -346,15 +349,26 @@ export function QATestPage() {
             {/* 상태 변경 액션 바 */}
             <div className="px-6 py-3 mt-2 border-b border-gray-100">
               {viewItem.status === 'PENDING' && (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-gray-500">접수하면 QA번호가 발급됩니다.</span>
+                <div className="flex items-center justify-between gap-2">
                   <button
-                    onClick={() => acceptMutation.mutate(viewItem.id)}
-                    disabled={acceptMutation.isPending}
-                    className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors disabled:opacity-50"
+                    onClick={() => setConfirmState({
+                      title: 'QA 접수 취소', message: 'QA 요청을 취소 처리하시겠습니까?', confirmText: '취소 처리', tone: 'danger',
+                      onConfirm: () => cancelMutation.mutate(viewItem.id),
+                    })}
+                    className="px-3 py-2 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                   >
-                    접수하기
+                    접수 취소
                   </button>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500">접수하면 QA번호가 발급됩니다.</span>
+                    <button
+                      onClick={() => acceptMutation.mutate(viewItem.id)}
+                      disabled={acceptMutation.isPending}
+                      className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors disabled:opacity-50"
+                    >
+                      접수하기
+                    </button>
+                  </div>
                 </div>
               )}
               {viewItem.status === 'IN_PROGRESS' && (
