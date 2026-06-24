@@ -294,7 +294,7 @@ export function TaskDetailModal() {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {isLoading || !task ? (
+            {isLoading || !task || (taskModalEditMode && !isEditing) ? (
               <div className="p-6 space-y-4">
                 {[...Array(4)].map((_, i) => <div key={i} className="h-6 bg-gray-100 rounded animate-pulse" />)}
               </div>
