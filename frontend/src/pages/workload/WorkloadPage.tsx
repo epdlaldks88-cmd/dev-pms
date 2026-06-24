@@ -76,6 +76,7 @@ export function WorkloadPage() {
     endDate: today,
     srNumber: '',
   });
+  const [formSubtaskId, setFormSubtaskId] = useState('');
 
   // ── 상세 보기 ───────────────────────────────────────────
   const [viewLog, setViewLog] = useState<any>(null);
@@ -88,7 +89,7 @@ export function WorkloadPage() {
   // ── 수정 모달 ───────────────────────────────────────────
   const [editLog, setEditLog] = useState<any>(null);
   const [editForm, setEditForm] = useState({
-    hours: 1, description: '', startDate: '', endDate: '', userId: '', stage: '' as WorkLogStage | '', requester: '', requestDate: '', taskId: '',
+    hours: 1, description: '', startDate: '', endDate: '', userId: '', stage: '' as WorkLogStage | '', requester: '', requestDate: '', taskId: '', subtaskId: '',
   });
 
   // ── 담당자 카드 선택 필터 ─────────────────────────────
@@ -133,12 +134,20 @@ export function WorkloadPage() {
     enabled: !!form.projectId,
   });
 
+  // 등록 폼: 상위 태스크 / 서브태스크 분리
+  const formParentTasks = useMemo(() => (formTasks ?? []).filter((t: any) => !t.parentId), [formTasks]);
+  const formSubtasks = useMemo(() => (formTasks ?? []).filter((t: any) => t.parentId === form.taskId), [formTasks, form.taskId]);
+
   const editProjectId = editLog?.task?.project?.id ?? editLog?.projectId ?? routeProjectId;
   const { data: editTasks } = useQuery({
     queryKey: ['tasks', editProjectId],
     queryFn: () => tasksApi.getAll(editProjectId!),
     enabled: !!editProjectId && !!editLog,
   });
+
+  // 수정 폼: 상위 태스크 / 서브태스크 분리
+  const editParentTasks = useMemo(() => (editTasks ?? []).filter((t: any) => !t.parentId), [editTasks]);
+  const editSubtasks = useMemo(() => (editTasks ?? []).filter((t: any) => t.parentId === editForm.taskId), [editTasks, editForm.taskId]);
 
   // 조회 필터용 태스크 목록 (선택된 프로젝트 기준)
   const filterProjectId = filterProject || routeProjectId || '';
@@ -176,7 +185,7 @@ export function WorkloadPage() {
 
   const createWorklog = useMutation({
     mutationFn: () => worklogsApi.create({
-      taskId: form.taskId, userId: form.userId, hours: form.hours,
+      taskId: formSubtaskId || form.taskId, userId: form.userId, hours: form.hours,
       description: form.description, requester: form.requester || undefined,
       requestDate: form.requestDate || undefined,
       startDate: form.startDate, endDate: form.endDate,
@@ -184,6 +193,7 @@ export function WorkloadPage() {
     onSuccess: () => {
       invalidate();
       setShowAddModal(false);
+      setFormSubtaskId('');
       setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', requester: '', requestDate: today, startDate: today, endDate: today, srNumber: '' });
       toast.success('일감이 등록되었습니다.');
     },
@@ -903,7 +913,8 @@ export function WorkloadPage() {
                               stage: viewLog.stage ?? '',
                               requester: viewLog.requester ?? '',
                               requestDate: viewLog.requestDate ? viewLog.requestDate.slice(0, 10) : '',
-                              taskId: viewLog.task?.id ?? '',
+                              taskId: viewLog.task?.parentId ?? viewLog.task?.id ?? '',
+                              subtaskId: viewLog.task?.parentId ? (viewLog.task?.id ?? '') : '',
                             });
                           }}
                           className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -1121,17 +1132,32 @@ export function WorkloadPage() {
                   </select>
                 </div>
               )}
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">태스크 *</label>
-                <select
-                  value={form.taskId}
-                  onChange={(e) => setForm({ ...form, taskId: e.target.value })}
-                  disabled={!form.projectId}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-50"
-                >
-                  <option value="">{form.projectId ? '태스크 선택' : '먼저 프로젝트를 선택하세요'}</option>
-                  {formTasks?.map((t: any) => <option key={t.id} value={t.id}>{t.title}</option>)}
-                </select>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">태스크 *</label>
+                  <select
+                    value={form.taskId}
+                    onChange={(e) => { setForm({ ...form, taskId: e.target.value }); setFormSubtaskId(''); }}
+                    disabled={!form.projectId}
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-50"
+                  >
+                    <option value="">{form.projectId ? '태스크 선택' : '먼저 프로젝트를 선택하세요'}</option>
+                    {formParentTasks.map((t: any) => <option key={t.id} value={t.id}>{t.title}</option>)}
+                  </select>
+                </div>
+                {formSubtasks.length > 0 && (
+                  <div className="flex-1">
+                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">서브태스크</label>
+                    <select
+                      value={formSubtaskId}
+                      onChange={(e) => setFormSubtaskId(e.target.value)}
+                      className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <option value="">서브태스크 선택 (선택)</option>
+                      {formSubtasks.map((t: any) => <option key={t.id} value={t.id}>{t.title}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">담당자</label>
@@ -1215,24 +1241,38 @@ export function WorkloadPage() {
             </div>
             <div className="p-6 space-y-4">
               {/* 태스크 선택 */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">태스크</label>
-                <select
-                  value={editForm.taskId}
-                  onChange={(e) => setEditForm({ ...editForm, taskId: e.target.value })}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  {!editForm.taskId && <option value="">태스크 선택</option>}
-                  {editTasks?.map((t: any) => (
-                    <option key={t.id} value={t.id}>{t.title}</option>
-                  ))}
-                  {/* 현재 연결된 태스크가 목록에 없는 경우(삭제된 태스크)를 대비 */}
-                  {editForm.taskId && !editTasks?.find((t: any) => t.id === editForm.taskId) && (
-                    <option value={editForm.taskId} disabled>
-                      {editLog.task?.title ?? editLog.taskTitle ?? '(삭제된 태스크)'}
-                    </option>
-                  )}
-                </select>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">태스크</label>
+                  <select
+                    value={editForm.taskId && !editSubtasks.find((t: any) => t.id === editForm.taskId) ? editForm.taskId : (editParentTasks.find((t: any) => t.id === editForm.taskId)?.id ?? editTasks?.find((t: any) => t.id === editForm.taskId)?.parentId ?? editForm.taskId)}
+                    onChange={(e) => setEditForm({ ...editForm, taskId: e.target.value, subtaskId: '' })}
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    {!editForm.taskId && <option value="">태스크 선택</option>}
+                    {editParentTasks.map((t: any) => (
+                      <option key={t.id} value={t.id}>{t.title}</option>
+                    ))}
+                    {editForm.taskId && !editTasks?.find((t: any) => t.id === editForm.taskId) && (
+                      <option value={editForm.taskId} disabled>
+                        {editLog.task?.title ?? editLog.taskTitle ?? '(삭제된 태스크)'}
+                      </option>
+                    )}
+                  </select>
+                </div>
+                {editSubtasks.length > 0 && (
+                  <div className="flex-1">
+                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">서브태스크</label>
+                    <select
+                      value={editForm.subtaskId}
+                      onChange={(e) => setEditForm({ ...editForm, subtaskId: e.target.value })}
+                      className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <option value="">서브태스크 선택 (선택)</option>
+                      {editSubtasks.map((t: any) => <option key={t.id} value={t.id}>{t.title}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* 단계 플래그 버튼 */}
@@ -1349,7 +1389,7 @@ export function WorkloadPage() {
                   updateWorklog.mutate({
                     id: editLog.id,
                     patch: {
-                      ...(editForm.taskId && editForm.taskId !== (editLog.task?.id ?? '') && { taskId: editForm.taskId }),
+                      ...((editForm.subtaskId || editForm.taskId) && { taskId: editForm.subtaskId || editForm.taskId }),
                       hours: editForm.hours,
                       description: editForm.description,
                       startDate: editForm.startDate,
