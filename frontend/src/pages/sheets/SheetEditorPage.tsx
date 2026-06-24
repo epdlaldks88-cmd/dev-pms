@@ -1007,8 +1007,8 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
 
 // ── Sheet → BulkTaskRow 파서 ──────────────────────────────────────────────────
 const SHEET_HEADER_MAP: Record<string, keyof BulkTaskRow> = {
-  '업무구분': 'category', '태스크명': 'category', '태스크': 'category',
-  '요구사항': 'title', '제목': 'title', '서브태스크': 'title', '하위태스크': 'title',
+  '제목': 'category', '업무구분': 'category', '태스크명': 'category', '태스크': 'category',
+  '요구사항': 'title', '서브태스크': 'title', '하위태스크': 'title',
   '설명': 'description', '담당자': 'assigneeName',
   '우선순위': 'priority', '시작일': 'startDate', '마감일': 'dueDate',
 };
@@ -1313,7 +1313,7 @@ export function SheetEditorPage() {
                 {/* 헤더 형식 안내 */}
                 <div className="rounded-xl border border-dashed border-violet-200 bg-violet-50 px-4 py-3 text-xs text-violet-700">
                   <p className="font-semibold mb-0.5">시트 1행에 헤더가 있어야 합니다</p>
-                  <p className="text-violet-500">필수: <b>업무구분</b>(또는 태스크명) / 선택: 요구사항(서브태스크) · 설명 · 담당자 · 우선순위 · 시작일 · 마감일</p>
+                  <p className="text-violet-500">필수: <b>제목</b> / 선택: 요구사항(하위 태스크) · 설명 · 담당자 · 우선순위 · 시작일 · 마감일</p>
                 </div>
 
                 {/* 미리보기 */}
@@ -1397,13 +1397,18 @@ export function SheetEditorPage() {
                     <tbody className="divide-y divide-gray-100">
                       <tr className="bg-violet-50">
                         <td className="px-3 py-2 font-bold text-violet-700 border-r border-gray-200">필수</td>
-                        <td className="px-3 py-2 font-mono text-violet-700 border-r border-gray-200">업무구분 · 태스크명 · 태스크</td>
-                        <td className="px-3 py-2 text-gray-600">상위 태스크 제목</td>
+                        <td className="px-3 py-2 font-mono text-violet-700 border-r border-gray-200">제목</td>
+                        <td className="px-3 py-2 text-gray-600">상위 태스크 제목 (업무구분·태스크명도 가능)</td>
                       </tr>
                       <tr>
                         <td className="px-3 py-2 text-gray-400 border-r border-gray-200">선택</td>
-                        <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">요구사항 · 제목 · 서브태스크</td>
-                        <td className="px-3 py-2 text-gray-600">하위 태스크 제목</td>
+                        <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">요구사항</td>
+                        <td className="px-3 py-2 text-gray-600">하위 태스크 제목 (서브태스크·하위태스크도 가능)</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 text-gray-400 border-r border-gray-200">선택</td>
+                        <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">설명</td>
+                        <td className="px-3 py-2 text-gray-600">태스크 상세 설명</td>
                       </tr>
                       <tr>
                         <td className="px-3 py-2 text-gray-400 border-r border-gray-200">선택</td>
@@ -1430,15 +1435,16 @@ export function SheetEditorPage() {
                   <table className="w-full">
                     <thead className="bg-violet-50">
                       <tr>
-                        <th className="px-3 py-2 text-left font-semibold text-violet-700 border-r border-gray-200">태스크명</th>
+                        <th className="px-3 py-2 text-left font-semibold text-violet-700 border-r border-gray-200">제목</th>
                         <th className="px-3 py-2 text-left font-semibold text-violet-700 border-r border-gray-200">요구사항</th>
-                        <th className="px-3 py-2 text-left font-semibold text-violet-700">담당자</th>
+                        <th className="px-3 py-2 text-left font-semibold text-violet-700 border-r border-gray-200">담당자</th>
+                        <th className="px-3 py-2 text-left font-semibold text-violet-700">우선순위</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      <tr><td className="px-3 py-1.5 text-gray-700 border-r border-gray-200">로그인</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">소셜 로그인 구현</td><td className="px-3 py-1.5 text-gray-500">홍길동</td></tr>
-                      <tr><td className="px-3 py-1.5 text-gray-700 border-r border-gray-200">로그인</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">비밀번호 찾기</td><td className="px-3 py-1.5 text-gray-500"></td></tr>
-                      <tr><td className="px-3 py-1.5 text-gray-700 border-r border-gray-200">마이페이지</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">프로필 수정</td><td className="px-3 py-1.5 text-gray-500">김철수</td></tr>
+                      <tr><td className="px-3 py-1.5 text-gray-700 border-r border-gray-200">로그인</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">소셜 로그인 구현</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">홍길동</td><td className="px-3 py-1.5 text-gray-500">HIGH</td></tr>
+                      <tr><td className="px-3 py-1.5 text-gray-700 border-r border-gray-200">로그인</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">비밀번호 찾기</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200"></td><td className="px-3 py-1.5 text-gray-500">MEDIUM</td></tr>
+                      <tr><td className="px-3 py-1.5 text-gray-700 border-r border-gray-200">마이페이지</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">프로필 수정</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">김철수</td><td className="px-3 py-1.5 text-gray-500">LOW</td></tr>
                     </tbody>
                   </table>
                 </div>
