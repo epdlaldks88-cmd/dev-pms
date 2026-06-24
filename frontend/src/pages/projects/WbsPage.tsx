@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, ChevronRight, ChevronDown, IndentIncrease, IndentDecrease, GripVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { wbsApi, type WbsItem } from '../../api/wbs';
+import { wbsApi, type WbsItem, type WbsStatus } from '../../api/wbs';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { cn, formatDate } from '../../lib/utils';
 
@@ -15,11 +15,17 @@ interface ConfirmState {
 
 const MAX_DEPTH = 3;
 
+const STATUS_CONFIG: Record<WbsStatus, { label: string; color: string }> = {
+  NOT_STARTED: { label: '진행 전', color: 'bg-gray-100 text-gray-500' },
+  IN_PROGRESS: { label: '진행 중', color: 'bg-blue-100 text-blue-600' },
+  DONE:        { label: '완료',    color: 'bg-emerald-100 text-emerald-600' },
+  ON_HOLD:     { label: '보류',    color: 'bg-amber-100 text-amber-600' },
+};
+
 // WBS 번호 계산 (1, 1.1, 1.1.1)
 function calcWbsNumbers(items: WbsItem[]): Map<string, string> {
   const map = new Map<string, string>();
   const counters: number[] = [];
-
   for (const item of items) {
     const d = item.depth;
     while (counters.length <= d) counters.push(0);
@@ -30,9 +36,45 @@ function calcWbsNumbers(items: WbsItem[]): Map<string, string> {
   return map;
 }
 
+// D-Day 계산 (완료 상태이거나 progress 100이면 null 반환)
+function calcDDay(endDate: string | null | undefined, progress: number): { label: string; color: string } | null {
+  if (!endDate || progress >= 100) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const end = new Date(endDate);
+  end.setHours(0, 0, 0, 0);
+  const diff = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  if (diff === 0) return { label: 'D-Day', color: 'bg-red-100 text-red-600 font-bold' };
+  if (diff > 0)  return { label: `D-${diff}`, color: diff <= 3 ? 'bg-amber-100 text-amber-600' : 'bg-blue-50 text-blue-500' };
+  return { label: `D+${Math.abs(diff)}`, color: 'bg-red-100 text-red-600 font-semibold' };
+}
+
+// 하위 항목 진행률 변경 시 상위 항목 평균 재계산
+function calcAncestorUpdates(
+  changedId: string,
+  newProgress: number,
+  items: WbsItem[],
+): { id: string; progress: number }[] {
+  const progressMap = new Map(items.map((i) => [i.id, i.progress]));
+  progressMap.set(changedId, newProgress);
+
+  const updates: { id: string; progress: number }[] = [];
+  let current = items.find((i) => i.id === changedId);
+  while (current?.parentId) {
+    const parentId = current.parentId;
+    const children = items.filter((i) => i.parentId === parentId);
+    if (!children.length) break;
+    const avg = Math.round(children.reduce((s, i) => s + (progressMap.get(i.id) ?? i.progress), 0) / children.length);
+    progressMap.set(parentId, avg);
+    updates.push({ id: parentId, progress: avg });
+    current = items.find((i) => i.id === parentId);
+  }
+  return updates;
+}
+
 interface EditState {
   id: string;
-  field: 'title' | 'assignee' | 'startDate' | 'endDate' | 'progress' | 'note';
+  field: 'title' | 'assignee' | 'startDate' | 'endDate' | 'note';
   value: string;
 }
 
@@ -78,7 +120,6 @@ export function WbsPage() {
     mutationFn: (items: { id: string; order: number; parentId: string | null; depth: number }[]) =>
       wbsApi.reorder(projectId!, items),
     onMutate: async (items) => {
-      // 낙관적 업데이트: 서버 응답 전에 캐시를 즉시 새 순서로 교체
       await qc.cancelQueries({ queryKey: ['wbs', projectId] });
       const prev = qc.getQueryData<WbsItem[]>(['wbs', projectId]);
       qc.setQueryData(['wbs', projectId], (old: WbsItem[] | undefined) => {
@@ -94,10 +135,8 @@ export function WbsPage() {
     onSettled: invalidate,
   });
 
-  // 숨겨진 항목 필터링 (collapsed된 부모의 자식들 숨김)
   const visibleItems = rawItems.filter((item) => {
     if (!item.parentId) return true;
-    // 부모 체인 중 collapsed된 게 있으면 숨김
     let current = item;
     while (current.parentId) {
       const parent = rawItems.find((i) => i.id === current.parentId);
@@ -130,23 +169,24 @@ export function WbsPage() {
     const { id, field, value } = editState;
     const item = rawItems.find((i) => i.id === id);
     if (!item) { setEditState(null); return; }
-
     const trimmed = value.trim();
     if (field === 'title' && !trimmed) { setEditState(null); return; }
-
     let data: Partial<WbsItem> = {};
-    if (field === 'progress') {
-      const n = Math.min(100, Math.max(0, parseInt(trimmed) || 0));
-      data = { progress: n };
-    } else if (field === 'startDate' || field === 'endDate') {
+    if (field === 'startDate' || field === 'endDate') {
       data = { [field]: trimmed || null } as any;
     } else {
       data = { [field]: trimmed || null } as any;
     }
-
     const unchanged = JSON.stringify((item as any)[field]) === JSON.stringify((data as any)[field]);
     if (!unchanged) updateMutation.mutate({ id, data });
     setEditState(null);
+  };
+
+  const handleProgressChange = (item: WbsItem, newProgress: number) => {
+    updateMutation.mutate({ id: item.id, data: { progress: newProgress } });
+    // 상위 항목 진행률 자동 반영
+    const ancestorUpdates = calcAncestorUpdates(item.id, newProgress, rawItems);
+    ancestorUpdates.forEach((u) => updateMutation.mutate({ id: u.id, data: { progress: u.progress } }));
   };
 
   const addRow = (afterItem?: WbsItem) => {
@@ -180,12 +220,15 @@ export function WbsPage() {
     updateMutation.mutate({ id: item.id, data: { depth: item.depth - 1, parentId: parent?.parentId ?? null } });
   };
 
-  // Drag & Drop
   const onDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.effectAllowed = 'move';
     setDragId(id);
   };
-  const onDragOver = (e: React.DragEvent, id: string) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverId(id); };
+  const onDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverId(id);
+  };
   const onDrop = (e: React.DragEvent, targetId: string) => {
     e.preventDefault();
     const currentDragId = dragId;
@@ -207,14 +250,15 @@ export function WbsPage() {
     p >= 100 ? 'bg-emerald-500' : p >= 60 ? 'bg-primary-500' : p >= 30 ? 'bg-amber-400' : 'bg-gray-300';
 
   const COLS = [
-    { key: 'wbs', label: 'WBS', w: 'w-24 min-w-[6rem]' },
-    { key: 'title', label: '업무명', w: 'flex-1 min-w-[12rem]' },
-    { key: 'assignee', label: '담당자', w: 'w-28 min-w-[7rem]' },
-    { key: 'startDate', label: '시작일', w: 'w-28 min-w-[7rem]' },
-    { key: 'endDate', label: '종료일', w: 'w-28 min-w-[7rem]' },
-    { key: 'progress', label: '진행률', w: 'w-32 min-w-[8rem]' },
-    { key: 'note', label: '비고', w: 'w-40 min-w-[10rem]' },
-    { key: 'actions', label: '', w: 'w-20 min-w-[5rem]' },
+    { key: 'wbs',       label: 'WBS',  w: 'w-20 min-w-[5rem]' },
+    { key: 'title',     label: '업무명', w: 'flex-1 min-w-[12rem]' },
+    { key: 'assignee',  label: '담당자', w: 'w-24 min-w-[6rem]' },
+    { key: 'startDate', label: '시작일', w: 'w-24 min-w-[6rem]' },
+    { key: 'endDate',   label: '종료일', w: 'w-32 min-w-[8rem]' },
+    { key: 'status',    label: '상태',  w: 'w-24 min-w-[6rem]' },
+    { key: 'progress',  label: '진행률', w: 'w-32 min-w-[8rem]' },
+    { key: 'note',      label: '비고',  w: 'w-36 min-w-[9rem]' },
+    { key: 'actions',   label: '',     w: 'w-20 min-w-[5rem]' },
   ];
 
   if (isLoading) return (
@@ -226,6 +270,10 @@ export function WbsPage() {
       </div>
     </div>
   );
+
+  const totalAvg = rawItems.length
+    ? Math.round(rawItems.reduce((s, i) => s + i.progress, 0) / rawItems.length)
+    : 0;
 
   return (
     <div className="flex flex-col h-full bg-gray-50/30">
@@ -246,10 +294,10 @@ export function WbsPage() {
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
-        <div className="min-w-[900px]">
-          {/* Table Header */}
+        <div className="min-w-[1000px]">
+          {/* Header Row */}
           <div className="flex items-center gap-0 bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10">
-            <div className="w-8 flex-shrink-0" /> {/* drag handle space */}
+            <div className="w-8 flex-shrink-0" />
             {COLS.map((col) => (
               <div
                 key={col.key}
@@ -276,7 +324,7 @@ export function WbsPage() {
               </button>
             </div>
           ) : (
-            visibleItems.map((item, idx) => {
+            visibleItems.map((item) => {
               const isEditing = (field: EditState['field']) =>
                 editState?.id === item.id && editState.field === field;
               const children = hasChildren(item.id);
@@ -284,6 +332,8 @@ export function WbsPage() {
               const isDragging = dragId === item.id;
               const isDragOver = dragOverId === item.id;
               const depth = item.depth;
+              const dday = calcDDay(item.endDate, item.progress);
+              const statusCfg = STATUS_CONFIG[item.status ?? 'NOT_STARTED'];
 
               return (
                 <div
@@ -323,7 +373,6 @@ export function WbsPage() {
                     className={cn('px-2 py-0 border-r border-gray-100 flex items-center gap-1', COLS[1].w)}
                     style={{ paddingLeft: `${depth * 20 + 8}px`, minHeight: 44 }}
                   >
-                    {/* 펼침/접힘 토글 */}
                     {children ? (
                       <button
                         onClick={() => setCollapsed((prev) => {
@@ -392,7 +441,7 @@ export function WbsPage() {
                         onChange={(e) => setEditState({ ...editState!, value: e.target.value })}
                         onBlur={commitEdit}
                         onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditState(null); }}
-                        className="w-full text-xs bg-white border border-primary-400 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-primary-200"
+                        className="w-full text-xs bg-white border border-primary-400 rounded px-2 py-1 outline-none"
                       />
                     ) : (
                       <span
@@ -404,8 +453,8 @@ export function WbsPage() {
                     )}
                   </div>
 
-                  {/* 종료일 */}
-                  <div className={cn('px-3 py-0 border-r border-gray-100 flex items-center', COLS[4].w)} style={{ minHeight: 44 }}>
+                  {/* 종료일 + D-Day */}
+                  <div className={cn('px-3 py-0 border-r border-gray-100 flex items-center gap-1.5', COLS[4].w)} style={{ minHeight: 44 }}>
                     {isEditing('endDate') ? (
                       <input
                         ref={inputRef}
@@ -414,20 +463,45 @@ export function WbsPage() {
                         onChange={(e) => setEditState({ ...editState!, value: e.target.value })}
                         onBlur={commitEdit}
                         onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditState(null); }}
-                        className="w-full text-xs bg-white border border-primary-400 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-primary-200"
+                        className="w-full text-xs bg-white border border-primary-400 rounded px-2 py-1 outline-none"
                       />
                     ) : (
-                      <span
-                        onClick={() => startEdit(item.id, 'endDate', item.endDate?.slice(0, 10) ?? '')}
-                        className="text-xs text-gray-600 cursor-pointer hover:text-primary-600 transition-colors"
-                      >
-                        {item.endDate ? formatDate(item.endDate) : <span className="text-gray-300 hover:text-primary-400">날짜 선택</span>}
-                      </span>
+                      <>
+                        <span
+                          onClick={() => startEdit(item.id, 'endDate', item.endDate?.slice(0, 10) ?? '')}
+                          className="text-xs text-gray-600 cursor-pointer hover:text-primary-600 transition-colors flex-shrink-0"
+                        >
+                          {item.endDate ? formatDate(item.endDate) : <span className="text-gray-300 hover:text-primary-400">날짜 선택</span>}
+                        </span>
+                        {dday && (
+                          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0', dday.color)}>
+                            {dday.label}
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
 
+                  {/* 상태 */}
+                  <div className={cn('px-2 py-0 border-r border-gray-100 flex items-center', COLS[5].w)} style={{ minHeight: 44 }}>
+                    <div className={cn('relative w-full')}>
+                      <span className={cn('text-xs px-2 py-1 rounded-full w-full text-center block', statusCfg.color)}>
+                        {statusCfg.label}
+                      </span>
+                      <select
+                        value={item.status ?? 'NOT_STARTED'}
+                        onChange={(e) => updateMutation.mutate({ id: item.id, data: { status: e.target.value as WbsStatus } })}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                      >
+                        {(Object.keys(STATUS_CONFIG) as WbsStatus[]).map((k) => (
+                          <option key={k} value={k}>{STATUS_CONFIG[k].label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
                   {/* 진행률 */}
-                  <div className={cn('px-3 py-0 border-r border-gray-100 flex items-center gap-2', COLS[5].w)} style={{ minHeight: 44 }}>
+                  <div className={cn('px-3 py-0 border-r border-gray-100 flex items-center gap-2', COLS[6].w)} style={{ minHeight: 44 }}>
                     <div className="flex items-center gap-2 w-full">
                       <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div
@@ -437,7 +511,7 @@ export function WbsPage() {
                       </div>
                       <select
                         value={item.progress}
-                        onChange={(e) => updateMutation.mutate({ id: item.id, data: { progress: Number(e.target.value) } })}
+                        onChange={(e) => handleProgressChange(item, Number(e.target.value))}
                         className="text-xs font-semibold text-gray-600 bg-transparent border-none outline-none cursor-pointer w-14 text-right appearance-none"
                       >
                         {[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((v) => (
@@ -448,7 +522,7 @@ export function WbsPage() {
                   </div>
 
                   {/* 비고 */}
-                  <div className={cn('px-3 py-0 border-r border-gray-100 flex items-center', COLS[6].w)} style={{ minHeight: 44 }}>
+                  <div className={cn('px-3 py-0 border-r border-gray-100 flex items-center', COLS[7].w)} style={{ minHeight: 44 }}>
                     {isEditing('note') ? (
                       <input
                         ref={inputRef}
@@ -470,7 +544,7 @@ export function WbsPage() {
                   </div>
 
                   {/* 액션 */}
-                  <div className={cn('px-2 py-0 flex items-center justify-end gap-0.5', COLS[7].w)} style={{ minHeight: 44 }}>
+                  <div className={cn('px-2 py-0 flex items-center justify-end gap-0.5', COLS[8].w)} style={{ minHeight: 44 }}>
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       {depth < MAX_DEPTH && (
                         <button
@@ -531,17 +605,21 @@ export function WbsPage() {
       {rawItems.length > 0 && (
         <div className="flex-shrink-0 px-6 py-2.5 bg-white border-t border-gray-200 flex items-center gap-6 text-xs text-gray-400">
           <span>총 <strong className="text-gray-600">{rawItems.length}</strong>개 항목</span>
-          <span>
-            전체 진행률{' '}
-            <strong className="text-gray-600">
-              {Math.round(rawItems.reduce((s, i) => s + i.progress, 0) / rawItems.length)}%
-            </strong>
-          </span>
+          <span>지연 <strong className="text-red-500">{rawItems.filter(i => calcDDay(i.endDate, i.progress)?.label.startsWith('D+')).length}</strong>건</span>
+          <span>전체 진행률 <strong className="text-gray-600">{totalAvg}%</strong></span>
           <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden max-w-xs">
-            <div
-              className="h-full bg-primary-500 rounded-full transition-all"
-              style={{ width: `${Math.round(rawItems.reduce((s, i) => s + i.progress, 0) / rawItems.length)}%` }}
-            />
+            <div className="h-full bg-primary-500 rounded-full transition-all" style={{ width: `${totalAvg}%` }} />
+          </div>
+          <div className="flex items-center gap-3 ml-2">
+            {(Object.keys(STATUS_CONFIG) as WbsStatus[]).map((k) => {
+              const count = rawItems.filter(i => (i.status ?? 'NOT_STARTED') === k).length;
+              if (!count) return null;
+              return (
+                <span key={k} className={cn('px-2 py-0.5 rounded-full text-[10px]', STATUS_CONFIG[k].color)}>
+                  {STATUS_CONFIG[k].label} {count}
+                </span>
+              );
+            })}
           </div>
         </div>
       )}

@@ -1,5 +1,7 @@
 import api from './axios';
 
+export type WbsStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE' | 'ON_HOLD';
+
 export interface WbsItem {
   id: string;
   title: string;
@@ -7,6 +9,7 @@ export interface WbsItem {
   startDate?: string;
   endDate?: string;
   progress: number;
+  status: WbsStatus;
   note?: string;
   order: number;
   depth: number;
