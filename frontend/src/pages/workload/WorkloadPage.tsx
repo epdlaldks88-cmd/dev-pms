@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Clock, Briefcase, Trash2, X, Pencil, CheckCircle2, Check, Filter, Download, BarChart2, ChevronLeft, ChevronRight, FlaskConical } from 'lucide-react';
+import { Plus, Clock, Briefcase, Trash2, X, Pencil, CheckCircle2, Check, Filter, Download, BarChart2, ChevronLeft, ChevronRight, FlaskConical, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import { worklogsApi, STAGE_CONFIG, STAGE_ORDER, type WorkLogStage } from '../../api/worklogs';
@@ -286,16 +286,58 @@ export function WorkloadPage() {
     ? (worklogs ?? []).filter((log: any) => log.user.id === selectedUserId)
     : (worklogs ?? []);
 
+  // ── 정렬 (기본: SR번호 오름차순 = 등록순) ──────────────
+  type SortKey = 'period' | 'task' | 'srNumber' | 'stage' | 'user' | 'requester' | 'userConfirmedAt' | 'qa' | 'acknowledged';
+  const [sortKey, setSortKey] = useState<SortKey>('srNumber');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(key); setSortDir('asc'); }
+  };
+  const sortIcon = (key: SortKey) =>
+    sortKey === key
+      ? (sortDir === 'asc' ? <ChevronUp size={12} className="text-primary-500" /> : <ChevronDown size={12} className="text-primary-500" />)
+      : <ChevronsUpDown size={11} className="text-gray-300 group-hover/sort:text-gray-400" />;
+
+  const STAGE_RANK: Record<string, number> = Object.fromEntries(STAGE_ORDER.map((s, i) => [s, i]));
+  const QA_RANK: Record<string, number> = { CANCELLED: 0, PENDING: 1, IN_PROGRESS: 2, COMPLETED: 3 };
+  const sortedLogs = useMemo(() => {
+    const arr = [...filteredLogs];
+    const dir = sortDir === 'asc' ? 1 : -1;
+    const val = (log: any): string | number => {
+      switch (sortKey) {
+        case 'period': return log.startDate ?? log.workDate ?? '';
+        case 'task': return (log.task?.title ?? log.taskTitle ?? '').toLowerCase();
+        case 'srNumber': return log.srNumber ?? '';
+        case 'stage': return STAGE_RANK[log.stage] ?? -1;
+        case 'user': return (log.user?.name ?? '').toLowerCase();
+        case 'requester': return (log.requester ?? '').toLowerCase();
+        case 'userConfirmedAt': return log.userConfirmedAt ?? '';
+        case 'qa': { const qa = qaByWorklog.get(log.id) as any; return qa ? (QA_RANK[qa.status] ?? 0) : -1; }
+        case 'acknowledged': return log.isAcknowledged ? 1 : 0;
+        default: return '';
+      }
+    };
+    arr.sort((a, b) => {
+      const av = val(a), bv = val(b);
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      // 동률이면 SR번호로 안정 정렬
+      return (a.srNumber ?? '').localeCompare(b.srNumber ?? '');
+    });
+    return arr;
+  }, [filteredLogs, sortKey, sortDir, qaByWorklog]);
+
   // ── 페이지네이션 (프론트, 50개씩) ──
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / PAGE_SIZE));
-  // 필터/담당자 변경 시 1페이지로, 범위 벗어나면 보정
-  useEffect(() => { setPage(1); }, [filterProject, filterTask, filterUser, filterStage, filterStart, filterEnd, selectedUserId]);
+  const totalPages = Math.max(1, Math.ceil(sortedLogs.length / PAGE_SIZE));
+  // 필터/담당자/정렬 변경 시 1페이지로, 범위 벗어나면 보정
+  useEffect(() => { setPage(1); }, [filterProject, filterTask, filterUser, filterStage, filterStart, filterEnd, selectedUserId, sortKey, sortDir]);
   // 프로젝트 변경 시 이전 프로젝트의 태스크 선택값 초기화
   useEffect(() => { setFilterTask(''); }, [filterProject]);
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
-  const pagedLogs = filteredLogs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pagedLogs = sortedLogs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const displayDate = (log: any) => {
     if (log.startDate && log.endDate) {
@@ -623,16 +665,34 @@ export function WorkloadPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-40">기간</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-36">태스크</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">SR번호</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">상태</th>
+                <th onClick={() => toggleSort('period')} className="group/sort text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-40 cursor-pointer select-none hover:text-gray-700">
+                  <span className="inline-flex items-center gap-1">기간 {sortIcon('period')}</span>
+                </th>
+                <th onClick={() => toggleSort('task')} className="group/sort text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-36 cursor-pointer select-none hover:text-gray-700">
+                  <span className="inline-flex items-center gap-1">태스크 {sortIcon('task')}</span>
+                </th>
+                <th onClick={() => toggleSort('srNumber')} className="group/sort text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28 cursor-pointer select-none hover:text-gray-700">
+                  <span className="inline-flex items-center gap-1">SR번호 {sortIcon('srNumber')}</span>
+                </th>
+                <th onClick={() => toggleSort('stage')} className="group/sort text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24 cursor-pointer select-none hover:text-gray-700">
+                  <span className="inline-flex items-center gap-1">상태 {sortIcon('stage')}</span>
+                </th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">작업 내용</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">담당자</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">요청자</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">사용자확인일</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-20">QA</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-14">확인</th>
+                <th onClick={() => toggleSort('user')} className="group/sort text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28 cursor-pointer select-none hover:text-gray-700">
+                  <span className="inline-flex items-center gap-1">담당자 {sortIcon('user')}</span>
+                </th>
+                <th onClick={() => toggleSort('requester')} className="group/sort text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24 cursor-pointer select-none hover:text-gray-700">
+                  <span className="inline-flex items-center gap-1">요청자 {sortIcon('requester')}</span>
+                </th>
+                <th onClick={() => toggleSort('userConfirmedAt')} className="group/sort text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24 cursor-pointer select-none hover:text-gray-700">
+                  <span className="inline-flex items-center gap-1">사용자확인일 {sortIcon('userConfirmedAt')}</span>
+                </th>
+                <th onClick={() => toggleSort('qa')} className="group/sort text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-20 cursor-pointer select-none hover:text-gray-700">
+                  <span className="inline-flex items-center gap-1">QA {sortIcon('qa')}</span>
+                </th>
+                <th onClick={() => toggleSort('acknowledged')} className="group/sort text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-14 cursor-pointer select-none hover:text-gray-700">
+                  <span className="inline-flex items-center gap-1">확인 {sortIcon('acknowledged')}</span>
+                </th>
                 <th className="w-10" />
               </tr>
             </thead>
