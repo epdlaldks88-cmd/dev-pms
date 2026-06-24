@@ -731,6 +731,78 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
+  // Column context menu
+  const [colCtxMenu, setColCtxMenu] = useState<{ col: number; x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!colCtxMenu) return;
+    const close = () => setColCtxMenu(null);
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [colCtxMenu]);
+
+  const deleteColumn = useCallback((col: number) => {
+    setColCtxMenu(null);
+    const d = dataRef.current;
+    const newCells: Record<string, CellData> = {};
+    for (const [k, v] of Object.entries(d.cells)) {
+      const [r, c] = k.split(',').map(Number);
+      if (c === col) continue;
+      newCells[ck(r, c < col ? c : c - 1)] = v;
+    }
+    const newMerges: Record<string, MergeInfo> = {};
+    for (const [k, m] of Object.entries(d.merges)) {
+      const [r, c] = k.split(',').map(Number);
+      // 삭제할 열이 병합 내부에 포함되면 cols 감소, 병합이 해당 열만이면 제거
+      if (c === col && m.cols === 1) continue;
+      const nc = c < col ? c : c - 1;
+      const newCols = c <= col && col < c + m.cols ? m.cols - 1 : m.cols;
+      if (newCols < 1) continue;
+      newMerges[ck(r, nc)] = { rows: m.rows, cols: newCols };
+    }
+    const newColWidths: Record<number, number> = {};
+    for (const [k, w] of Object.entries(d.colWidths)) {
+      const c = Number(k);
+      if (c === col) continue;
+      newColWidths[c < col ? c : c - 1] = w;
+    }
+    const newCols = Math.max(1, d.cols - 1);
+    // 선택 셀 보정
+    if (selStartRef.current) {
+      const [sr, sc] = selStartRef.current;
+      if (sc === col) { setSelStart([sr, Math.max(0, col - 1)]); setSelEnd(null); }
+      else if (sc > col) { setSelStart([sr, sc - 1]); setSelEnd(null); }
+    }
+    recordChange({ ...d, cells: newCells, merges: newMerges, colWidths: newColWidths, cols: newCols });
+  }, [recordChange]);
+
+  const insertColumnBefore = useCallback((col: number) => {
+    setColCtxMenu(null);
+    const d = dataRef.current;
+    const newCells: Record<string, CellData> = {};
+    for (const [k, v] of Object.entries(d.cells)) {
+      const [r, c] = k.split(',').map(Number);
+      newCells[ck(r, c < col ? c : c + 1)] = v;
+    }
+    const newMerges: Record<string, MergeInfo> = {};
+    for (const [k, m] of Object.entries(d.merges)) {
+      const [r, c] = k.split(',').map(Number);
+      const nc = c < col ? c : c + 1;
+      const newCols = c < col && col < c + m.cols ? m.cols + 1 : m.cols;
+      newMerges[ck(r, nc)] = { rows: m.rows, cols: newCols };
+    }
+    const newColWidths: Record<number, number> = {};
+    for (const [k, w] of Object.entries(d.colWidths)) {
+      const c = Number(k);
+      newColWidths[c < col ? c : c + 1] = w;
+    }
+    recordChange({ ...d, cells: newCells, merges: newMerges, colWidths: newColWidths, cols: d.cols + 1 });
+  }, [recordChange]);
+
+  const insertColumnAfter = useCallback((col: number) => {
+    insertColumnBefore(col + 1);
+  }, [insertColumnBefore]);
+
   // Column resize — 드래그 중 DOM 직접 조작, mouseup 시에만 state 반영
   const onResizeStart = (e: React.MouseEvent, col: number) => {
     e.preventDefault(); e.stopPropagation();
@@ -824,6 +896,33 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
           title="병합 해제">병합 해제</button>
       </div>
 
+      {/* ── Column context menu ── */}
+      {colCtxMenu && createPortal(
+        <div
+          className="fixed z-[9999] bg-white border border-gray-200 rounded-xl shadow-xl py-1 min-w-[160px]"
+          style={{ top: colCtxMenu.y, left: colCtxMenu.x }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+          <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 tracking-wide border-b border-gray-100 mb-1">
+            열 {colLabel(colCtxMenu.col)}
+          </div>
+          <button
+            className="w-full px-3 py-1.5 text-xs text-left hover:bg-gray-50 text-gray-700"
+            onClick={() => insertColumnBefore(colCtxMenu.col)}
+          >왼쪽에 열 삽입</button>
+          <button
+            className="w-full px-3 py-1.5 text-xs text-left hover:bg-gray-50 text-gray-700"
+            onClick={() => insertColumnAfter(colCtxMenu.col)}
+          >오른쪽에 열 삽입</button>
+          <div className="my-1 border-t border-gray-100" />
+          <button
+            className="w-full px-3 py-1.5 text-xs text-left hover:bg-red-50 text-red-600 font-medium"
+            onClick={() => deleteColumn(colCtxMenu.col)}
+          >이 열 삭제</button>
+        </div>,
+        document.body
+      )}
+
       {/* ── Formula bar ── */}
       <div className="flex-shrink-0 flex items-center h-7 border-b border-gray-200 bg-gray-50 px-2 gap-2">
         <span className="text-[11px] text-gray-500 font-mono w-16 text-center border-r border-gray-200 pr-2 flex-shrink-0">{cellAddress}</span>
@@ -851,7 +950,8 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
                 <th key={c}
                   className={cn('sticky top-0 z-20 bg-gray-50 border border-gray-200 text-xs font-medium text-gray-500 relative select-none',
                     range && c >= range.c1 && c <= range.c2 && 'bg-primary-50 text-gray-800')}
-                  style={{ height: RH }}>
+                  style={{ height: RH }}
+                  onContextMenu={e => { e.preventDefault(); setColCtxMenu({ col: c, x: e.clientX, y: e.clientY }); }}>
                   {colLabel(c)}
                   <span className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary-400 opacity-0 hover:opacity-100 z-10"
                     onMouseDown={e => onResizeStart(e, c)} />
