@@ -77,7 +77,21 @@ export function WbsPage() {
   const reorderMutation = useMutation({
     mutationFn: (items: { id: string; order: number; parentId: string | null; depth: number }[]) =>
       wbsApi.reorder(projectId!, items),
-    onSuccess: invalidate,
+    onMutate: async (items) => {
+      // 낙관적 업데이트: 서버 응답 전에 캐시를 즉시 새 순서로 교체
+      await qc.cancelQueries({ queryKey: ['wbs', projectId] });
+      const prev = qc.getQueryData<WbsItem[]>(['wbs', projectId]);
+      qc.setQueryData(['wbs', projectId], (old: WbsItem[] | undefined) => {
+        if (!old) return old;
+        const orderMap = new Map(items.map((i) => [i.id, i.order]));
+        return [...old].sort((a, b) => (orderMap.get(a.id) ?? a.order) - (orderMap.get(b.id) ?? b.order));
+      });
+      return { prev };
+    },
+    onError: (_err, _items, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['wbs', projectId], ctx.prev);
+    },
+    onSettled: invalidate,
   });
 
   // 숨겨진 항목 필터링 (collapsed된 부모의 자식들 숨김)
@@ -167,11 +181,17 @@ export function WbsPage() {
   };
 
   // Drag & Drop
-  const onDragStart = (id: string) => setDragId(id);
-  const onDragOver = (e: React.DragEvent, id: string) => { e.preventDefault(); setDragOverId(id); };
-  const onDrop = (targetId: string) => {
-    if (!dragId || dragId === targetId) { setDragId(null); setDragOverId(null); return; }
-    const from = rawItems.findIndex((i) => i.id === dragId);
+  const onDragStart = (e: React.DragEvent, id: string) => {
+    e.dataTransfer.effectAllowed = 'move';
+    setDragId(id);
+  };
+  const onDragOver = (e: React.DragEvent, id: string) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverId(id); };
+  const onDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    const currentDragId = dragId;
+    setDragId(null); setDragOverId(null);
+    if (!currentDragId || currentDragId === targetId) return;
+    const from = rawItems.findIndex((i) => i.id === currentDragId);
     const to = rawItems.findIndex((i) => i.id === targetId);
     if (from === -1 || to === -1) return;
     const reordered = [...rawItems];
@@ -181,7 +201,6 @@ export function WbsPage() {
       id: item.id, order: idx, parentId: item.parentId ?? null, depth: item.depth,
     }));
     reorderMutation.mutate(updates);
-    setDragId(null); setDragOverId(null);
   };
 
   const progressColor = (p: number) =>
@@ -270,10 +289,10 @@ export function WbsPage() {
                 <div
                   key={item.id}
                   draggable
-                  onDragStart={() => onDragStart(item.id)}
+                  onDragStart={(e) => onDragStart(e, item.id)}
                   onDragOver={(e) => onDragOver(e, item.id)}
-                  onDragLeave={() => setDragOverId(null)}
-                  onDrop={() => onDrop(item.id)}
+                  onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverId(null); }}
+                  onDrop={(e) => onDrop(e, item.id)}
                   className={cn(
                     'flex items-center gap-0 border-b border-gray-100 group transition-all',
                     isDragging && 'opacity-40',
