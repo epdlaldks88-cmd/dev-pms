@@ -428,34 +428,23 @@ export function WbsPage() {
 
                   {/* 진행률 */}
                   <div className={cn('px-3 py-0 border-r border-gray-100 flex items-center gap-2', COLS[5].w)} style={{ minHeight: 44 }}>
-                    {isEditing('progress') ? (
-                      <input
-                        ref={inputRef}
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={editState!.value}
-                        onChange={(e) => setEditState({ ...editState!, value: e.target.value })}
-                        onBlur={commitEdit}
-                        onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditState(null); }}
-                        className="w-16 text-xs bg-white border border-primary-400 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-primary-200"
-                      />
-                    ) : (
-                      <div
-                        className="flex items-center gap-2 w-full cursor-pointer"
-                        onDoubleClick={() => startEdit(item.id, 'progress', String(item.progress))}
-                      >
-                        <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className={cn('h-full rounded-full transition-all', progressColor(item.progress))}
-                            style={{ width: `${item.progress}%` }}
-                          />
-                        </div>
-                        <span className="text-xs font-semibold text-gray-500 w-8 text-right flex-shrink-0">
-                          {item.progress}%
-                        </span>
+                    <div className="flex items-center gap-2 w-full">
+                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className={cn('h-full rounded-full transition-all', progressColor(item.progress))}
+                          style={{ width: `${item.progress}%` }}
+                        />
                       </div>
-                    )}
+                      <select
+                        value={item.progress}
+                        onChange={(e) => updateMutation.mutate({ id: item.id, data: { progress: Number(e.target.value) } })}
+                        className="text-xs font-semibold text-gray-600 bg-transparent border-none outline-none cursor-pointer w-14 text-right appearance-none"
+                      >
+                        {[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((v) => (
+                          <option key={v} value={v}>{v}%</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   {/* 비고 */}
