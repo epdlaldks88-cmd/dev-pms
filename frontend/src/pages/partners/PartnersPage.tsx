@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Building2, Users, Trash2, Mail, Phone, ChevronRight } from 'lucide-react';
+import { Plus, Building2, Users, Trash2, Mail, Phone, ChevronRight, Pencil } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { partnersApi } from '../../api/partners';
 import { Button } from '../../components/ui/Button';
@@ -12,23 +12,50 @@ import type { Partner } from '../../types';
 
 export function PartnersPage() {
   const qc = useQueryClient();
-  const [createOpen, setCreateOpen] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '', contactName: '', email: '', phone: '' });
+  const EMPTY_FORM = { name: '', description: '', contactName: '', email: '', phone: '' };
+  const [formOpen, setFormOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState(EMPTY_FORM);
 
   const { data: partners, isLoading } = useQuery({
     queryKey: ['partners'],
     queryFn: partnersApi.getAll,
   });
 
+  const openCreate = () => { setEditId(null); setForm(EMPTY_FORM); setFormOpen(true); };
+  const openEdit = (p: Partner) => {
+    setEditId(p.id);
+    setForm({
+      name: p.name ?? '',
+      description: p.description ?? '',
+      contactName: p.contactName ?? '',
+      email: p.email ?? '',
+      phone: p.phone ?? '',
+    });
+    setFormOpen(true);
+  };
+
   const createPartner = useMutation({
     mutationFn: partnersApi.create,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['partners'] });
-      setCreateOpen(false);
-      setForm({ name: '', description: '', contactName: '', email: '', phone: '' });
+      setFormOpen(false);
+      setForm(EMPTY_FORM);
       toast.success('파트너사가 등록되었습니다.');
     },
     onError: () => toast.error('등록에 실패했습니다.'),
+  });
+
+  const updatePartner = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<Partner> }) => partnersApi.update(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['partners'] });
+      setFormOpen(false);
+      setEditId(null);
+      setForm(EMPTY_FORM);
+      toast.success('파트너사 정보가 수정되었습니다.');
+    },
+    onError: () => toast.error('수정에 실패했습니다.'),
   });
 
   const deletePartner = useMutation({
@@ -46,7 +73,7 @@ export function PartnersPage() {
           <h1 className="text-xl font-bold text-gray-700">파트너사 관리</h1>
           <p className="text-sm text-gray-500 mt-0.5">협력 업체와 인력 정보를 관리하세요.</p>
         </div>
-        <Button variant="primary" size="md" onClick={() => setCreateOpen(true)}>
+        <Button variant="primary" size="md" onClick={openCreate}>
           <Plus size={16} /> 파트너사 등록
         </Button>
       </div>
@@ -60,7 +87,7 @@ export function PartnersPage() {
           icon={<Building2 size={48} />}
           title="등록된 파트너사가 없습니다"
           description="협력 업체를 등록하고 인력 정보를 관리하세요."
-          action={<Button variant="primary" onClick={() => setCreateOpen(true)}><Plus size={16} /> 파트너사 등록</Button>}
+          action={<Button variant="primary" onClick={openCreate}><Plus size={16} /> 파트너사 등록</Button>}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -80,12 +107,22 @@ export function PartnersPage() {
                     </div>
                   </div>
                 </div>
-                <button
-                  onClick={() => { if (confirm(`"${p.name}" 파트너사를 삭제하시겠습니까?\n소속 인력 정보도 함께 삭제됩니다.`)) deletePartner.mutate(p.id); }}
-                  className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto text-gray-400 hover:text-red-500 p-1 transition-all cursor-pointer"
-                >
-                  <Trash2 size={14} />
-                </button>
+                <div className="flex items-center gap-0.5 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all">
+                  <button
+                    onClick={() => openEdit(p)}
+                    title="수정"
+                    className="text-gray-400 hover:text-primary-600 p-1 cursor-pointer"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    onClick={() => { if (confirm(`"${p.name}" 파트너사를 삭제하시겠습니까?\n소속 인력 정보도 함께 삭제됩니다.`)) deletePartner.mutate(p.id); }}
+                    title="삭제"
+                    className="text-gray-400 hover:text-red-500 p-1 cursor-pointer"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
 
               {p.description && <p className="text-xs text-gray-500 mb-3 line-clamp-2">{p.description}</p>}
@@ -108,9 +145,14 @@ export function PartnersPage() {
         </div>
       )}
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="파트너사 등록">
+      <Modal open={formOpen} onClose={() => { setFormOpen(false); setEditId(null); }} title={editId ? '파트너사 수정' : '파트너사 등록'}>
         <form
-          onSubmit={(e) => { e.preventDefault(); if (form.name.trim()) createPartner.mutate(form as any); }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!form.name.trim()) return;
+            if (editId) updatePartner.mutate({ id: editId, data: form });
+            else createPartner.mutate(form as any);
+          }}
           className="p-6 space-y-4"
         >
           <Input label="파트너사 이름 *" placeholder="(주)협력업체" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
@@ -130,8 +172,10 @@ export function PartnersPage() {
             <Input label="연락처" placeholder="02-1234-5678" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="flex-1" />
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setCreateOpen(false)}>취소</Button>
-            <Button type="submit" variant="primary" loading={createPartner.isPending}>등록</Button>
+            <Button type="button" variant="secondary" onClick={() => { setFormOpen(false); setEditId(null); }}>취소</Button>
+            <Button type="submit" variant="primary" loading={editId ? updatePartner.isPending : createPartner.isPending}>
+              {editId ? '저장' : '등록'}
+            </Button>
           </div>
         </form>
       </Modal>
