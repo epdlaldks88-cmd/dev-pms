@@ -611,25 +611,28 @@ export function CanvasPage() {
   const [assigneeNodeId, setAssigneeNodeId] = useState<string | null>(null);
   const selectedCount = nodes.filter((n) => n.selected).length + edges.filter((e) => e.selected).length;
 
-  // 자동 저장 - 실제 내용이 바뀌면 저장 (라벨/ERD 등 노드 내부 setNodes 편집까지 포함)
-  // isDirty 플래그에 의존하지 않고 직렬화 비교로 변경을 감지 → onNodesChange를 거치지 않는 편집도 저장됨
+  // 자동 저장 - React Flow 스토어를 직접 폴링해 내용 변경 감지 시 저장.
+  // 노드 내부 setNodes(라벨/ERD 편집 등)는 페이지 nodes state/onNodesChange를 거치지 않으므로
+  // [nodes] 의존 effect로는 못 잡는다. 스토어(getNodes/getEdges) 기준으로 비교하면 모든 편집 경로를 포착.
   useEffect(() => {
     if (!initialized || !projectId || !canvasId) return;
-    if (isRestoringRef.current) return;
-    const snapshot = serialize(nodes, edges);
-    if (snapshot === lastSavedRef.current) return;
-    isDirty.current = true; // 미저장 변경 존재 → SSE 원격 갱신이 덮어쓰지 않도록
-    const timer = setTimeout(() => {
-      const cur = serialize(nodesRef.current, edgesRef.current);
-      if (cur === lastSavedRef.current) return;
-      const cleanNodes = nodesRef.current.map(({ selected: _, ...n }) => n);
-      const cleanEdges = edgesRef.current.map(({ selected: _, ...e }) => e);
+    const tick = () => {
+      if (isRestoringRef.current) return;
+      const inst = rfInstanceRef.current;
+      const ns: Node[] = inst?.getNodes ? inst.getNodes() : nodesRef.current;
+      const es: any[] = inst?.getEdges ? inst.getEdges() : edgesRef.current;
+      const cur = serialize(ns, es);
+      if (cur === lastSavedRef.current) { isDirty.current = false; return; }
+      isDirty.current = true; // 미저장 변경 존재 → SSE 원격 갱신이 덮어쓰지 않도록
+      const cleanNodes = ns.map(({ selected: _s, ...n }: any) => n);
+      const cleanEdges = es.map(({ selected: _s, ...e }: any) => e);
       saveCanvas.mutate({ nodes: cleanNodes, edges: cleanEdges });
       lastSavedRef.current = cur;
       isDirty.current = false;
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [nodes, edges, initialized, projectId, canvasId, serialize]);
+    };
+    const id = setInterval(tick, 1200);
+    return () => clearInterval(id);
+  }, [initialized, projectId, canvasId, serialize]);
 
   // SSE: 다른 사람 변경 시 refetch
   useEffect(() => {
