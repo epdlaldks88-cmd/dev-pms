@@ -657,8 +657,10 @@ export function CanvasPage() {
   const edgesRef = useRef(edges);
   const clipboardRef = useRef(clipboard);
   const initializedRef = useRef(false);
+  const rfInstanceRef = useRef<any>(null); // 언마운트 flush 시 스토어에서 최신값 직접 읽기용
   useEffect(() => { nodesRef.current = nodes; }, [nodes]);
   useEffect(() => { edgesRef.current = edges; }, [edges]);
+  useEffect(() => { rfInstanceRef.current = rfInstance; }, [rfInstance]);
   useEffect(() => { clipboardRef.current = clipboard; }, [clipboard]);
   useEffect(() => { initializedRef.current = initialized; }, [initialized]);
 
@@ -732,11 +734,16 @@ export function CanvasPage() {
   useEffect(() => {
     return () => {
       if (!initializedRef.current || !projectId || !canvasId) return;
-      const cur = serialize(nodesRef.current, edgesRef.current);
+      // 노드 내부 편집(onBlur commit 등)은 React Flow 스토어를 동기적으로 갱신하지만
+      // nodesRef(React state 미러)는 언마운트 전에 동기화되지 못할 수 있어 스토어에서 최신값을 직접 읽음
+      const inst = rfInstanceRef.current;
+      const latestNodes: Node[] = inst?.getNodes ? inst.getNodes() : nodesRef.current;
+      const latestEdges: any[] = inst?.getEdges ? inst.getEdges() : edgesRef.current;
+      const cur = serialize(latestNodes, latestEdges);
       if (cur === lastSavedRef.current) return;
       lastSavedRef.current = cur;
-      const cleanNodes = nodesRef.current.map(({ selected: _, ...n }) => n);
-      const cleanEdges = edgesRef.current.map(({ selected: _, ...e }) => e);
+      const cleanNodes = latestNodes.map(({ selected: _, ...n }) => n);
+      const cleanEdges = latestEdges.map(({ selected: _, ...e }) => e);
       const token = getAccessToken();
       fetch(`/api/projects/${projectId}/canvases/${canvasId}`, {
         method: 'PUT',
