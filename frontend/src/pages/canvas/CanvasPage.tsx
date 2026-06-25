@@ -508,7 +508,13 @@ export function CanvasPage() {
 
   const saveCanvas = useMutation({
     mutationFn: (data: any) => canvasApi.save(projectId!, canvasId!, data),
-    onSuccess: () => {
+    onSuccess: (updated: any) => {
+      // 저장한 내용으로 캐시 동기화 — 전역 staleTime(30s) 동안 다른 페이지 갔다 복귀 시
+      // 옛 캐시가 화면을 덮어쓰는 문제 방지. updatedAt도 기록해 로드 effect의 재적용(선택 초기화) 방지
+      if (updated) {
+        qc.setQueryData(['canvas', projectId, canvasId], updated);
+        if (updated.updatedAt) lastServerUpdatedAt.current = updated.updatedAt;
+      }
       // 저장 완료 후 pending 원격 변경이 있을 때만 refetch (무조건 invalidate 시 selected 상태 초기화됨)
       if (pendingRemoteUpdate.current) {
         pendingRemoteUpdate.current = false;
@@ -747,6 +753,11 @@ export function CanvasPage() {
       lastSavedRef.current = cur;
       const cleanNodes = latestNodes.map(({ selected: _, ...n }) => n);
       const cleanEdges = latestEdges.map(({ selected: _, ...e }) => e);
+      // 캐시도 즉시 갱신 — staleTime(30s) 내 빠른 복귀 시 서버 왕복 전에도 최신 내용이 보이도록
+      const nowIso = new Date().toISOString();
+      qc.setQueryData(['canvas', projectId, canvasId], (old: any) =>
+        old ? { ...old, data: { nodes: cleanNodes, edges: cleanEdges }, updatedAt: nowIso } : old);
+      lastServerUpdatedAt.current = nowIso;
       const token = getAccessToken();
       fetch(`/api/projects/${projectId}/canvases/${canvasId}`, {
         method: 'PUT',
