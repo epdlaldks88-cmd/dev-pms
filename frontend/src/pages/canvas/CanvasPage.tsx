@@ -297,7 +297,7 @@ function ErdTableNode({ id, data, selected }: any) {
     const newCol: ErdColumn = { id: `col-${Date.now()}`, name: 'column', type: 'VARCHAR', pk: false, fk: false, notNull: false };
     setNodes((ns) => ns.map((n) => {
       if (n.id !== id) return n;
-      return { ...n, data: { ...n.data, columns: [...(n.data.columns ?? []), newCol] } };
+      return { ...n, data: { ...n.data, columns: [...((n.data.columns as ErdColumn[]) ?? []), newCol] } };
     }));
   };
 
@@ -508,7 +508,13 @@ export function CanvasPage() {
 
   const saveCanvas = useMutation({
     mutationFn: (data: any) => canvasApi.save(projectId!, canvasId!, data),
-    onSuccess: () => {
+    onSuccess: (updated: any) => {
+      // 저장한 내용으로 캐시 동기화 — 전역 staleTime(30s) 동안 다른 페이지 갔다 복귀 시
+      // 옛 캐시가 화면을 덮어쓰는 문제 방지. updatedAt도 기록해 로드 effect의 재적용(선택 초기화) 방지
+      if (updated) {
+        qc.setQueryData(['canvas', projectId, canvasId], updated);
+        if (updated.updatedAt) lastServerUpdatedAt.current = updated.updatedAt;
+      }
       // 저장 완료 후 pending 원격 변경이 있을 때만 refetch (무조건 invalidate 시 selected 상태 초기화됨)
       if (pendingRemoteUpdate.current) {
         pendingRemoteUpdate.current = false;
@@ -543,6 +549,15 @@ export function CanvasPage() {
   const isDirty = useRef(false); // 유저가 직접 조작했을 때만 true
   const pendingRemoteUpdate = useRef(false); // 원격 변경이 왔는데 dirty라 바로 못 받았을 때
   const lastServerUpdatedAt = useRef<string>(''); // 마지막으로 로드한 서버 updatedAt (중복 로드 방지)
+  const lastSavedRef = useRef<string>(''); // 마지막으로 저장된 내용(직렬화) — 내용 변경 감지로 저장 판단
+
+  // 직렬화: 선택/드래그 등 일시적 상태 제거 (저장/히스토리 비교 공용)
+  const serialize = useCallback((ns: Node[], es: any[]) => {
+    const cleanN = ns.map(({ selected: _s, dragging: _d, width: _w, height: _h,
+      positionAbsolute: _pa, measured: _m, ...n }: any) => n);
+    const cleanE = es.map(({ selected: _s, ...e }: any) => e);
+    return JSON.stringify({ nodes: cleanN, edges: cleanE });
+  }, []);
 
   // 유저 상호작용 시에만 dirty 표시 (select 변경 제외)
   const onNodesChange = useCallback((changes: any[]) => {
@@ -567,6 +582,7 @@ export function CanvasPage() {
         const saved = typeof canvasData.data === 'string' ? JSON.parse(canvasData.data) : canvasData.data;
         if (saved?.nodes) setNodes(saved.nodes);
         if (saved?.edges) setEdges(saved.edges);
+        lastSavedRef.current = serialize(saved?.nodes ?? [], saved?.edges ?? []);
       } catch {}
       isDirty.current = false;
       lastServerUpdatedAt.current = serverTime;
@@ -601,19 +617,28 @@ export function CanvasPage() {
   const [assigneeNodeId, setAssigneeNodeId] = useState<string | null>(null);
   const selectedCount = nodes.filter((n) => n.selected).length + edges.filter((e) => e.selected).length;
 
-  // 자동 저장 - 유저가 직접 조작했을 때만 (isDirty)
+  // 자동 저장 - React Flow 스토어를 직접 폴링해 내용 변경 감지 시 저장.
+  // 노드 내부 setNodes(라벨/ERD 편집 등)는 페이지 nodes state/onNodesChange를 거치지 않으므로
+  // [nodes] 의존 effect로는 못 잡는다. 스토어(getNodes/getEdges) 기준으로 비교하면 모든 편집 경로를 포착.
   useEffect(() => {
     if (!initialized || !projectId || !canvasId) return;
-    if (!isDirty.current) return;
-    const timer = setTimeout(() => {
-      if (!isDirty.current) return;
-      const cleanNodes = nodes.map(({ selected: _, ...n }) => n);
-      const cleanEdges = edges.map(({ selected: _, ...e }) => e);
+    const tick = () => {
+      if (isRestoringRef.current) return;
+      const inst = rfInstanceRef.current;
+      const ns: Node[] = inst?.getNodes ? inst.getNodes() : nodesRef.current;
+      const es: any[] = inst?.getEdges ? inst.getEdges() : edgesRef.current;
+      const cur = serialize(ns, es);
+      if (cur === lastSavedRef.current) { isDirty.current = false; return; }
+      isDirty.current = true; // 미저장 변경 존재 → SSE 원격 갱신이 덮어쓰지 않도록
+      const cleanNodes = ns.map(({ selected: _s, ...n }: any) => n);
+      const cleanEdges = es.map(({ selected: _s, ...e }: any) => e);
       saveCanvas.mutate({ nodes: cleanNodes, edges: cleanEdges });
+      lastSavedRef.current = cur;
       isDirty.current = false;
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [nodes, edges, initialized, projectId, canvasId]);
+    };
+    const id = setInterval(tick, 1200);
+    return () => clearInterval(id);
+  }, [initialized, projectId, canvasId, serialize]);
 
   // SSE: 다른 사람 변경 시 refetch
   useEffect(() => {
@@ -641,8 +666,10 @@ export function CanvasPage() {
   const edgesRef = useRef(edges);
   const clipboardRef = useRef(clipboard);
   const initializedRef = useRef(false);
+  const rfInstanceRef = useRef<any>(null); // 언마운트 flush 시 스토어에서 최신값 직접 읽기용
   useEffect(() => { nodesRef.current = nodes; }, [nodes]);
   useEffect(() => { edgesRef.current = edges; }, [edges]);
+  useEffect(() => { rfInstanceRef.current = rfInstance; }, [rfInstance]);
   useEffect(() => { clipboardRef.current = clipboard; }, [clipboard]);
   useEffect(() => { initializedRef.current = initialized; }, [initialized]);
 
@@ -650,14 +677,6 @@ export function CanvasPage() {
   const historyRef = useRef<{ past: string[]; future: string[] }>({ past: [], future: [] });
   const lastSnapRef = useRef<string>('');
   const isRestoringRef = useRef(false);
-
-  // 직렬화: 선택/드래그 등 일시적 상태 제거
-  const serialize = useCallback((ns: Node[], es: any[]) => {
-    const cleanN = ns.map(({ selected: _s, dragging: _d, width: _w, height: _h,
-      positionAbsolute: _pa, measured: _m, ...n }: any) => n);
-    const cleanE = es.map(({ selected: _s, ...e }: any) => e);
-    return JSON.stringify({ nodes: cleanN, edges: cleanE });
-  }, []);
 
   const syncHistFlags = useCallback(() => {
     setCanUndo(historyRef.current.past.length > 0);
@@ -720,13 +739,25 @@ export function CanvasPage() {
   useEffect(() => { undoRef.current = undo; }, [undo]);
   useEffect(() => { redoRef.current = redo; }, [redo]);
 
-  // 페이지 이탈 시 미저장 변경사항 즉시 flush (isDirty 여부와 무관하게 초기화된 상태면 저장)
+  // 페이지 이탈 시 미저장 변경사항 즉시 flush (내용이 마지막 저장본과 다르면 저장)
   useEffect(() => {
     return () => {
       if (!initializedRef.current || !projectId || !canvasId) return;
-      if (!isDirty.current) return;
-      const cleanNodes = nodesRef.current.map(({ selected: _, ...n }) => n);
-      const cleanEdges = edgesRef.current.map(({ selected: _, ...e }) => e);
+      // 노드 내부 편집(onBlur commit 등)은 React Flow 스토어를 동기적으로 갱신하지만
+      // nodesRef(React state 미러)는 언마운트 전에 동기화되지 못할 수 있어 스토어에서 최신값을 직접 읽음
+      const inst = rfInstanceRef.current;
+      const latestNodes: Node[] = inst?.getNodes ? inst.getNodes() : nodesRef.current;
+      const latestEdges: any[] = inst?.getEdges ? inst.getEdges() : edgesRef.current;
+      const cur = serialize(latestNodes, latestEdges);
+      if (cur === lastSavedRef.current) return;
+      lastSavedRef.current = cur;
+      const cleanNodes = latestNodes.map(({ selected: _, ...n }) => n);
+      const cleanEdges = latestEdges.map(({ selected: _, ...e }) => e);
+      // 캐시도 즉시 갱신 — staleTime(30s) 내 빠른 복귀 시 서버 왕복 전에도 최신 내용이 보이도록
+      const nowIso = new Date().toISOString();
+      qc.setQueryData(['canvas', projectId, canvasId], (old: any) =>
+        old ? { ...old, data: { nodes: cleanNodes, edges: cleanEdges }, updatedAt: nowIso } : old);
+      lastServerUpdatedAt.current = nowIso;
       const token = getAccessToken();
       fetch(`/api/projects/${projectId}/canvases/${canvasId}`, {
         method: 'PUT',

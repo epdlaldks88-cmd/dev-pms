@@ -27,17 +27,13 @@ const LABEL_COLORS = [
 
 export function TaskDetailModal() {
   const qc = useQueryClient();
-  const { taskModalOpen, taskModalId, closeTaskModal, openTaskModal } = useUiStore();
+  const { taskModalOpen, taskModalId, taskModalEditMode, closeTaskModal, openTaskModal } = useUiStore();
   const user = useAuthStore((s) => s.user);
 
   const [comment, setComment] = useState('');
   const [isEditing, setIsEditing] = useState(false);
-
-  useEffect(() => {
-    if (!taskModalOpen) setIsEditing(false);
-  }, [taskModalOpen]);
   const [editForm, setEditForm] = useState({
-    title: '', description: '', priority: '', startDate: '', dueDate: '',
+    title: '', part: '', description: '', priority: '', startDate: '', dueDate: '',
     assigneeIds: [] as string[], personnelIds: [] as string[], labelIds: [] as string[],
   });
 
@@ -51,10 +47,32 @@ export function TaskDetailModal() {
   const [newLabelName, setNewLabelName] = useState('');
   const [newLabelColor, setNewLabelColor] = useState(LABEL_COLORS[0]);
 
+  // 칸반/간트 캐시에서 해당 task(또는 서브태스크)를 즉시 찾아 placeholder로 사용 → 로딩 깜빡임 제거
+  const findCachedTask = (id: string): any => {
+    const sources = [
+      ...qc.getQueriesData<any>({ queryKey: ['kanban'] }),
+      ...qc.getQueriesData<any>({ queryKey: ['gantt'] }),
+    ];
+    for (const [, data] of sources) {
+      if (!data) continue;
+      // 칸반: steps[].tasks[],  간트: tasks[]
+      const lists: any[] = Array.isArray(data)
+        ? (data[0]?.tasks ? data.flatMap((c: any) => c.tasks ?? []) : data)
+        : [];
+      for (const t of lists) {
+        if (t.id === id) return t;
+        const sub = t.subTasks?.find((s: any) => s.id === id);
+        if (sub) return sub;
+      }
+    }
+    return undefined;
+  };
+
   const { data: task, isLoading } = useQuery({
     queryKey: ['task', taskModalId],
     queryFn: () => tasksApi.getById(taskModalId!),
     enabled: !!taskModalId && taskModalOpen,
+    placeholderData: () => (taskModalId ? findCachedTask(taskModalId) : undefined),
   });
 
   const { data: steps } = useQuery({
@@ -87,25 +105,52 @@ export function TaskDetailModal() {
     enabled: !!task?.projectId,
   });
 
+  const buildEditForm = (t: any) => ({
+    title: t.title,
+    part: t.part ?? '',
+    description: t.description ?? '',
+    priority: t.priority,
+    startDate: t.startDate ? t.startDate.slice(0, 10) : '',
+    dueDate: t.dueDate ? t.dueDate.slice(0, 10) : '',
+    assigneeIds: t.assignees?.map((a: any) => a.user.id) ?? [],
+    personnelIds: t.personnel?.map((p: any) => p.personnel.id) ?? [],
+    labelIds: t.labels?.map((l: any) => l.label.id) ?? [],
+  });
+
   const startEdit = () => {
     if (!task) return;
-    setEditForm({
-      title: task.title,
-      description: task.description ?? '',
-      priority: task.priority,
-      startDate: task.startDate ? task.startDate.slice(0, 10) : '',
-      dueDate: task.dueDate ? task.dueDate.slice(0, 10) : '',
-      assigneeIds: task.assignees.map((a: any) => a.user.id),
-      personnelIds: task.personnel?.map((p: any) => p.personnel.id) ?? [],
-      labelIds: task.labels.map((l: any) => l.label.id),
-    });
+    setEditForm(buildEditForm(task));
     setShowLabelCreate(false);
     setIsEditing(true);
   };
 
+  // 모달 열림/대상 변경을 렌더 도중 감지해 편집 상태를 동기적으로 초기화 (깜빡임 없음).
+  // placeholderData 덕분에 칸반/간트에서 연 경우 task가 첫 렌더부터 존재 → 바로 편집 폼.
+  const [trackedKey, setTrackedKey] = useState<string | null>(null);
+  const openKey = taskModalOpen ? taskModalId : null;
+  if (openKey !== trackedKey) {
+    setTrackedKey(openKey);
+    if (openKey && taskModalEditMode && task) {
+      setEditForm(buildEditForm(task));
+      setShowLabelCreate(false);
+      setIsEditing(true);
+    } else {
+      setIsEditing(false);
+    }
+  }
+
+  // placeholder 없이(딥링크 등) 뒤늦게 task가 도착한 경우 fallback 으로 편집 모드 진입
+  useEffect(() => {
+    if (task && taskModalOpen && taskModalEditMode && !isEditing && openKey === trackedKey) {
+      startEdit();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task]);
+
   const saveEdit = () => {
     updateTask.mutate({
       title: editForm.title,
+      part: editForm.part.trim() || null,
       description: editForm.description,
       priority: editForm.priority,
       startDate: editForm.startDate ? new Date(editForm.startDate).toISOString() : null,
@@ -122,11 +167,13 @@ export function TaskDetailModal() {
   };
 
   const invalidateTask = () => {
-    qc.invalidateQueries({ queryKey: ['task', taskModalId] });
-    qc.invalidateQueries({ queryKey: ['kanban', task!.projectId] });
-    qc.invalidateQueries({ queryKey: ['gantt', task!.projectId] });
-    qc.invalidateQueries({ queryKey: ['tasks', task!.projectId] });
-    qc.invalidateQueries({ queryKey: ['project-stats', task!.projectId] });
+    const opt = { refetchType: 'all' as const };
+    qc.invalidateQueries({ queryKey: ['task', taskModalId], ...opt });
+    qc.invalidateQueries({ queryKey: ['kanban', task!.projectId], ...opt });
+    qc.invalidateQueries({ queryKey: ['gantt', task!.projectId], ...opt });
+    qc.invalidateQueries({ queryKey: ['tasks', task!.projectId], ...opt });
+    qc.invalidateQueries({ queryKey: ['tasks-with-subtasks', task!.projectId], ...opt });
+    qc.invalidateQueries({ queryKey: ['project-stats', task!.projectId], ...opt });
   };
 
   const updateTask = useMutation({
@@ -160,7 +207,18 @@ export function TaskDetailModal() {
 
   const deleteSubtask = useMutation({
     mutationFn: (subId: string) => tasksApi.delete(task!.projectId, subId),
-    onSuccess: () => invalidateTask(),
+    onSuccess: (_, subId) => {
+      // 캐시에서 서브태스크 즉시 제거 (모달 목록 바로 반영)
+      qc.setQueryData(['task', taskModalId], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          subTasks: (old.subTasks ?? []).filter((s: any) => s.id !== subId),
+          _count: { ...old._count, subTasks: Math.max(0, (old._count?.subTasks ?? 1) - 1) },
+        };
+      });
+      invalidateTask();
+    },
   });
 
   // Label mutations
@@ -220,8 +278,12 @@ export function TaskDetailModal() {
   const deleteTask = useMutation({
     mutationFn: () => tasksApi.delete(task!.projectId, taskModalId!),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['kanban', task!.projectId] });
-      qc.invalidateQueries({ queryKey: ['project-stats', task!.projectId] });
+      const opt = { refetchType: 'all' as const };
+      qc.invalidateQueries({ queryKey: ['kanban', task!.projectId], ...opt });
+      qc.invalidateQueries({ queryKey: ['gantt', task!.projectId], ...opt });
+      qc.invalidateQueries({ queryKey: ['tasks', task!.projectId], ...opt });
+      qc.invalidateQueries({ queryKey: ['tasks-with-subtasks', task!.projectId], ...opt });
+      qc.invalidateQueries({ queryKey: ['project-stats', task!.projectId], ...opt });
       closeTaskModal();
       toast.success('태스크가 삭제되었습니다.');
     },
@@ -267,7 +329,7 @@ export function TaskDetailModal() {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {isLoading || !task ? (
+            {isLoading || !task || (taskModalEditMode && !isEditing) ? (
               <div className="p-6 space-y-4">
                 {[...Array(4)].map((_, i) => <div key={i} className="h-6 bg-gray-100 rounded animate-pulse" />)}
               </div>
@@ -283,6 +345,15 @@ export function TaskDetailModal() {
                         className="w-full text-base font-semibold text-gray-600 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                         value={editForm.title}
                         onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">업무파트</label>
+                      <input
+                        className="w-full text-sm text-gray-600 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        placeholder="업무파트 입력 (선택)"
+                        value={editForm.part}
+                        onChange={(e) => setEditForm((f) => ({ ...f, part: e.target.value }))}
                       />
                     </div>
                     <div>
@@ -401,7 +472,7 @@ export function TaskDetailModal() {
                                 onClick={() => setEditForm((f) => ({
                                   ...f,
                                   labelIds: selected
-                                    ? f.labelIds.filter((id) => id !== label.id)
+                                    ? f.labelIds.filter((id: string) => id !== label.id)
                                     : [...f.labelIds, label.id],
                                 }))}
                                 className={cn(
@@ -448,7 +519,7 @@ export function TaskDetailModal() {
                               onClick={() => setEditForm((f) => ({
                                 ...f,
                                 assigneeIds: selected
-                                  ? f.assigneeIds.filter((id) => id !== u.id)
+                                  ? f.assigneeIds.filter((id: string) => id !== u.id)
                                   : [...f.assigneeIds, u.id],
                               }))}
                               className={cn(
@@ -480,7 +551,7 @@ export function TaskDetailModal() {
                                 onClick={() => setEditForm((f) => ({
                                   ...f,
                                   personnelIds: selected
-                                    ? f.personnelIds.filter((id) => id !== p.id)
+                                    ? f.personnelIds.filter((id: string) => id !== p.id)
                                     : [...f.personnelIds, p.id],
                                 }))}
                                 className={cn(
@@ -517,6 +588,9 @@ export function TaskDetailModal() {
                   </div>
                 ) : (
                   <>
+                    {task.part && (
+                      <span className="inline-block text-xs font-medium text-violet-600 bg-violet-50 border border-violet-200 rounded px-2 py-0.5 mb-2">{task.part}</span>
+                    )}
                     <h1 className="text-xl font-bold text-gray-700 mb-3 leading-snug">{task.title}</h1>
                     {task.description && (
                       <p className="text-sm text-gray-600 mb-5 whitespace-pre-wrap leading-relaxed">{task.description}</p>

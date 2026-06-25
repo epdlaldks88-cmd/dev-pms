@@ -13,8 +13,24 @@ export interface QATest {
   result?: QATestResult;
   tester?: string;
   testDate?: string;
+  acceptedAt?: string;
+  completedAt?: string;
   workLogId?: string;
-  workLog?: { id: string; taskTitle?: string; srNumber?: string };
+  workLogDeleted?: boolean;
+  workLog?: {
+    id: string;
+    taskTitle?: string;
+    srNumber?: string;
+    projectName?: string;
+    requester?: string;
+    requestDate?: string;
+    startDate?: string;
+    endDate?: string;
+    stage?: string;
+    hours?: number;
+    description?: string;
+    user?: { id: string; name: string };
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -34,6 +50,8 @@ export const QA_RESULT_CONFIG: Record<QATestResult, { label: string; color: stri
 export const qaApi = {
   getAll: (srNumber?: string) =>
     api.get('/qa', { params: srNumber ? { srNumber } : undefined }).then((r) => r.data as QATest[]),
+  getByWorkLog: (workLogId: string) =>
+    api.get('/qa', { params: { workLogId } }).then((r) => r.data as QATest[]),
   getOne: (id: string) =>
     api.get(`/qa/${id}`).then((r) => r.data as QATest),
   create: (data: { srNumber: string; title: string; content?: string; tester?: string; workLogId?: string }) =>
@@ -42,6 +60,7 @@ export const qaApi = {
   confirm: (id: string) => api.patch(`/qa/${id}/confirm`, {}).then((r) => r.data as QATest),
   reject:  (id: string) => api.patch(`/qa/${id}/reject`, {}).then((r) => r.data as QATest),
   cancel:  (id: string) => api.patch(`/qa/${id}/cancel`, {}).then((r) => r.data as QATest),
+  reopen:  (id: string) => api.patch(`/qa/${id}/reopen`, {}).then((r) => r.data as QATest),
   update: (id: string, data: { title?: string; content?: string; tester?: string }) =>
     api.patch(`/qa/${id}`, data).then((r) => r.data as QATest),
   remove: (id: string) =>

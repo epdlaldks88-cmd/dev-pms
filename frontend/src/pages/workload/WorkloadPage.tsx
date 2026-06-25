@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Clock, Briefcase, Trash2, X, Pencil, CheckCircle2, Check, Filter, Download, BarChart2, ChevronLeft, ChevronRight, FlaskConical } from 'lucide-react';
+import { Plus, Clock, Briefcase, Trash2, X, Pencil, CheckCircle2, Check, Filter, Download, BarChart2, ChevronLeft, ChevronRight, FlaskConical, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import { worklogsApi, STAGE_CONFIG, STAGE_ORDER, type WorkLogStage } from '../../api/worklogs';
-import { qaApi } from '../../api/qa';
+import { qaApi, QA_STATUS_CONFIG, QA_RESULT_CONFIG } from '../../api/qa';
 import { getAccessToken } from '../../utils/token';
 import { projectsApi } from '../../api/projects';
 import { tasksApi } from '../../api/tasks';
@@ -16,6 +16,7 @@ import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { formatDate, cn } from '../../lib/utils';
 
 interface AddWorkLogForm {
@@ -54,6 +55,7 @@ export function WorkloadPage() {
 
   // ── 조회 필터 ──────────────────────────────────────────
   const [filterProject, setFilterProject] = useState(routeProjectId ?? '');
+  const [filterTask, setFilterTask] = useState('');
   const [filterUser, setFilterUser] = useState(searchParams.get('user') ?? '');
   const [filterStage, setFilterStage] = useState<WorkLogStage | ''>('');
   const [filterStart, setFilterStart] = useState('');
@@ -74,14 +76,20 @@ export function WorkloadPage() {
     endDate: today,
     srNumber: '',
   });
+  const [formSubtaskId, setFormSubtaskId] = useState('');
 
   // ── 상세 보기 ───────────────────────────────────────────
   const [viewLog, setViewLog] = useState<any>(null);
 
+  // ── 커스텀 확인 다이얼로그 ──────────────────────────────
+  const [confirmState, setConfirmState] = useState<{
+    title: string; message: React.ReactNode; confirmText: string; tone: 'primary' | 'danger'; infoOnly?: boolean; onConfirm: () => void;
+  } | null>(null);
+
   // ── 수정 모달 ───────────────────────────────────────────
   const [editLog, setEditLog] = useState<any>(null);
   const [editForm, setEditForm] = useState({
-    hours: 1, description: '', startDate: '', endDate: '', userId: '', stage: '' as WorkLogStage | '', requester: '', requestDate: '',
+    hours: 1, description: '', startDate: '', endDate: '', userId: '', stage: '' as WorkLogStage | '', requester: '', requestDate: '', taskId: '', subtaskId: '',
   });
 
   // ── 담당자 카드 선택 필터 ─────────────────────────────
@@ -97,20 +105,67 @@ export function WorkloadPage() {
   // ── Queries ─────────────────────────────────────────────
   const { data: projects } = useQuery({ queryKey: ['projects'], queryFn: projectsApi.getAll });
   const { data: allUsers } = useQuery({ queryKey: ['users'], queryFn: usersApi.getAll });
+
+  // 상세 팝업이 열린 일감의 QA 이력 (workLogId 기준, createdAt desc)
+  const { data: qaHistory } = useQuery({
+    queryKey: ['qa-by-worklog', viewLog?.id],
+    queryFn: () => qaApi.getByWorkLog(viewLog.id),
+    enabled: !!viewLog?.id && !!viewLog?.srNumber,
+  });
+
+  // 그리드 QA 상태 표시용 — 전체 QA 목록을 가져와 workLogId로 맵핑
+  const { data: allQaTests } = useQuery({
+    queryKey: ['qa-tests'],
+    queryFn: () => qaApi.getAll(),
+    staleTime: 30_000,
+  });
+  const qaByWorklog = useMemo(() => {
+    const map = new Map<string, (typeof allQaTests extends (infer T)[] | undefined ? T : never)>();
+    allQaTests?.forEach((qa: any) => {
+      if (!qa.workLogId) return;
+      const cur = map.get(qa.workLogId);
+      if (!cur || qa.createdAt > (cur as any).createdAt) map.set(qa.workLogId, qa);
+    });
+    return map;
+  }, [allQaTests]);
   const { data: formTasks } = useQuery({
-    queryKey: ['tasks', form.projectId],
-    queryFn: () => tasksApi.getAll(form.projectId),
+    queryKey: ['tasks-with-subtasks', form.projectId],
+    queryFn: () => tasksApi.getAll(form.projectId, { includeSubtasks: 'true' }),
     enabled: !!form.projectId,
+  });
+
+  // 등록 폼: 상위 태스크 / 서브태스크 분리
+  const formParentTasks = useMemo(() => (formTasks ?? []).filter((t: any) => !t.parentId), [formTasks]);
+  const formSubtasks = useMemo(() => (formTasks ?? []).filter((t: any) => t.parentId === form.taskId), [formTasks, form.taskId]);
+
+  const editProjectId = editLog?.task?.project?.id ?? editLog?.projectId ?? routeProjectId;
+  const { data: editTasks } = useQuery({
+    queryKey: ['tasks-with-subtasks', editProjectId],
+    queryFn: () => tasksApi.getAll(editProjectId!, { includeSubtasks: 'true' }),
+    enabled: !!editProjectId && !!editLog,
+  });
+
+  // 수정 폼: 상위 태스크 / 서브태스크 분리
+  const editParentTasks = useMemo(() => (editTasks ?? []).filter((t: any) => !t.parentId), [editTasks]);
+  const editSubtasks = useMemo(() => (editTasks ?? []).filter((t: any) => t.parentId === editForm.taskId), [editTasks, editForm.taskId]);
+
+  // 조회 필터용 태스크 목록 (선택된 프로젝트 기준)
+  const filterProjectId = filterProject || routeProjectId || '';
+  const { data: filterTasks } = useQuery({
+    queryKey: ['tasks', filterProjectId],
+    queryFn: () => tasksApi.getAll(filterProjectId),
+    enabled: !!filterProjectId,
   });
 
   const queryParams = {
     ...(filterProject && { projectId: filterProject }),
+    ...(filterTask && { taskId: filterTask }),
     ...(filterUser && { userId: filterUser }),
     ...(filterStage && { stage: filterStage }),
     ...(filterStart && { startDate: filterStart }),
     ...(filterEnd && { endDate: filterEnd }),
   };
-  const queryKey = ['worklogs', filterProject, filterUser, filterStage, filterStart, filterEnd];
+  const queryKey = ['worklogs', filterProject, filterTask, filterUser, filterStage, filterStart, filterEnd];
 
   const { data: worklogs, isLoading, isError, refetch } = useQuery({
     queryKey,
@@ -130,7 +185,7 @@ export function WorkloadPage() {
 
   const createWorklog = useMutation({
     mutationFn: () => worklogsApi.create({
-      taskId: form.taskId, userId: form.userId, hours: form.hours,
+      taskId: formSubtaskId || form.taskId, userId: form.userId, hours: form.hours,
       description: form.description, requester: form.requester || undefined,
       requestDate: form.requestDate || undefined,
       startDate: form.startDate, endDate: form.endDate,
@@ -138,6 +193,7 @@ export function WorkloadPage() {
     onSuccess: () => {
       invalidate();
       setShowAddModal(false);
+      setFormSubtaskId('');
       setForm({ projectId: routeProjectId ?? '', taskId: '', userId: currentUser?.id ?? '', hours: 1, description: '', requester: '', requestDate: today, startDate: today, endDate: today, srNumber: '' });
       toast.success('일감이 등록되었습니다.');
     },
@@ -162,6 +218,75 @@ export function WorkloadPage() {
     onError: () => toast.error('확인 처리에 실패했습니다.'),
   });
 
+  // QA요청 등록 실행
+  const submitQaRequest = (log: any) => {
+    qaApi.create({
+      srNumber: log.srNumber,
+      title: log.taskTitle ?? log.description ?? log.srNumber,
+      workLogId: log.id,
+    }).then(() => {
+      qc.invalidateQueries({ queryKey: ['qa-by-worklog', log.id] });
+      qc.invalidateQueries({ queryKey: ['qa-tests'] });
+      toast.success('QA요청이 등록되었습니다.');
+    }).catch(() => toast.error('QA요청 등록에 실패했습니다.'));
+  };
+
+  // QA요청 버튼 클릭 → 기존 QA 상태에 따라 분기
+  const handleQaRequest = (log: any) => {
+    const latest = qaHistory?.[0]; // createdAt desc → 가장 최근 QA
+
+    // 진행 중(요청/접수) → 블로킹
+    if (latest && (latest.status === 'PENDING' || latest.status === 'IN_PROGRESS')) {
+      setConfirmState({
+        title: 'QA요청 불가', tone: 'danger', confirmText: '확인', infoOnly: true,
+        message: <>이미 <b className="font-mono text-primary-600">{latest.qaNumber ?? '요청'}</b> 으로 QA가 진행 중입니다.<br/>완료 후 다시 시도하세요.</>,
+        onConfirm: () => {},
+      });
+      return;
+    }
+    // 완료(확인) → 블로킹
+    if (latest && latest.status === 'COMPLETED' && latest.result === 'PASS') {
+      setConfirmState({
+        title: 'QA요청 불가', tone: 'danger', confirmText: '확인', infoOnly: true,
+        message: <>이미 QA가 <b className="text-emerald-600">확인 완료</b>된 일감입니다.</>,
+        onConfirm: () => {},
+      });
+      return;
+    }
+    // 반려됨 → 재요청 가능 + 히스토리 표시
+    if (latest && latest.status === 'COMPLETED' && latest.result === 'REJECTED') {
+      setConfirmState({
+        title: 'QA 재요청', tone: 'primary', confirmText: 'QA 재요청',
+        message: (
+          <div className="space-y-3">
+            <p>이전 QA가 <b className="text-red-600">반려</b>되었습니다. 다시 QA요청을 하시겠습니까?</p>
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-2.5 space-y-1.5 max-h-40 overflow-auto">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase">이전 QA 이력</p>
+              {qaHistory!.map((q) => (
+                <div key={q.id} className="flex items-center justify-between text-xs">
+                  <span className="font-mono text-gray-600">{q.qaNumber ?? '미발급'}</span>
+                  <span className={cn('font-medium', QA_STATUS_CONFIG[q.status].color)}>
+                    {QA_STATUS_CONFIG[q.status].label}
+                    {q.result ? ` · ${QA_RESULT_CONFIG[q.result].label}` : ''}
+                  </span>
+                  <span className="text-gray-400">{formatDate(q.createdAt)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ),
+        onConfirm: () => submitQaRequest(log),
+      });
+      return;
+    }
+    // 취소됨 또는 이력 없음 → 일반 요청 (히스토리 불필요)
+    setConfirmState({
+      title: 'QA요청', tone: 'primary', confirmText: 'QA요청',
+      message: <>SR번호 <b className="font-mono text-primary-600">[{log.srNumber}]</b> 로 QA요청을 하시겠습니까?</>,
+      onConfirm: () => submitQaRequest(log),
+    });
+  };
+
   // ── 미확인 + 테이블 필터 ──────────────────────────────
   const pendingAck = (worklogs ?? []).filter(
     (log: any) => log.user.id === currentUser?.id && !log.isAcknowledged,
@@ -171,14 +296,58 @@ export function WorkloadPage() {
     ? (worklogs ?? []).filter((log: any) => log.user.id === selectedUserId)
     : (worklogs ?? []);
 
+  // ── 정렬 (기본: SR번호 오름차순 = 등록순) ──────────────
+  type SortKey = 'period' | 'task' | 'srNumber' | 'stage' | 'user' | 'requester' | 'userConfirmedAt' | 'qa' | 'acknowledged';
+  const [sortKey, setSortKey] = useState<SortKey>('srNumber');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(key); setSortDir('asc'); }
+  };
+  const sortIcon = (key: SortKey) =>
+    sortKey === key
+      ? (sortDir === 'asc' ? <ChevronUp size={12} className="text-primary-500" /> : <ChevronDown size={12} className="text-primary-500" />)
+      : <ChevronsUpDown size={11} className="text-gray-300 group-hover/sort:text-gray-400" />;
+
+  const STAGE_RANK: Record<string, number> = Object.fromEntries(STAGE_ORDER.map((s, i) => [s, i]));
+  const QA_RANK: Record<string, number> = { CANCELLED: 0, PENDING: 1, IN_PROGRESS: 2, COMPLETED: 3 };
+  const sortedLogs = useMemo(() => {
+    const arr = [...filteredLogs];
+    const dir = sortDir === 'asc' ? 1 : -1;
+    const val = (log: any): string | number => {
+      switch (sortKey) {
+        case 'period': return log.startDate ?? log.workDate ?? '';
+        case 'task': return (log.task?.title ?? log.taskTitle ?? '').toLowerCase();
+        case 'srNumber': return log.srNumber ?? '';
+        case 'stage': return STAGE_RANK[log.stage] ?? -1;
+        case 'user': return (log.user?.name ?? '').toLowerCase();
+        case 'requester': return (log.requester ?? '').toLowerCase();
+        case 'userConfirmedAt': return log.userConfirmedAt ?? '';
+        case 'qa': { const qa = qaByWorklog.get(log.id) as any; return qa ? (QA_RANK[qa.status] ?? 0) : -1; }
+        case 'acknowledged': return log.isAcknowledged ? 1 : 0;
+        default: return '';
+      }
+    };
+    arr.sort((a, b) => {
+      const av = val(a), bv = val(b);
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      // 동률이면 SR번호로 안정 정렬
+      return (a.srNumber ?? '').localeCompare(b.srNumber ?? '');
+    });
+    return arr;
+  }, [filteredLogs, sortKey, sortDir, qaByWorklog]);
+
   // ── 페이지네이션 (프론트, 50개씩) ──
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / PAGE_SIZE));
-  // 필터/담당자 변경 시 1페이지로, 범위 벗어나면 보정
-  useEffect(() => { setPage(1); }, [filterProject, filterUser, filterStage, filterStart, filterEnd, selectedUserId]);
+  const totalPages = Math.max(1, Math.ceil(sortedLogs.length / PAGE_SIZE));
+  // 필터/담당자/정렬 변경 시 1페이지로, 범위 벗어나면 보정
+  useEffect(() => { setPage(1); }, [filterProject, filterTask, filterUser, filterStage, filterStart, filterEnd, selectedUserId, sortKey, sortDir]);
+  // 프로젝트 변경 시 이전 프로젝트의 태스크 선택값 초기화
+  useEffect(() => { setFilterTask(''); }, [filterProject]);
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
-  const pagedLogs = filteredLogs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pagedLogs = sortedLogs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const displayDate = (log: any) => {
     if (log.startDate && log.endDate) {
@@ -189,7 +358,7 @@ export function WorkloadPage() {
     return formatDate(log.workDate);
   };
 
-  const activeFilters = [filterUser, filterStage, filterStart, filterEnd].filter(Boolean).length;
+  const activeFilters = [filterTask, filterUser, filterStage, filterStart, filterEnd].filter(Boolean).length;
 
   const downloadExcel = () => {
     const rows = filteredLogs.map((log: any) => ({
@@ -345,10 +514,24 @@ export function WorkloadPage() {
             </select>
           )}
 
+          {/* 태스크 (프로젝트가 선택된 경우에만) */}
+          <select
+            value={filterTask}
+            onChange={(e) => setFilterTask(e.target.value)}
+            disabled={!filterProjectId}
+            title={!filterProjectId ? '먼저 프로젝트를 선택하세요' : undefined}
+            className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white disabled:bg-gray-50 disabled:text-gray-300 max-w-[180px]"
+          >
+            <option value="">전체 태스크</option>
+            {filterTasks?.map((t: any) => (
+              <option key={t.id} value={t.id}>{t.title}</option>
+            ))}
+          </select>
+
           {/* 초기화 */}
           {activeFilters > 0 && (
             <button
-              onClick={() => { setFilterUser(''); setFilterStage(''); setFilterStart(''); setFilterEnd(''); }}
+              onClick={() => { setFilterTask(''); setFilterUser(''); setFilterStage(''); setFilterStart(''); setFilterEnd(''); }}
               className="text-xs text-gray-400 hover:text-gray-600 underline ml-1"
             >
               초기화
@@ -492,15 +675,34 @@ export function WorkloadPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-40">기간</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-36">태스크</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">SR번호</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">상태</th>
+                <th onClick={() => toggleSort('period')} className="group/sort text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-40 cursor-pointer select-none hover:text-gray-700">
+                  <span className="inline-flex items-center gap-1">기간 {sortIcon('period')}</span>
+                </th>
+                <th onClick={() => toggleSort('task')} className="group/sort text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-36 cursor-pointer select-none hover:text-gray-700">
+                  <span className="inline-flex items-center gap-1">태스크 {sortIcon('task')}</span>
+                </th>
+                <th onClick={() => toggleSort('srNumber')} className="group/sort text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28 cursor-pointer select-none hover:text-gray-700">
+                  <span className="inline-flex items-center gap-1">SR번호 {sortIcon('srNumber')}</span>
+                </th>
+                <th onClick={() => toggleSort('stage')} className="group/sort text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24 cursor-pointer select-none hover:text-gray-700">
+                  <span className="inline-flex items-center gap-1">상태 {sortIcon('stage')}</span>
+                </th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">작업 내용</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">담당자</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">요청자</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">사용자확인일</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-14">확인</th>
+                <th onClick={() => toggleSort('user')} className="group/sort text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28 cursor-pointer select-none hover:text-gray-700">
+                  <span className="inline-flex items-center gap-1">담당자 {sortIcon('user')}</span>
+                </th>
+                <th onClick={() => toggleSort('requester')} className="group/sort text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24 cursor-pointer select-none hover:text-gray-700">
+                  <span className="inline-flex items-center gap-1">요청자 {sortIcon('requester')}</span>
+                </th>
+                <th onClick={() => toggleSort('userConfirmedAt')} className="group/sort text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24 cursor-pointer select-none hover:text-gray-700">
+                  <span className="inline-flex items-center gap-1">사용자확인일 {sortIcon('userConfirmedAt')}</span>
+                </th>
+                <th onClick={() => toggleSort('qa')} className="group/sort text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-20 cursor-pointer select-none hover:text-gray-700">
+                  <span className="inline-flex items-center gap-1">QA {sortIcon('qa')}</span>
+                </th>
+                <th onClick={() => toggleSort('acknowledged')} className="group/sort text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-14 cursor-pointer select-none hover:text-gray-700">
+                  <span className="inline-flex items-center gap-1">확인 {sortIcon('acknowledged')}</span>
+                </th>
                 <th className="w-10" />
               </tr>
             </thead>
@@ -508,16 +710,16 @@ export function WorkloadPage() {
               {isLoading ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={i} className="border-b border-gray-100">
-                    {[...Array(10)].map((__, j) => (
+                    {[...Array(11)].map((__, j) => (
                       <td key={j} className="px-4 py-3"><div className="h-4 bg-gray-100 rounded animate-pulse" /></td>
                     ))}
                   </tr>
                 ))
               ) : isError ? (
-                <tr><td colSpan={11}><ErrorState onRetry={refetch} /></td></tr>
+                <tr><td colSpan={12}><ErrorState onRetry={refetch} /></td></tr>
               ) : !filteredLogs.length ? (
                 <tr>
-                  <td colSpan={11}>
+                  <td colSpan={12}>
                     <EmptyState
                       icon={<Briefcase size={36} />}
                       title={selectedUserId ? '해당 담당자의 일감이 없습니다' : '등록된 일감이 없습니다'}
@@ -565,6 +767,30 @@ export function WorkloadPage() {
                       </td>
                       <td className="px-4 py-3 text-center text-[11px] text-gray-400">
                         {log.userConfirmedAt ? formatDate(log.userConfirmedAt) : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        {(() => {
+                          const qa: any = qaByWorklog.get(log.id);
+                          if (!qa) return <span className="text-[10px] text-gray-300">-</span>;
+                          const isCompleted = qa.status === 'COMPLETED';
+                          const label = isCompleted && qa.result
+                            ? (qa.result === 'PASS' ? '확인' : '반려')
+                            : QA_STATUS_CONFIG[qa.status as keyof typeof QA_STATUS_CONFIG]?.label ?? qa.status;
+                          const cls = isCompleted
+                            ? qa.result === 'PASS'
+                              ? 'text-emerald-700 bg-emerald-50'
+                              : 'text-red-700 bg-red-50'
+                            : qa.status === 'PENDING'
+                              ? 'text-amber-700 bg-amber-50'
+                              : qa.status === 'IN_PROGRESS'
+                                ? 'text-blue-700 bg-blue-50'
+                                : 'text-gray-500 bg-gray-100';
+                          return (
+                            <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full', cls)}>
+                              {label}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                         {log.isAcknowledged ? (
@@ -687,6 +913,8 @@ export function WorkloadPage() {
                               stage: viewLog.stage ?? '',
                               requester: viewLog.requester ?? '',
                               requestDate: viewLog.requestDate ? viewLog.requestDate.slice(0, 10) : '',
+                              taskId: viewLog.task?.parentId ?? viewLog.task?.id ?? '',
+                              subtaskId: viewLog.task?.parentId ? (viewLog.task?.id ?? '') : '',
                             });
                           }}
                           className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -695,7 +923,13 @@ export function WorkloadPage() {
                           <Pencil size={14} />
                         </button>
                         <button
-                          onClick={() => { if (confirm('일감을 삭제하시겠습니까?')) { deleteWorklog.mutate(viewLog.id); setViewLog(null); } }}
+                          onClick={() => setConfirmState({
+                            title: '일감 삭제',
+                            message: '이 일감을 삭제하시겠습니까? 되돌릴 수 없습니다.',
+                            confirmText: '삭제',
+                            tone: 'danger',
+                            onConfirm: () => { deleteWorklog.mutate(viewLog.id); setViewLog(null); },
+                          })}
                           className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                           title="삭제"
                         >
@@ -711,26 +945,75 @@ export function WorkloadPage() {
               </div>
 
               {/* QA요청 액션 바 */}
-              {viewLog.srNumber && (
-                <div className="flex justify-end px-6 pt-3">
-                  <button
-                    onClick={() => {
-                      if (confirm(`SR번호 [${viewLog.srNumber}] 로 QA요청을 하시겠습니까?`)) {
-                        qaApi.create({
-                          srNumber: viewLog.srNumber,
-                          title: viewLog.taskTitle ?? viewLog.description ?? viewLog.srNumber,
-                          workLogId: viewLog.id,
-                        }).then(() => toast.success('QA요청이 등록되었습니다.'))
-                          .catch(() => toast.error('QA요청 등록에 실패했습니다.'));
-                      }
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-violet-600 hover:bg-violet-700 rounded-lg shadow-sm hover:shadow transition-all active:scale-95"
-                  >
-                    <FlaskConical size={14} />
-                    QA요청
-                  </button>
-                </div>
-              )}
+              {viewLog.srNumber && (() => {
+                const latestQa = qaHistory?.[0];
+                const isBlocked = latestQa && (
+                  latestQa.status === 'PENDING' ||
+                  latestQa.status === 'IN_PROGRESS' ||
+                  (latestQa.status === 'COMPLETED' && latestQa.result === 'PASS')
+                );
+                const qaStatusLabel = latestQa
+                  ? latestQa.status === 'COMPLETED' && latestQa.result
+                    ? (latestQa.result === 'PASS' ? '확인 완료' : '반려됨')
+                    : QA_STATUS_CONFIG[latestQa.status]?.label
+                  : null;
+                const qaStatusCls = latestQa
+                  ? latestQa.status === 'COMPLETED'
+                    ? latestQa.result === 'PASS'
+                      ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                      : 'text-red-700 bg-red-50 border-red-200'
+                    : latestQa.status === 'PENDING'
+                      ? 'text-amber-700 bg-amber-50 border-amber-200'
+                      : latestQa.status === 'IN_PROGRESS'
+                        ? 'text-blue-700 bg-blue-50 border-blue-200'
+                        : 'text-gray-500 bg-gray-100 border-gray-200'
+                  : '';
+                const fmtDt = (iso?: string) => iso
+                  ? new Date(iso).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+                  : '—';
+                return (
+                  <div className="flex items-center justify-between px-6 pt-3">
+                    {/* QA 현재 상태 + 날짜 */}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-1.5">
+                        {latestQa ? (
+                          <>
+                            <span className={cn('text-[11px] font-semibold px-2 py-0.5 rounded-full border', qaStatusCls)}>
+                              {qaStatusLabel}
+                            </span>
+                            {latestQa.qaNumber && (
+                              <span className="text-[11px] font-mono text-gray-400">{latestQa.qaNumber}</span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-[11px] text-gray-400">QA 없음</span>
+                        )}
+                      </div>
+                      {latestQa && (
+                        <div className="space-y-0.5">
+                          <p className="text-[10px] text-gray-400">접수일시: <span className="font-mono">{fmtDt(latestQa.acceptedAt)}</span></p>
+                          <p className="text-[10px] text-gray-400">완료일시: <span className="font-mono">{fmtDt(latestQa.completedAt)}</span></p>
+                        </div>
+                      )}
+                    </div>
+                    {/* QA 요청 버튼 */}
+                    <button
+                      onClick={() => !isBlocked && handleQaRequest(viewLog)}
+                      disabled={!!isBlocked}
+                      title={isBlocked ? 'QA가 진행 중이거나 완료된 일감입니다' : 'QA 테스트를 요청합니다'}
+                      className={cn(
+                        'inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg shadow-sm transition-all',
+                        isBlocked
+                          ? 'text-gray-400 bg-gray-100 cursor-not-allowed shadow-none'
+                          : 'text-white bg-violet-600 hover:bg-violet-700 hover:shadow active:scale-95',
+                      )}
+                    >
+                      <FlaskConical size={14} />
+                      QA요청
+                    </button>
+                  </div>
+                );
+              })()}
 
               {/* 상세 항목 */}
               <div className="px-6 py-2">
@@ -849,17 +1132,32 @@ export function WorkloadPage() {
                   </select>
                 </div>
               )}
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">태스크 *</label>
-                <select
-                  value={form.taskId}
-                  onChange={(e) => setForm({ ...form, taskId: e.target.value })}
-                  disabled={!form.projectId}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-50"
-                >
-                  <option value="">{form.projectId ? '태스크 선택' : '먼저 프로젝트를 선택하세요'}</option>
-                  {formTasks?.map((t: any) => <option key={t.id} value={t.id}>{t.title}</option>)}
-                </select>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">태스크 *</label>
+                  <select
+                    value={form.taskId}
+                    onChange={(e) => { setForm({ ...form, taskId: e.target.value }); setFormSubtaskId(''); }}
+                    disabled={!form.projectId}
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-50"
+                  >
+                    <option value="">{form.projectId ? '태스크 선택' : '먼저 프로젝트를 선택하세요'}</option>
+                    {formParentTasks.map((t: any) => <option key={t.id} value={t.id}>{t.title}</option>)}
+                  </select>
+                </div>
+                {formSubtasks.length > 0 && (
+                  <div className="flex-1">
+                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">서브태스크</label>
+                    <select
+                      value={formSubtaskId}
+                      onChange={(e) => setFormSubtaskId(e.target.value)}
+                      className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <option value="">서브태스크 선택 (선택)</option>
+                      {formSubtasks.map((t: any) => <option key={t.id} value={t.id}>{t.title}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">담당자</label>
@@ -912,8 +1210,8 @@ export function WorkloadPage() {
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">작업 내용</label>
                 <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="어떤 작업을 했는지 간략히 입력하세요..." rows={3}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                  placeholder="어떤 작업을 했는지 간략히 입력하세요..." rows={7}
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y min-h-[8rem]"
                 />
               </div>
             </div>
@@ -936,17 +1234,45 @@ export function WorkloadPage() {
       {editLog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setEditLog(null)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-200">
               <h2 className="text-base font-bold text-gray-800">일감 수정</h2>
               <button onClick={() => setEditLog(null)} className="text-gray-400 hover:text-gray-600 p-1"><X size={18} /></button>
             </div>
             <div className="p-6 space-y-4">
-              {/* 태스크 정보 */}
-              <div className="bg-gray-50 rounded-lg px-4 py-3 space-y-1">
-                <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">태스크</p>
-                <p className="text-sm font-medium text-gray-800">{editLog.task?.title ?? editLog.taskTitle ?? '-'}</p>
-                <p className="text-xs text-gray-400">{editLog.task?.project?.name ?? editLog.projectName ?? ''}</p>
+              {/* 태스크 선택 */}
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">태스크</label>
+                  <select
+                    value={editForm.taskId && !editSubtasks.find((t: any) => t.id === editForm.taskId) ? editForm.taskId : (editParentTasks.find((t: any) => t.id === editForm.taskId)?.id ?? editTasks?.find((t: any) => t.id === editForm.taskId)?.parentId ?? editForm.taskId)}
+                    onChange={(e) => setEditForm({ ...editForm, taskId: e.target.value, subtaskId: '' })}
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    {!editForm.taskId && <option value="">태스크 선택</option>}
+                    {editParentTasks.map((t: any) => (
+                      <option key={t.id} value={t.id}>{t.title}</option>
+                    ))}
+                    {editForm.taskId && !editTasks?.find((t: any) => t.id === editForm.taskId) && (
+                      <option value={editForm.taskId} disabled>
+                        {editLog.task?.title ?? editLog.taskTitle ?? '(삭제된 태스크)'}
+                      </option>
+                    )}
+                  </select>
+                </div>
+                {editSubtasks.length > 0 && (
+                  <div className="flex-1">
+                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">서브태스크</label>
+                    <select
+                      value={editForm.subtaskId}
+                      onChange={(e) => setEditForm({ ...editForm, subtaskId: e.target.value })}
+                      className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <option value="">서브태스크 선택 (선택)</option>
+                      {editSubtasks.map((t: any) => <option key={t.id} value={t.id}>{t.title}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* 단계 플래그 버튼 */}
@@ -985,16 +1311,25 @@ export function WorkloadPage() {
                 )}
               </div>
 
-              {/* 담당자 */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">담당자</label>
-                <select
-                  value={editForm.userId}
-                  onChange={(e) => setEditForm({ ...editForm, userId: e.target.value })}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  {allUsers?.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                </select>
+              {/* 담당자 + 공수 */}
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">담당자</label>
+                  <select
+                    value={editForm.userId}
+                    onChange={(e) => setEditForm({ ...editForm, userId: e.target.value })}
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    {allUsers?.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  </select>
+                </div>
+                <div className="w-36 flex-shrink-0">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">공수 (시간) *</label>
+                  <input type="number" min={0.5} step={0.5} value={editForm.hours}
+                    onChange={(e) => setEditForm({ ...editForm, hours: parseFloat(e.target.value) || 0 })}
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
               </div>
 
               {/* 요청일자 + 요청자 */}
@@ -1020,15 +1355,6 @@ export function WorkloadPage() {
                 </div>
               </div>
 
-              {/* 공수 */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">공수 (시간) *</label>
-                <input type="number" min={0.5} step={0.5} value={editForm.hours}
-                  onChange={(e) => setEditForm({ ...editForm, hours: parseFloat(e.target.value) || 0 })}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-
               {/* 기간 */}
               <div className="flex gap-3">
                 <div className="flex-1">
@@ -1049,7 +1375,7 @@ export function WorkloadPage() {
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">작업 내용</label>
                 <textarea value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                  rows={3} className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                  rows={7} className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y min-h-[8rem]"
                 />
               </div>
             </div>
@@ -1059,7 +1385,22 @@ export function WorkloadPage() {
               <Button variant="ghost" onClick={() => setEditLog(null)}>닫기</Button>
               <Button
                 variant="primary"
-                onClick={() => updateWorklog.mutate({ id: editLog.id, patch: { hours: editForm.hours, description: editForm.description, startDate: editForm.startDate, endDate: editForm.endDate, userId: editForm.userId, requester: editForm.requester || undefined, requestDate: editForm.requestDate || undefined, ...(editForm.stage && { stage: editForm.stage }) } })}
+                onClick={() => {
+                  updateWorklog.mutate({
+                    id: editLog.id,
+                    patch: {
+                      ...((editForm.subtaskId || editForm.taskId) && { taskId: editForm.subtaskId || editForm.taskId }),
+                      hours: editForm.hours,
+                      description: editForm.description,
+                      startDate: editForm.startDate,
+                      endDate: editForm.endDate,
+                      userId: editForm.userId,
+                      requester: editForm.requester || undefined,
+                      requestDate: editForm.requestDate || undefined,
+                      ...(editForm.stage && { stage: editForm.stage }),
+                    },
+                  });
+                }}
                 disabled={editForm.hours <= 0}
                 loading={updateWorklog.isPending}
               >
@@ -1240,6 +1581,18 @@ export function WorkloadPage() {
           </div>
         );
       })()}
+
+      {/* ── 커스텀 확인 다이얼로그 ── */}
+      <ConfirmDialog
+        open={!!confirmState}
+        title={confirmState?.title ?? ''}
+        message={confirmState?.message}
+        confirmText={confirmState?.confirmText}
+        tone={confirmState?.tone}
+        infoOnly={confirmState?.infoOnly}
+        onConfirm={() => { confirmState?.onConfirm(); setConfirmState(null); }}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }

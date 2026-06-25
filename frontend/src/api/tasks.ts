@@ -22,7 +22,22 @@ export const tasksApi = {
     api.patch(`/projects/${projectId}/tasks/reorder`, { taskIds }).then((r) => r.data),
   delete: (projectId: string, taskId: string) =>
     api.delete(`/projects/${projectId}/tasks/${taskId}`).then((r) => r.data),
+  bulkCreate: (projectId: string, rows: BulkTaskRow[]) =>
+    api.post<{ parentCount: number; childCount: number; total: number }>(
+      `/projects/${projectId}/tasks/bulk`, { rows },
+    ).then((r) => r.data),
 };
+
+export interface BulkTaskRow {
+  category: string;
+  title?: string;
+  description?: string;
+  assigneeName?: string;
+  priority?: string;
+  startDate?: string;
+  dueDate?: string;
+  part?: string;
+}
 
 export const commentsApi = {
   create: (taskId: string, content: string, parentId?: string) =>

@@ -78,6 +78,7 @@ export interface Task {
   title: string;
   description?: string;
   requester?: string;
+  part?: string;
   priority: Priority;
   status: TaskStatus;
   startDate?: string;
@@ -96,8 +97,9 @@ export interface Task {
   subTasks?: Task[];
   comments?: Comment[];
   attachments?: Attachment[];
-  issues?: { id: string; title: string; riskLevel: IssueRisk; status: IssueStatus }[];
+  issues?: { id: string; title: string; riskLevel: IssueRisk; status: IssueStatus; taskId?: string }[];
   _count: { comments: number; attachments: number; subTasks: number; issues: number };
+  workLogStats?: { total: number; completed: number; overdue: boolean };
 }
 
 export interface KanbanColumn extends Step {

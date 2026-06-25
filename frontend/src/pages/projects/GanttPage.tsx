@@ -167,7 +167,10 @@ function GanttBar({ task, startDate, totalDays }: { task: Task; startDate: Date;
       )}
       style={{
         left: `${leftPct}%`,
-        width: `${Math.max(widthPct, 3)}%`,
+        // 너비는 정확히 일수만큼(%). 과거의 3% 하한은 긴 프로젝트에서
+        // 1일 바를 수십일로 부풀리는 버그가 있어 제거. 1칸 미만 방지용으로 px 하한만 둠
+        width: `${widthPct}%`,
+        minWidth: COL_W,
       }}
       title={task.title}
     >
@@ -206,9 +209,12 @@ export function GanttPage() {
   });
 
   const [ordered, setOrdered] = useState<Task[]>([]);
+  const [partFilter, setPartFilter] = useState('');
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
   useEffect(() => { if (tasks) setOrdered(tasks); }, [tasks]);
+
+  const displayTasks = partFilter ? ordered.filter((t) => t.part === partFilter) : ordered;
 
   const reorder = useMutation({
     mutationFn: (taskIds: string[]) => tasksApi.reorderGantt(projectId!, taskIds),
@@ -265,20 +271,18 @@ export function GanttPage() {
   const dateHeaders: Date[] = [];
   for (let i = 0; i < totalDays; i++) dateHeaders.push(addDays(timelineStart, i));
 
+  // 주 그룹의 라벨은 그 주의 월요일이 아니라 "실제로 보이는 첫 날짜"로 표시한다.
+  // (타임라인이 주 중간부터 시작하면 월요일 라벨과 첫 칸 날짜가 어긋나 보이는 문제 방지)
   const weekHeaders: { label: string; span: number }[] = [];
-  let currentWeek = '';
-  let span = 0;
-  dateHeaders.forEach((d, idx) => {
-    const weekStart = startOfWeek(d, { weekStartsOn: 1 });
-    const week = format(weekStart, 'M월 d일', { locale: ko });
-    if (week !== currentWeek) {
-      if (currentWeek) weekHeaders.push({ label: currentWeek, span });
-      currentWeek = week;
-      span = 1;
+  let currentWeekKey = '';
+  dateHeaders.forEach((d) => {
+    const weekKey = format(startOfWeek(d, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    if (weekKey !== currentWeekKey) {
+      currentWeekKey = weekKey;
+      weekHeaders.push({ label: format(d, 'M월 d일', { locale: ko }), span: 1 });
     } else {
-      span++;
+      weekHeaders[weekHeaders.length - 1].span++;
     }
-    if (idx === dateHeaders.length - 1) weekHeaders.push({ label: currentWeek, span });
   });
 
   const todayOffset = differenceInDays(today, timelineStart);
@@ -296,6 +300,32 @@ export function GanttPage() {
           <span className="text-gray-900 font-medium">간트차트</span>
         </div>
       </div>
+
+      {/* 업무파트 필터 */}
+      {(() => {
+        const parts = [...new Set(ordered.map((t) => t.part).filter(Boolean))] as string[];
+        if (parts.length === 0) return null;
+        return (
+          <div className="flex-shrink-0 flex items-center gap-2 px-6 py-2 bg-white border-b border-gray-100 overflow-x-auto">
+            <span className="text-xs font-semibold text-gray-400 flex-shrink-0">업무파트</span>
+            <button
+              onClick={() => setPartFilter('')}
+              className={cn('text-xs px-2.5 py-1 rounded-full border transition-colors flex-shrink-0',
+                partFilter === '' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+              )}
+            >전체</button>
+            {parts.map((p) => (
+              <button
+                key={p}
+                onClick={() => setPartFilter(partFilter === p ? '' : p)}
+                className={cn('text-xs px-2.5 py-1 rounded-full border transition-colors flex-shrink-0 whitespace-nowrap',
+                  partFilter === p ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-500 border-gray-200 hover:border-primary-400 hover:text-primary-600'
+                )}
+              >{p}</button>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* 스크롤 컨테이너 하나로 통합 — overflow-x-auto 중첩 제거 */}
       <div ref={outerRef} className="flex-1 overflow-auto">
@@ -317,7 +347,7 @@ export function GanttPage() {
               <div className="h-16 border-b border-gray-200 px-4 flex items-end pb-2 sticky top-0 z-10 bg-white">
                 <span className="text-xs font-semibold text-gray-500">태스크</span>
               </div>
-              {ordered.map((task, idx) => (
+              {displayTasks.map((task, idx) => (
                 <div
                   key={task.id}
                   draggable
@@ -387,7 +417,7 @@ export function GanttPage() {
               </div>
 
               {/* 태스크 행 */}
-              {ordered.map((task) => (
+              {displayTasks.map((task) => (
                 <div
                   key={task.id}
                   className="relative h-11 border-b border-gray-100 flex"

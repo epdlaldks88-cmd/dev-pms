@@ -130,7 +130,15 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
     return () => es.close();
   }, [me, qc]);
 
-  // ── SSE: 그룹채팅 ──
+  // SSE에서 최신 open/view/activeRoomId를 참조하기 위한 ref
+  const openRef = useRef(open);
+  const viewRef = useRef(view);
+  const activeRoomIdRef = useRef(activeRoomId);
+  useEffect(() => { openRef.current = open; }, [open]);
+  useEffect(() => { viewRef.current = view; }, [view]);
+  useEffect(() => { activeRoomIdRef.current = activeRoomId; }, [activeRoomId]);
+
+  // ── SSE: 그룹채팅 — me 변경 시에만 재연결 (open/view/activeRoomId 변경 시 재연결 방지)
   useEffect(() => {
     if (!me) return;
     const token = getAccessToken();
@@ -141,7 +149,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
       if (data.roomId) qc.invalidateQueries({ queryKey: ['room-messages', data.roomId] });
       // 내가 보낸 메시지는 제외, 해당 방을 보고 있지 않으면 팝업
       if (data.senderId && data.senderId !== me.id) {
-        const isViewingThisRoom = open && view === 'room' && activeRoomId === data.roomId;
+        const isViewingThisRoom = openRef.current && viewRef.current === 'room' && activeRoomIdRef.current === data.roomId;
         if (!isViewingThisRoom) {
           showRoomPopup({ roomId: data.roomId, senderName: data.senderName, content: data.content ?? '' });
         }
@@ -149,7 +157,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
     };
     es.onerror = () => {};
     return () => es.close();
-  }, [me, qc, open, view, activeRoomId]);
+  }, [me, qc]);
 
   // ── Mutations ──
   const sendDm = useMutation({

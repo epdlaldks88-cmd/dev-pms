@@ -2,10 +2,11 @@ import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, mem
 import { createPortal, flushSync } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Plus, X, Check, Table2, Bold, Italic, AlignLeft, AlignCenter, AlignRight, ChevronDown, Download } from 'lucide-react';
+import { ArrowLeft, Plus, X, Check, Table2, Bold, Italic, AlignLeft, AlignCenter, AlignRight, ChevronDown, Download, ListTodo } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import { sheetsApi } from '../../api/sheets';
+import { tasksApi, type BulkTaskRow } from '../../api/tasks';
 import { getAccessToken } from '../../utils/token';
 import { cn } from '../../lib/utils';
 
@@ -26,6 +27,8 @@ type Rng = { r1: number; c1: number; r2: number; c2: number };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const DROWS = 100, DCOLS = 26, CHW = 52, DCW = 120, RH = 26;
+// 행 자동 확장: 맨 아래 근처 스크롤 시 EXTEND_ROWS씩 MAX_ROWS까지 추가
+const MAX_ROWS = 500, EXTEND_ROWS = 50;
 const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36];
 const BG_COLORS = [
   '#ffffff','#f8fafc','#f1f5f9','#e2e8f0','#cbd5e1','#94a3b8','#64748b','#475569','#334155','#1e293b','#0f172a','#000000',
@@ -245,11 +248,13 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
   const rafDragId      = useRef<number>(0);
   const inputRef       = useRef<HTMLInputElement>(null);
   const dragging       = useRef(false);
+  const extendGuard    = useRef(false);
   const fsRef          = useRef<HTMLDivElement>(null);
   const clipboardRef   = useRef<{
     rows: number; cols: number;
     cells: Record<string, CellData>;
     merges: Record<string, MergeInfo>;
+    text: string; // 시스템 클립보드에 쓴 직렬화 텍스트 (내부/외부 판별용)
   } | null>(null);
 
   // Stable refs for use inside callbacks
@@ -282,6 +287,12 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
 
   const range = getRange(selStart, selEnd);
   const colW = (c: number) => colWidths[c] ?? DCW;
+  // table-layout:fixed가 제대로 동작하려면 테이블에 명시적 너비(모든 열 합)가 필요
+  const totalWidth = useMemo(() => {
+    let w = CHW;
+    for (let c = 0; c < cols; c++) w += colWidths[c] ?? DCW;
+    return w;
+  }, [cols, colWidths]);
 
   // Merge maps
   const { hidden, spanMap } = useMemo(() => {
@@ -347,6 +358,124 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
   }, []);
 
   useEffect(() => { if (editing && inputRef.current) inputRef.current.focus(); }, [editing]);
+
+  // 시스템 클립보드 쓰기 — HTTPS/보안 컨텍스트가 아니면(예: HTTP 운영 서버) navigator.clipboard가
+  // 막히므로 임시 textarea + execCommand로 폴백. (내부 복사/붙여넣기 판별이 시스템 클립보드 텍스트에 의존)
+  const writeClipboard = useCallback((text: string) => {
+    const execCopy = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.top = '-9999px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      try { document.execCommand('copy'); } catch { /* noop */ }
+      document.body.removeChild(ta);
+      containerRef.current?.focus({ preventScroll: true });
+    };
+    if (window.isSecureContext && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(execCopy);
+    } else {
+      execCopy();
+    }
+  }, []);
+
+  // 붙여넣기 통합 처리
+  // - 시스템 클립보드 텍스트가 내부 복사본과 동일 → 스타일/병합까지 복원 (내부 붙여넣기)
+  // - 다르면(엑셀 등 외부에서 복사) → 텍스트만 셀에 채움 (외부 붙여넣기)
+  // navigator.clipboard.readText()는 DRM/권한 문제로 막힐 수 있어 paste 이벤트의 clipboardData 사용
+  const processPaste = useCallback((text: string) => {
+    const origin = selStartRef.current;
+    if (!origin) return;
+    const [pr, pc] = origin;
+    const nd = dataRef.current;
+    const cb = clipboardRef.current;
+    setCopyRange(null);
+
+    // 선택 영역이 클립보드 블록보다 크면 반복해서 채움(fill). 단일 셀 복사 → 범위 선택 후 붙여넣기로 동일 데이터 채우기 지원
+    const sel = getRange(selStartRef.current, selEndRef.current);
+
+    // 내부 클립보드(스타일/병합 포함): 시스템 클립보드 텍스트가 내부 복사본과 일치할 때만
+    if (cb && cb.text === text.replace(/\r\n/g, '\n')) {
+      let fr = cb.rows, fc = cb.cols;
+      if (sel) {
+        const sh = sel.r2 - sel.r1 + 1, sw = sel.c2 - sel.c1 + 1;
+        if (sh > cb.rows || sw > cb.cols) { fr = Math.max(cb.rows, sh); fc = Math.max(cb.cols, sw); }
+      }
+      const newCells = { ...nd.cells };
+      const newMerges = removeOverlap(nd.merges, { r1: pr, c1: pc, r2: pr+fr-1, c2: pc+fc-1 });
+      for (let dr = 0; dr < fr; dr++)
+        for (let dc = 0; dc < fc; dc++) {
+          if (pr+dr >= nd.rows || pc+dc >= nd.cols) continue;
+          const dst = ck(pr+dr, pc+dc);
+          const src = ck(dr % cb.rows, dc % cb.cols);
+          if (cb.cells[src]) newCells[dst] = { ...cb.cells[src] };
+          else delete newCells[dst];
+        }
+      // 병합은 기준 블록에만 배치 (반복 채움 시 타일 간 병합 중첩 방지)
+      for (const [k, m] of Object.entries(cb.merges)) {
+        const [mr, mc] = k.split(',').map(Number);
+        if (pr+mr < nd.rows && pc+mc < nd.cols)
+          newMerges[ck(pr+mr, pc+mc)] = { ...m };
+      }
+      recordChange({ ...nd, cells: newCells, merges: newMerges });
+      return;
+    }
+
+    // 외부(엑셀 등) 텍스트 붙여넣기
+    const lines = text.split(/\r?\n/).map(l => l.split('\t'));
+    if (lines.length > 0 && lines[lines.length - 1].every(v => v === '')) lines.pop();
+    if (lines.length === 0) return;
+    const srcRows = lines.length;
+    const srcCols = Math.max(1, ...lines.map(l => l.length));
+    let fr = srcRows, fc = srcCols;
+    if (sel) {
+      const sh = sel.r2 - sel.r1 + 1, sw = sel.c2 - sel.c1 + 1;
+      if (sh > srcRows || sw > srcCols) { fr = Math.max(srcRows, sh); fc = Math.max(srcCols, sw); }
+    }
+    const newCells = { ...nd.cells };
+    for (let dr = 0; dr < fr; dr++)
+      for (let dc = 0; dc < fc; dc++) {
+        if (pr + dr >= nd.rows || pc + dc >= nd.cols) continue;
+        const val = lines[dr % srcRows]?.[dc % srcCols] ?? '';
+        const dst = ck(pr + dr, pc + dc);
+        const existing = norm(newCells[dst]);
+        if (val) newCells[dst] = { ...existing, v: val };
+        else if (existing.s) newCells[dst] = { s: existing.s };
+        else delete newCells[dst];
+      }
+    recordChange({ ...nd, cells: newCells });
+  }, [recordChange]);
+
+  // 컨테이너에 포커스가 있을 때의 붙여넣기
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (!selStartRef.current || editingRef.current) return;
+    const text = e.clipboardData.getData('text/plain');
+    if (!text) return;
+    e.preventDefault();
+    processPaste(text);
+  }, [processPaste]);
+
+  // 컨테이너 포커스와 무관하게 엑셀 등 외부 붙여넣기 지원
+  // (onPaste는 컨테이너에 포커스 있을 때만 발동 → 엑셀에서 돌아오면 포커스 없을 수 있음)
+  useEffect(() => {
+    const handler = (e: ClipboardEvent) => {
+      if (editingRef.current) return;
+      // 컨테이너(또는 하위 요소)가 포커스를 갖고 있으면 onPaste에서 이미 처리됨
+      if (containerRef.current?.contains(document.activeElement ?? null)) return;
+      // 다른 입력 필드에 포커스가 있으면 무시
+      const active = document.activeElement;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || (active as HTMLElement).isContentEditable)) return;
+      if (!selStartRef.current) return;
+      const text = e.clipboardData?.getData('text/plain');
+      if (!text) return;
+      e.preventDefault();
+      processPaste(text);
+    };
+    document.addEventListener('paste', handler);
+    return () => document.removeEventListener('paste', handler);
+  }, [processPaste]);
 
   // 언마운트 시 진행 중인 셀 편집을 강제 커밋
   useEffect(() => {
@@ -479,59 +608,18 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
           if (mr >= rng.r1 && mr <= rng.r2 && mc >= rng.c1 && mc <= rng.c2)
             copyMerges[ck(mr - rng.r1, mc - rng.c1)] = { ...m };
         }
-        clipboardRef.current = { rows: rng.r2-rng.r1+1, cols: rng.c2-rng.c1+1, cells: copyCells, merges: copyMerges };
         setCopyRange(rng);
         const lines: string[] = [];
         for (let rr = 0; rr < rng.r2-rng.r1+1; rr++)
           lines.push(Array.from({ length: rng.c2-rng.c1+1 }, (_, cc) => norm(copyCells[ck(rr,cc)]).v ?? '').join('\t'));
-        navigator.clipboard.writeText(lines.join('\n')).catch(() => {});
+        const text = lines.join('\n');
+        clipboardRef.current = { rows: rng.r2-rng.r1+1, cols: rng.c2-rng.c1+1, cells: copyCells, merges: copyMerges, text };
+        writeClipboard(text);
         return;
       }
 
-      if (e.key === 'v' || e.key === 'V') {
-        e.preventDefault();
-        const origin = selStartRef.current;
-        if (!origin) return;
-        const [pr, pc] = origin;
-
-        if (clipboardRef.current) {
-          const { rows: cbRows, cols: cbCols, cells: cbCells, merges: cbMerges } = clipboardRef.current;
-          const newCells = { ...d.cells };
-          const newMerges = removeOverlap(d.merges, { r1: pr, c1: pc, r2: pr+cbRows-1, c2: pc+cbCols-1 });
-          for (let dr = 0; dr < cbRows; dr++)
-            for (let dc = 0; dc < cbCols; dc++) {
-              if (pr+dr >= d.rows || pc+dc >= d.cols) continue;
-              const dst = ck(pr+dr, pc+dc);
-              const src = ck(dr, dc);
-              if (cbCells[src]) newCells[dst] = { ...cbCells[src] };
-              else delete newCells[dst];
-            }
-          for (const [k, m] of Object.entries(cbMerges)) {
-            const [mr, mc] = k.split(',').map(Number);
-            if (pr+mr < d.rows && pc+mc < d.cols)
-              newMerges[ck(pr+mr, pc+mc)] = { ...m };
-          }
-          recordChange({ ...d, cells: newCells, merges: newMerges });
-          setCopyRange(null);
-        } else {
-          navigator.clipboard.readText().then(text => {
-            if (!text) return;
-            const lines = text.split('\n').map(l => l.split('\t'));
-            const nd = dataRef.current;
-            const newCells = { ...nd.cells };
-            lines.forEach((row, dr) => row.forEach((val, dc) => {
-              if (pr+dr >= nd.rows || pc+dc >= nd.cols) return;
-              const dst = ck(pr+dr, pc+dc);
-              const existing = norm(newCells[dst]);
-              if (val) newCells[dst] = { ...existing, v: val };
-              else if (existing.s) newCells[dst] = { s: existing.s };
-              else delete newCells[dst];
-            }));
-            recordChange({ ...nd, cells: newCells });
-          }).catch(() => {});
-        }
-        return;
-      }
+      // Ctrl+V는 가로채지 않고 네이티브 paste 이벤트로 위임 (handlePaste / document paste 리스너에서 처리)
+      // preventDefault하면 paste 이벤트가 차단되어 엑셀 등 외부 붙여넣기가 막힘
     }
 
     if (editingRef.current) {
@@ -582,7 +670,7 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
       flushSync(() => { setEditing(true); });
       inputRef.current?.focus();
     }
-  }, [activeStyle, applyStyle, commitEdit, rows, cols, recordChange]);
+  }, [activeStyle, applyStyle, commitEdit, rows, cols, recordChange, writeClipboard]);
 
   // 이벤트 위임 — tbody 하나의 핸들러로 모든 셀 이벤트 처리 (셀별 콜백 2600개 생성 방지)
   const onTbodyMouseDown = useCallback((e: React.MouseEvent<HTMLTableSectionElement>) => {
@@ -693,26 +781,186 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  // Column resize — 드래그 중 DOM 직접 조작, mouseup 시에만 state 반영
-  const onResizeStart = (e: React.MouseEvent, col: number) => {
+  // Column context menu
+  const [colCtxMenu, setColCtxMenu] = useState<{ col: number; x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!colCtxMenu) return;
+    const close = () => setColCtxMenu(null);
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [colCtxMenu]);
+
+  const deleteColumn = useCallback((col: number) => {
+    setColCtxMenu(null);
+    const d = dataRef.current;
+    const newCells: Record<string, CellData> = {};
+    for (const [k, v] of Object.entries(d.cells)) {
+      const [r, c] = k.split(',').map(Number);
+      if (c === col) continue;
+      newCells[ck(r, c < col ? c : c - 1)] = v;
+    }
+    const newMerges: Record<string, MergeInfo> = {};
+    for (const [k, m] of Object.entries(d.merges)) {
+      const [r, c] = k.split(',').map(Number);
+      // 삭제할 열이 병합 내부에 포함되면 cols 감소, 병합이 해당 열만이면 제거
+      if (c === col && m.cols === 1) continue;
+      const nc = c < col ? c : c - 1;
+      const newCols = c <= col && col < c + m.cols ? m.cols - 1 : m.cols;
+      if (newCols < 1) continue;
+      newMerges[ck(r, nc)] = { rows: m.rows, cols: newCols };
+    }
+    const newColWidths: Record<number, number> = {};
+    for (const [k, w] of Object.entries(d.colWidths)) {
+      const c = Number(k);
+      if (c === col) continue;
+      newColWidths[c < col ? c : c - 1] = w;
+    }
+    const newCols = Math.max(1, d.cols - 1);
+    // 선택 셀 보정
+    if (selStartRef.current) {
+      const [sr, sc] = selStartRef.current;
+      if (sc === col) { setSelStart([sr, Math.max(0, col - 1)]); setSelEnd(null); }
+      else if (sc > col) { setSelStart([sr, sc - 1]); setSelEnd(null); }
+    }
+    recordChange({ ...d, cells: newCells, merges: newMerges, colWidths: newColWidths, cols: newCols });
+  }, [recordChange]);
+
+  const insertColumnBefore = useCallback((col: number) => {
+    setColCtxMenu(null);
+    const d = dataRef.current;
+    const newCells: Record<string, CellData> = {};
+    for (const [k, v] of Object.entries(d.cells)) {
+      const [r, c] = k.split(',').map(Number);
+      newCells[ck(r, c < col ? c : c + 1)] = v;
+    }
+    const newMerges: Record<string, MergeInfo> = {};
+    for (const [k, m] of Object.entries(d.merges)) {
+      const [r, c] = k.split(',').map(Number);
+      const nc = c < col ? c : c + 1;
+      const newCols = c < col && col < c + m.cols ? m.cols + 1 : m.cols;
+      newMerges[ck(r, nc)] = { rows: m.rows, cols: newCols };
+    }
+    const newColWidths: Record<number, number> = {};
+    for (const [k, w] of Object.entries(d.colWidths)) {
+      const c = Number(k);
+      newColWidths[c < col ? c : c + 1] = w;
+    }
+    recordChange({ ...d, cells: newCells, merges: newMerges, colWidths: newColWidths, cols: d.cols + 1 });
+  }, [recordChange]);
+
+  const insertColumnAfter = useCallback((col: number) => {
+    insertColumnBefore(col + 1);
+  }, [insertColumnBefore]);
+
+  // Row context menu
+  const [rowCtxMenu, setRowCtxMenu] = useState<{ row: number; x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!rowCtxMenu) return;
+    const close = () => setRowCtxMenu(null);
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [rowCtxMenu]);
+
+  const deleteRow = useCallback((row: number) => {
+    setRowCtxMenu(null);
+    const d = dataRef.current;
+    const newCells: Record<string, CellData> = {};
+    for (const [k, v] of Object.entries(d.cells)) {
+      const [r, c] = k.split(',').map(Number);
+      if (r === row) continue;
+      newCells[ck(r < row ? r : r - 1, c)] = v;
+    }
+    const newMerges: Record<string, MergeInfo> = {};
+    for (const [k, m] of Object.entries(d.merges)) {
+      const [r, c] = k.split(',').map(Number);
+      // 삭제할 행이 병합 내부에 포함되면 rows 감소, 병합이 해당 행만이면 제거
+      if (r === row && m.rows === 1) continue;
+      const nr = r < row ? r : r - 1;
+      const newRows = r <= row && row < r + m.rows ? m.rows - 1 : m.rows;
+      if (newRows < 1) continue;
+      newMerges[ck(nr, c)] = { rows: newRows, cols: m.cols };
+    }
+    const newRowsCount = Math.max(1, d.rows - 1);
+    // 선택 셀 보정
+    if (selStartRef.current) {
+      const [sr, sc] = selStartRef.current;
+      if (sr === row) { setSelStart([Math.max(0, row - 1), sc]); setSelEnd(null); }
+      else if (sr > row) { setSelStart([sr - 1, sc]); setSelEnd(null); }
+    }
+    recordChange({ ...d, cells: newCells, merges: newMerges, rows: newRowsCount });
+  }, [recordChange]);
+
+  const insertRowBefore = useCallback((row: number) => {
+    setRowCtxMenu(null);
+    const d = dataRef.current;
+    const newCells: Record<string, CellData> = {};
+    for (const [k, v] of Object.entries(d.cells)) {
+      const [r, c] = k.split(',').map(Number);
+      newCells[ck(r < row ? r : r + 1, c)] = v;
+    }
+    const newMerges: Record<string, MergeInfo> = {};
+    for (const [k, m] of Object.entries(d.merges)) {
+      const [r, c] = k.split(',').map(Number);
+      const nr = r < row ? r : r + 1;
+      const newRows = r < row && row < r + m.rows ? m.rows + 1 : m.rows;
+      newMerges[ck(nr, c)] = { rows: newRows, cols: m.cols };
+    }
+    recordChange({ ...d, cells: newCells, merges: newMerges, rows: d.rows + 1 });
+  }, [recordChange]);
+
+  const insertRowAfter = useCallback((row: number) => {
+    insertRowBefore(row + 1);
+  }, [insertRowBefore]);
+
+  // Column resize — Pointer Capture로 드래그 중 이벤트 유실 방지, 드래그 중 DOM 직접 조작
+  const onResizeStart = (e: React.PointerEvent, col: number) => {
     e.preventDefault(); e.stopPropagation();
+    const handle = e.currentTarget as HTMLElement;
+    const pointerId = e.pointerId;
     const startX = e.clientX;
     const startW = colW(col);
-    // colgroup의 col 요소: 0번은 행 헤더, 1번부터 데이터 열
-    const colEl = tableRef.current?.querySelectorAll('col')[col + 1] as HTMLElement | undefined;
-    const onMove = (mv: MouseEvent) => {
-      const nw = Math.max(40, startW + mv.clientX - startX);
+    // colgroup col 요소(0번=행헤더, 1번~=데이터열) + thead th 요소 모두 직접 조작
+    const tableEl = tableRef.current;
+    const colEl = tableEl?.querySelectorAll('col')[col + 1] as HTMLElement | undefined;
+    const thEl = tableEl?.querySelectorAll('thead th')[col + 1] as HTMLElement | undefined;
+    // 현재 컬럼을 제외한 전체 너비 합 (드래그 중 테이블 너비 실시간 갱신용)
+    let baseTotal = CHW;
+    for (let i = 0; i < dataRef.current.cols; i++) baseTotal += dataRef.current.colWidths[i] ?? DCW;
+    baseTotal -= startW;
+    // 포인터를 핸들에 고정 → 커서가 빠르게 벗어나도 move/up 이벤트 계속 수신
+    handle.setPointerCapture(pointerId);
+    let nw = startW;
+    const onMove = (mv: PointerEvent) => {
+      nw = Math.max(40, startW + mv.clientX - startX);
       if (colEl) colEl.style.width = `${nw}px`;
+      if (thEl) thEl.style.width = `${nw}px`;
+      if (tableEl) tableEl.style.width = `${baseTotal + nw}px`;
     };
-    const onUp = (mv: MouseEvent) => {
-      const nw = Math.max(40, startW + mv.clientX - startX);
+    const onUp = () => {
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      handle.removeEventListener('pointercancel', onUp);
+      try { handle.releasePointerCapture(pointerId); } catch { /* noop */ }
       onChangeRef.current({ ...dataRef.current, colWidths: { ...dataRef.current.colWidths, [col]: nw } });
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
     };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+    handle.addEventListener('pointercancel', onUp);
   };
+
+  // 맨 아래 근처로 스크롤하면 행 자동 확장 (실제 도달한 만큼만 추가 → perf 영향 최소)
+  useEffect(() => { extendGuard.current = false; }, [rows]);
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (extendGuard.current) return;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight > 240) return;
+    const d = dataRef.current;
+    if (d.rows >= MAX_ROWS) return;
+    extendGuard.current = true;
+    onChangeRef.current({ ...d, rows: Math.min(MAX_ROWS, d.rows + EXTEND_ROWS) });
+  }, []);
 
   const sep = <div className="w-px h-5 bg-gray-200 mx-0.5 flex-shrink-0" />;
 
@@ -786,6 +1034,60 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
           title="병합 해제">병합 해제</button>
       </div>
 
+      {/* ── Column context menu ── */}
+      {colCtxMenu && createPortal(
+        <div
+          className="fixed z-[9999] bg-white border border-gray-200 rounded-xl shadow-xl py-1 min-w-[160px]"
+          style={{ top: colCtxMenu.y, left: colCtxMenu.x }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+          <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 tracking-wide border-b border-gray-100 mb-1">
+            열 {colLabel(colCtxMenu.col)}
+          </div>
+          <button
+            className="w-full px-3 py-1.5 text-xs text-left hover:bg-gray-50 text-gray-700"
+            onClick={() => insertColumnBefore(colCtxMenu.col)}
+          >왼쪽에 열 삽입</button>
+          <button
+            className="w-full px-3 py-1.5 text-xs text-left hover:bg-gray-50 text-gray-700"
+            onClick={() => insertColumnAfter(colCtxMenu.col)}
+          >오른쪽에 열 삽입</button>
+          <div className="my-1 border-t border-gray-100" />
+          <button
+            className="w-full px-3 py-1.5 text-xs text-left hover:bg-red-50 text-red-600 font-medium"
+            onClick={() => deleteColumn(colCtxMenu.col)}
+          >이 열 삭제</button>
+        </div>,
+        document.body
+      )}
+
+      {/* ── Row context menu ── */}
+      {rowCtxMenu && createPortal(
+        <div
+          className="fixed z-[9999] bg-white border border-gray-200 rounded-xl shadow-xl py-1 min-w-[160px]"
+          style={{ top: rowCtxMenu.y, left: rowCtxMenu.x }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+          <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 tracking-wide border-b border-gray-100 mb-1">
+            행 {rowCtxMenu.row + 1}
+          </div>
+          <button
+            className="w-full px-3 py-1.5 text-xs text-left hover:bg-gray-50 text-gray-700"
+            onClick={() => insertRowBefore(rowCtxMenu.row)}
+          >위에 행 삽입</button>
+          <button
+            className="w-full px-3 py-1.5 text-xs text-left hover:bg-gray-50 text-gray-700"
+            onClick={() => insertRowAfter(rowCtxMenu.row)}
+          >아래에 행 삽입</button>
+          <div className="my-1 border-t border-gray-100" />
+          <button
+            className="w-full px-3 py-1.5 text-xs text-left hover:bg-red-50 text-red-600 font-medium"
+            onClick={() => deleteRow(rowCtxMenu.row)}
+          >이 행 삭제</button>
+        </div>,
+        document.body
+      )}
+
       {/* ── Formula bar ── */}
       <div className="flex-shrink-0 flex items-center h-7 border-b border-gray-200 bg-gray-50 px-2 gap-2">
         <span className="text-[11px] text-gray-500 font-mono w-16 text-center border-r border-gray-200 pr-2 flex-shrink-0">{cellAddress}</span>
@@ -798,8 +1100,10 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
         tabIndex={0}
         className="flex-1 overflow-auto outline-none"
         onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
+        onScroll={handleScroll}
       >
-        <table ref={tableRef} className="border-collapse" style={{ tableLayout: 'fixed' }}>
+        <table ref={tableRef} className="border-collapse" style={{ tableLayout: 'fixed', width: totalWidth }}>
           <colgroup>
             <col style={{ width: CHW }} />
             {Array.from({ length: cols }, (_, c) => <col key={c} style={{ width: colW(c) }} />)}
@@ -810,12 +1114,37 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
                 style={{ width: CHW, height: RH }} />
               {Array.from({ length: cols }, (_, c) => (
                 <th key={c}
-                  className={cn('sticky top-0 z-20 bg-gray-50 border border-gray-200 text-xs font-medium text-gray-500 relative select-none',
+                  className={cn('sticky top-0 z-20 bg-gray-50 border border-gray-200 text-xs font-medium text-gray-500 relative select-none cursor-pointer',
                     range && c >= range.c1 && c <= range.c2 && 'bg-primary-50 text-gray-800')}
-                  style={{ height: RH }}>
+                  style={{ height: RH }}
+                  onMouseDown={e => {
+                    if ((e.target as HTMLElement).tagName === 'SPAN') return;
+                    e.preventDefault();
+                    setEditing(false);
+                    setSelStart([0, c]);
+                    setSelEnd([rows - 1, c]);
+                    const onMove = (mv: MouseEvent) => {
+                      const el = document.elementFromPoint(mv.clientX, mv.clientY);
+                      const cell = el?.closest('th[data-col]');
+                      if (cell) {
+                        const tc = Number((cell as HTMLElement).dataset.col);
+                        setSelEnd([rows - 1, tc]);
+                      }
+                    };
+                    const onUp = () => {
+                      window.removeEventListener('mousemove', onMove);
+                      window.removeEventListener('mouseup', onUp);
+                    };
+                    window.addEventListener('mousemove', onMove);
+                    window.addEventListener('mouseup', onUp);
+                  }}
+                  data-col={c}
+                  onContextMenu={e => { e.preventDefault(); setColCtxMenu({ col: c, x: e.clientX, y: e.clientY }); }}>
                   {colLabel(c)}
-                  <span className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary-400 opacity-0 hover:opacity-100 z-10"
-                    onMouseDown={e => onResizeStart(e, c)} />
+                  <span className="absolute -right-1 top-0 h-full w-2.5 cursor-col-resize hover:bg-primary-400 z-30 touch-none"
+                    onPointerDown={e => { e.stopPropagation(); onResizeStart(e, c); }}
+                    onMouseDown={e => e.stopPropagation()}
+                    onDoubleClick={e => e.stopPropagation()} />
                 </th>
               ))}
             </tr>
@@ -823,9 +1152,32 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
           <tbody onMouseDown={onTbodyMouseDown} onMouseOver={onTbodyMouseOver} onDoubleClick={onTbodyDblClick}>
             {Array.from({ length: rows }, (_, r) => (
               <tr key={r}>
-                <td className={cn('sticky left-0 z-10 bg-gray-50 border border-gray-200 text-xs text-gray-400 font-medium text-center select-none',
+                <td className={cn('sticky left-0 z-10 bg-gray-50 border border-gray-200 text-xs text-gray-400 font-medium text-center select-none cursor-pointer',
                   range && r >= range.r1 && r <= range.r2 && 'bg-primary-50 text-gray-800')}
-                  style={{ width: CHW, height: RH }}>{r + 1}</td>
+                  style={{ width: CHW, height: RH }}
+                  data-rowheader={r}
+                  onMouseDown={e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setEditing(false);
+                    setSelStart([r, 0]);
+                    setSelEnd([r, cols - 1]);
+                    const onMove = (mv: MouseEvent) => {
+                      const el = document.elementFromPoint(mv.clientX, mv.clientY);
+                      const cell = el?.closest('td[data-rowheader]');
+                      if (cell) {
+                        const tr = Number((cell as HTMLElement).dataset.rowheader);
+                        setSelEnd([tr, cols - 1]);
+                      }
+                    };
+                    const onUp = () => {
+                      window.removeEventListener('mousemove', onMove);
+                      window.removeEventListener('mouseup', onUp);
+                    };
+                    window.addEventListener('mousemove', onMove);
+                    window.addEventListener('mouseup', onUp);
+                  }}
+                  onContextMenu={e => { e.preventDefault(); setRowCtxMenu({ row: r, x: e.clientX, y: e.clientY }); }}>{r + 1}</td>
 
                 {Array.from({ length: cols }, (_, c) => {
                   const k = ck(r, c);
@@ -866,6 +1218,38 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
   );
 }
 
+// ── Sheet → BulkTaskRow 파서 ──────────────────────────────────────────────────
+const SHEET_HEADER_MAP: Record<string, keyof BulkTaskRow> = {
+  '제목': 'category', '업무구분': 'category', '태스크명': 'category', '태스크': 'category',
+  '요구사항': 'title', '서브태스크': 'title', '하위태스크': 'title',
+  '설명': 'description', '담당자': 'assigneeName',
+  '우선순위': 'priority', '시작일': 'startDate', '마감일': 'dueDate',
+  '업무파트': 'part', '파트': 'part',
+};
+
+function parseSheetToRows(data: SheetData): BulkTaskRow[] {
+  const colMap: Record<number, keyof BulkTaskRow> = {};
+  let headerRow = -1;
+  for (let r = 0; r < data.rows && headerRow === -1; r++) {
+    for (let c = 0; c < data.cols; c++) {
+      const v = norm(data.cells[ck(r, c)]).v?.trim();
+      if (v && SHEET_HEADER_MAP[v]) colMap[c] = SHEET_HEADER_MAP[v];
+    }
+    if (Object.keys(colMap).length > 0) headerRow = r;
+  }
+  if (headerRow === -1) return [];
+  const rows: BulkTaskRow[] = [];
+  for (let r = headerRow + 1; r < data.rows; r++) {
+    const row: any = {};
+    for (const [cs, field] of Object.entries(colMap)) {
+      const v = norm(data.cells[ck(r, Number(cs))]).v?.trim();
+      if (v) row[field] = v;
+    }
+    if (row.category) rows.push(row as BulkTaskRow);
+  }
+  return rows;
+}
+
 // ── Sheet Editor Page ─────────────────────────────────────────────────────────
 export function SheetEditorPage() {
   const { projectId, sheetId } = useParams<{ projectId: string; sheetId: string }>();
@@ -878,6 +1262,8 @@ export function SheetEditorPage() {
   const [renamingId, setRenamingId] = useState<string|null>(null);
   const [renameVal, setRenameVal] = useState('');
   const [saving, setSaving] = useState(false);
+  const [kanbanRows, setKanbanRows] = useState<BulkTaskRow[] | null>(null);
+  const [showLayoutGuide, setShowLayoutGuide] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const sheetDataRef = useRef<SheetData>(emptyData());
   const dataLoadedRef = useRef(false);
@@ -919,6 +1305,16 @@ export function SheetEditorPage() {
     onMutate: () => setSaving(true),
     onSettled: () => setSaving(false),
     onError: () => toast.error('저장에 실패했습니다.'),
+  });
+
+  const bulkCreateMutation = useMutation({
+    mutationFn: (rows: BulkTaskRow[]) => tasksApi.bulkCreate(projectId!, rows),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['kanban', projectId] });
+      toast.success(`상위 ${res.parentCount}개 · 하위 ${res.childCount}개 칸반에 생성되었습니다.`);
+      setKanbanRows(null);
+    },
+    onError: () => toast.error('칸반 태스크 생성에 실패했습니다.'),
   });
 
   const handleChange = useCallback((d: SheetData) => {
@@ -1076,6 +1472,23 @@ export function SheetEditorPage() {
         <span className="text-sm font-semibold text-gray-800 truncate">{currentSheet?.name ?? '...'}</span>
         <div className="ml-auto flex items-center gap-3 flex-shrink-0">
           <span className="text-[11px] text-gray-400">{saving ? '저장 중...' : '자동 저장'}</span>
+          {projectId && (
+            <button
+              onClick={() => {
+                const rows = parseSheetToRows(sheetData);
+                if (rows.length === 0) {
+                  setShowLayoutGuide(true);
+                  return;
+                }
+                setKanbanRows(rows);
+              }}
+              className="flex items-center gap-1.5 text-xs font-medium text-white bg-violet-600 hover:bg-violet-700 px-3 py-1.5 rounded-lg transition-colors shadow-sm"
+              title="시트 데이터로 칸반 태스크 일괄 생성"
+            >
+              <ListTodo size={13} />
+              칸반 태스크 생성
+            </button>
+          )}
           <button
             onClick={exportExcel}
             className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-primary-600 bg-white hover:bg-primary-50 border border-gray-200 hover:border-primary-300 px-3 py-1.5 rounded-lg transition-colors"
@@ -1088,6 +1501,191 @@ export function SheetEditorPage() {
       </div>
 
       <SpreadsheetGrid data={sheetData} onChange={handleChange} />
+
+      {/* ── 칸반 태스크 생성 미리보기 모달 ── */}
+      {kanbanRows && (() => {
+        const groupCount = new Map<string, number>();
+        kanbanRows.forEach(r => groupCount.set(r.category, (groupCount.get(r.category) ?? 0) + 1));
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setKanbanRows(null)} />
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-200">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center text-white">
+                    <ListTodo size={18} />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-gray-800">칸반 태스크 생성</h2>
+                    <p className="text-[11px] text-gray-500">제목별 상위 태스크 + 하위 태스크를 칸반에 생성합니다</p>
+                  </div>
+                </div>
+                <button onClick={() => setKanbanRows(null)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+              </div>
+
+              <div className="flex-1 overflow-auto px-6 py-5 space-y-4">
+                {/* 헤더 형식 안내 */}
+                <div className="rounded-xl border border-dashed border-violet-200 bg-violet-50 px-4 py-3 text-xs text-violet-700">
+                  <p className="font-semibold mb-0.5">시트 1행에 헤더가 있어야 합니다</p>
+                  <p className="text-violet-500">필수: <b>제목</b> / 선택: 하위태스크 · 업무파트 · 설명 · 담당자 · 우선순위 · 시작일 · 마감일</p>
+                </div>
+
+                {/* 미리보기 */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-600 mb-1.5">
+                    생성 예정 — 태스크 <b className="text-violet-600">{groupCount.size}</b>개 · 하위태스크 <b className="text-violet-600">{kanbanRows.length}</b>개
+                  </p>
+                  <div className="rounded-xl border border-gray-200 overflow-hidden max-h-64 overflow-y-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-500">제목</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-500">하위태스크</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-500">담당자</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-500">우선순위</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {kanbanRows.slice(0, 100).map((r, i) => (
+                          <tr key={i} className="hover:bg-gray-50">
+                            <td className="px-3 py-1.5 text-gray-600">{r.category}</td>
+                            <td className="px-3 py-1.5 text-gray-800 max-w-[240px] truncate">{r.title}</td>
+                            <td className="px-3 py-1.5 text-gray-500">{r.assigneeName || '-'}</td>
+                            <td className="px-3 py-1.5 text-gray-500">{r.priority || 'MEDIUM'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {kanbanRows.length > 100 && <p className="text-[11px] text-gray-400 mt-1">...외 {kanbanRows.length - 100}개 (전체 등록됨)</p>}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100">
+                <button
+                  onClick={() => setKanbanRows(null)}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={() => bulkCreateMutation.mutate(kanbanRows)}
+                  disabled={bulkCreateMutation.isPending}
+                  className="px-4 py-2 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-60 rounded-lg transition-colors"
+                >
+                  {bulkCreateMutation.isPending ? '생성 중...' : `${kanbanRows.length}개 생성`}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── 레이아웃 안내 팝업 ── */}
+      {showLayoutGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowLayoutGuide(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 bg-amber-50 border-b border-amber-200">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500 flex items-center justify-center text-white text-lg">!</div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-800">시트 레이아웃이 맞지 않습니다</h2>
+                  <p className="text-[11px] text-amber-700">아래 형식에 맞게 헤더를 설정해주세요</p>
+                </div>
+              </div>
+              <button onClick={() => setShowLayoutGuide(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <p className="text-xs font-semibold text-gray-600 mb-2">연동 헤더 목록 (1행에 입력)</p>
+                <div className="rounded-xl overflow-hidden border border-gray-200 text-xs">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-500 border-r border-gray-200">구분</th>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-500 border-r border-gray-200">사용 가능한 헤더명</th>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-500">설명</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      <tr className="bg-violet-50">
+                        <td className="px-3 py-2 font-bold text-violet-700 border-r border-gray-200">필수</td>
+                        <td className="px-3 py-2 font-mono text-violet-700 border-r border-gray-200">제목 · 업무구분 · 태스크명 · 태스크</td>
+                        <td className="px-3 py-2 text-gray-600">상위 태스크 제목</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 text-gray-400 border-r border-gray-200">선택</td>
+                        <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">하위태스크 · 요구사항 · 서브태스크</td>
+                        <td className="px-3 py-2 text-gray-600">하위 태스크 제목 (비어 있으면 상위만 생성)</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 text-gray-400 border-r border-gray-200">선택</td>
+                        <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">업무파트 · 파트</td>
+                        <td className="px-3 py-2 text-gray-600">업무파트 (칸반 상단 필터에 표시)</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 text-gray-400 border-r border-gray-200">선택</td>
+                        <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">설명</td>
+                        <td className="px-3 py-2 text-gray-600">태스크 설명</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 text-gray-400 border-r border-gray-200">선택</td>
+                        <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">담당자</td>
+                        <td className="px-3 py-2 text-gray-600">프로젝트 멤버 이름</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 text-gray-400 border-r border-gray-200">선택</td>
+                        <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">우선순위</td>
+                        <td className="px-3 py-2 text-gray-600">URGENT · HIGH · MEDIUM · LOW</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 text-gray-400 border-r border-gray-200">선택</td>
+                        <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">시작일</td>
+                        <td className="px-3 py-2 text-gray-600">날짜 (예: 2025-01-15)</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 text-gray-400 border-r border-gray-200">선택</td>
+                        <td className="px-3 py-2 font-mono text-gray-600 border-r border-gray-200">마감일</td>
+                        <td className="px-3 py-2 text-gray-600">날짜 (예: 2025-03-31)</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-600 mb-2">예시</p>
+                <div className="rounded-xl overflow-hidden border border-gray-200 text-xs">
+                  <table className="w-full">
+                    <thead className="bg-violet-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-semibold text-violet-700 border-r border-gray-200">업무파트</th>
+                        <th className="px-3 py-2 text-left font-semibold text-violet-700 border-r border-gray-200">제목</th>
+                        <th className="px-3 py-2 text-left font-semibold text-violet-700 border-r border-gray-200">하위태스크</th>
+                        <th className="px-3 py-2 text-left font-semibold text-violet-700 border-r border-gray-200">담당자</th>
+                        <th className="px-3 py-2 text-left font-semibold text-violet-700">우선순위</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      <tr><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">인사관리</td><td className="px-3 py-1.5 text-gray-700 border-r border-gray-200">채용관리</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">공고 등록</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">홍길동</td><td className="px-3 py-1.5 text-gray-500">HIGH</td></tr>
+                      <tr><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">인사관리</td><td className="px-3 py-1.5 text-gray-700 border-r border-gray-200">채용관리</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">서류 심사</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200"></td><td className="px-3 py-1.5 text-gray-500">MEDIUM</td></tr>
+                      <tr><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">재무회계</td><td className="px-3 py-1.5 text-gray-700 border-r border-gray-200">비용처리</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">법인카드 정산</td><td className="px-3 py-1.5 text-gray-500 border-r border-gray-200">김철수</td><td className="px-3 py-1.5 text-gray-500">LOW</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end px-6 pb-5">
+              <button
+                onClick={() => setShowLayoutGuide(false)}
+                className="px-4 py-2 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex-shrink-0 flex items-center border-t border-gray-200 bg-gray-50 h-9 px-2 gap-0.5 overflow-x-auto">
         {sheets.map((sheet: any) => (

@@ -29,6 +29,7 @@ import { SheetEditorPage } from './pages/sheets/SheetEditorPage';
 import { TemplatesPage } from './pages/templates/TemplatesPage';
 import { MentionPopup } from './components/MentionPopup';
 import { QATestPage } from './pages/qa/QATestPage';
+import { WbsPage } from './pages/projects/WbsPage';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)();
@@ -77,6 +78,7 @@ export default function App() {
           <Route path="projects" element={<ProjectsPage />} />
           <Route path="projects/:projectId" element={<ProjectLayout />}>
             <Route index element={<ProjectDetailPage />} />
+            <Route path="wbs" element={<WbsPage />} />
             <Route path="kanban" element={<KanbanPage />} />
             <Route path="gantt" element={<GanttPage />} />
             <Route path="workload" element={<WorkloadPage />} />

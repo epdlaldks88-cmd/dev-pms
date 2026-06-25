@@ -1,11 +1,12 @@
 import { NavLink, Outlet, useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronRight, LayoutDashboard, Kanban, BarChart2, FileText, BarChart3, AlertTriangle, Megaphone } from 'lucide-react';
+import { ChevronRight, LayoutDashboard, Kanban, BarChart2, FileText, BarChart3, AlertTriangle, Megaphone, ListTree } from 'lucide-react';
 import { projectsApi } from '../../api/projects';
 import { cn } from '../../lib/utils';
 
 const tabs = [
   { to: '', label: '개요', icon: LayoutDashboard, end: true },
+  { to: 'wbs', label: 'WBS', icon: ListTree, end: false },
   { to: 'kanban', label: '칸반보드', icon: Kanban, end: false },
   { to: 'gantt', label: '간트차트', icon: BarChart3, end: false },
   { to: 'workload', label: '워크로드', icon: BarChart2, end: false },

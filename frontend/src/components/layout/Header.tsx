@@ -203,7 +203,7 @@ export function Header() {
   };
 
   return (
-    <header className="relative z-10 h-14 bg-white/80 backdrop-blur-md border-b border-white/60 shadow-[0_1px_0_rgba(0,0,0,0.04)] flex items-center px-6 gap-4 flex-shrink-0">
+    <header className="relative z-50 h-14 bg-white/80 backdrop-blur-md border-b border-white/60 shadow-[0_1px_0_rgba(0,0,0,0.04)] flex items-center px-6 gap-4 flex-shrink-0">
       {/* Search */}
       <div className="flex-1 max-w-md relative" ref={searchRef}>
         <div className="relative">
