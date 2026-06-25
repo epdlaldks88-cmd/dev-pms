@@ -27,6 +27,8 @@ type Rng = { r1: number; c1: number; r2: number; c2: number };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const DROWS = 100, DCOLS = 26, CHW = 52, DCW = 120, RH = 26;
+// 행 자동 확장: 맨 아래 근처 스크롤 시 EXTEND_ROWS씩 MAX_ROWS까지 추가
+const MAX_ROWS = 500, EXTEND_ROWS = 50;
 const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36];
 const BG_COLORS = [
   '#ffffff','#f8fafc','#f1f5f9','#e2e8f0','#cbd5e1','#94a3b8','#64748b','#475569','#334155','#1e293b','#0f172a','#000000',
@@ -246,6 +248,7 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
   const rafDragId      = useRef<number>(0);
   const inputRef       = useRef<HTMLInputElement>(null);
   const dragging       = useRef(false);
+  const extendGuard    = useRef(false);
   const fsRef          = useRef<HTMLDivElement>(null);
   const clipboardRef   = useRef<{
     rows: number; cols: number;
@@ -284,6 +287,12 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
 
   const range = getRange(selStart, selEnd);
   const colW = (c: number) => colWidths[c] ?? DCW;
+  // table-layout:fixed가 제대로 동작하려면 테이블에 명시적 너비(모든 열 합)가 필요
+  const totalWidth = useMemo(() => {
+    let w = CHW;
+    for (let c = 0; c < cols; c++) w += colWidths[c] ?? DCW;
+    return w;
+  }, [cols, colWidths]);
 
   // Merge maps
   const { hidden, spanMap } = useMemo(() => {
@@ -803,30 +812,53 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
     insertColumnBefore(col + 1);
   }, [insertColumnBefore]);
 
-  // Column resize — 드래그 중 DOM 직접 조작, mouseup 시에만 state 반영
-  const onResizeStart = (e: React.MouseEvent, col: number) => {
+  // Column resize — Pointer Capture로 드래그 중 이벤트 유실 방지, 드래그 중 DOM 직접 조작
+  const onResizeStart = (e: React.PointerEvent, col: number) => {
     e.preventDefault(); e.stopPropagation();
+    const handle = e.currentTarget as HTMLElement;
+    const pointerId = e.pointerId;
     const startX = e.clientX;
     const startW = colW(col);
     // colgroup col 요소(0번=행헤더, 1번~=데이터열) + thead th 요소 모두 직접 조작
-    const colEl = tableRef.current?.querySelectorAll('col')[col + 1] as HTMLElement | undefined;
-    const thEl = tableRef.current?.querySelectorAll('thead th')[col + 1] as HTMLElement | undefined;
-    const onMove = (mv: MouseEvent) => {
-      const nw = Math.max(40, startW + mv.clientX - startX);
+    const tableEl = tableRef.current;
+    const colEl = tableEl?.querySelectorAll('col')[col + 1] as HTMLElement | undefined;
+    const thEl = tableEl?.querySelectorAll('thead th')[col + 1] as HTMLElement | undefined;
+    // 현재 컬럼을 제외한 전체 너비 합 (드래그 중 테이블 너비 실시간 갱신용)
+    let baseTotal = CHW;
+    for (let i = 0; i < dataRef.current.cols; i++) baseTotal += dataRef.current.colWidths[i] ?? DCW;
+    baseTotal -= startW;
+    // 포인터를 핸들에 고정 → 커서가 빠르게 벗어나도 move/up 이벤트 계속 수신
+    handle.setPointerCapture(pointerId);
+    let nw = startW;
+    const onMove = (mv: PointerEvent) => {
+      nw = Math.max(40, startW + mv.clientX - startX);
       if (colEl) colEl.style.width = `${nw}px`;
       if (thEl) thEl.style.width = `${nw}px`;
+      if (tableEl) tableEl.style.width = `${baseTotal + nw}px`;
     };
-    const onUp = (mv: MouseEvent) => {
-      const nw = Math.max(40, startW + mv.clientX - startX);
-      if (colEl) colEl.style.width = `${nw}px`;
-      if (thEl) thEl.style.width = `${nw}px`;
+    const onUp = () => {
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      handle.removeEventListener('pointercancel', onUp);
+      try { handle.releasePointerCapture(pointerId); } catch { /* noop */ }
       onChangeRef.current({ ...dataRef.current, colWidths: { ...dataRef.current.colWidths, [col]: nw } });
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
     };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+    handle.addEventListener('pointercancel', onUp);
   };
+
+  // 맨 아래 근처로 스크롤하면 행 자동 확장 (실제 도달한 만큼만 추가 → perf 영향 최소)
+  useEffect(() => { extendGuard.current = false; }, [rows]);
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (extendGuard.current) return;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight > 240) return;
+    const d = dataRef.current;
+    if (d.rows >= MAX_ROWS) return;
+    extendGuard.current = true;
+    onChangeRef.current({ ...d, rows: Math.min(MAX_ROWS, d.rows + EXTEND_ROWS) });
+  }, []);
 
   const sep = <div className="w-px h-5 bg-gray-200 mx-0.5 flex-shrink-0" />;
 
@@ -940,8 +972,9 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
         className="flex-1 overflow-auto outline-none"
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
+        onScroll={handleScroll}
       >
-        <table ref={tableRef} className="border-collapse" style={{ tableLayout: 'fixed' }}>
+        <table ref={tableRef} className="border-collapse" style={{ tableLayout: 'fixed', width: totalWidth }}>
           <colgroup>
             <col style={{ width: CHW }} />
             {Array.from({ length: cols }, (_, c) => <col key={c} style={{ width: colW(c) }} />)}
@@ -979,8 +1012,10 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
                   data-col={c}
                   onContextMenu={e => { e.preventDefault(); setColCtxMenu({ col: c, x: e.clientX, y: e.clientY }); }}>
                   {colLabel(c)}
-                  <span className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-primary-400 z-10 pointer-events-auto"
-                    onMouseDown={e => { e.stopPropagation(); onResizeStart(e, c); }} />
+                  <span className="absolute -right-1 top-0 h-full w-2.5 cursor-col-resize hover:bg-primary-400 z-30 touch-none"
+                    onPointerDown={e => { e.stopPropagation(); onResizeStart(e, c); }}
+                    onMouseDown={e => e.stopPropagation()}
+                    onDoubleClick={e => e.stopPropagation()} />
                 </th>
               ))}
             </tr>
