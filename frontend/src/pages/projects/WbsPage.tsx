@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, ChevronRight, ChevronDown, IndentIncrease, IndentDecrease, GripVertical, Calendar } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, ChevronDown, IndentIncrease, IndentDecrease, GripVertical, Calendar, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { wbsApi, type WbsItem, type WbsStatus } from '../../api/wbs';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -391,6 +391,7 @@ export function WbsPage() {
               const isDragOver = dragOverId === item.id;
               const depth = item.depth;
               const dday = calcDDay(item.endDate, item.progress);
+              const isOverdue = !!dday && dday.label.startsWith('D+');
               const statusCfg = STATUS_CONFIG[item.status ?? 'NOT_STARTED'];
 
               return (
@@ -458,11 +459,18 @@ export function WbsPage() {
                       <span
                         onDoubleClick={() => startEdit(item.id, 'title', item.title)}
                         className={cn(
-                          'flex-1 text-sm cursor-text truncate',
-                          depth === 0 ? 'font-semibold text-gray-800' : depth === 1 ? 'font-medium text-gray-700' : 'text-gray-600',
+                          'flex-1 min-w-0 text-sm cursor-text flex items-center gap-1.5',
+                          isOverdue
+                            ? 'text-red-600 font-semibold'
+                            : depth === 0 ? 'font-semibold text-gray-800' : depth === 1 ? 'font-medium text-gray-700' : 'text-gray-600',
                         )}
                       >
-                        {item.title}
+                        {isOverdue && (
+                          <AlertTriangle size={12} className="flex-shrink-0 text-red-500 animate-pulse" />
+                        )}
+                        <span className={cn('truncate', isOverdue && 'underline decoration-red-300 decoration-1 underline-offset-2')}>
+                          {item.title}
+                        </span>
                       </span>
                     )}
                   </div>
