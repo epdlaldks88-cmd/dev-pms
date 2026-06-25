@@ -853,6 +853,67 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
     insertColumnBefore(col + 1);
   }, [insertColumnBefore]);
 
+  // Row context menu
+  const [rowCtxMenu, setRowCtxMenu] = useState<{ row: number; x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!rowCtxMenu) return;
+    const close = () => setRowCtxMenu(null);
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [rowCtxMenu]);
+
+  const deleteRow = useCallback((row: number) => {
+    setRowCtxMenu(null);
+    const d = dataRef.current;
+    const newCells: Record<string, CellData> = {};
+    for (const [k, v] of Object.entries(d.cells)) {
+      const [r, c] = k.split(',').map(Number);
+      if (r === row) continue;
+      newCells[ck(r < row ? r : r - 1, c)] = v;
+    }
+    const newMerges: Record<string, MergeInfo> = {};
+    for (const [k, m] of Object.entries(d.merges)) {
+      const [r, c] = k.split(',').map(Number);
+      // 삭제할 행이 병합 내부에 포함되면 rows 감소, 병합이 해당 행만이면 제거
+      if (r === row && m.rows === 1) continue;
+      const nr = r < row ? r : r - 1;
+      const newRows = r <= row && row < r + m.rows ? m.rows - 1 : m.rows;
+      if (newRows < 1) continue;
+      newMerges[ck(nr, c)] = { rows: newRows, cols: m.cols };
+    }
+    const newRowsCount = Math.max(1, d.rows - 1);
+    // 선택 셀 보정
+    if (selStartRef.current) {
+      const [sr, sc] = selStartRef.current;
+      if (sr === row) { setSelStart([Math.max(0, row - 1), sc]); setSelEnd(null); }
+      else if (sr > row) { setSelStart([sr - 1, sc]); setSelEnd(null); }
+    }
+    recordChange({ ...d, cells: newCells, merges: newMerges, rows: newRowsCount });
+  }, [recordChange]);
+
+  const insertRowBefore = useCallback((row: number) => {
+    setRowCtxMenu(null);
+    const d = dataRef.current;
+    const newCells: Record<string, CellData> = {};
+    for (const [k, v] of Object.entries(d.cells)) {
+      const [r, c] = k.split(',').map(Number);
+      newCells[ck(r < row ? r : r + 1, c)] = v;
+    }
+    const newMerges: Record<string, MergeInfo> = {};
+    for (const [k, m] of Object.entries(d.merges)) {
+      const [r, c] = k.split(',').map(Number);
+      const nr = r < row ? r : r + 1;
+      const newRows = r < row && row < r + m.rows ? m.rows + 1 : m.rows;
+      newMerges[ck(nr, c)] = { rows: newRows, cols: m.cols };
+    }
+    recordChange({ ...d, cells: newCells, merges: newMerges, rows: d.rows + 1 });
+  }, [recordChange]);
+
+  const insertRowAfter = useCallback((row: number) => {
+    insertRowBefore(row + 1);
+  }, [insertRowBefore]);
+
   // Column resize — Pointer Capture로 드래그 중 이벤트 유실 방지, 드래그 중 DOM 직접 조작
   const onResizeStart = (e: React.PointerEvent, col: number) => {
     e.preventDefault(); e.stopPropagation();
@@ -1000,6 +1061,33 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
         document.body
       )}
 
+      {/* ── Row context menu ── */}
+      {rowCtxMenu && createPortal(
+        <div
+          className="fixed z-[9999] bg-white border border-gray-200 rounded-xl shadow-xl py-1 min-w-[160px]"
+          style={{ top: rowCtxMenu.y, left: rowCtxMenu.x }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+          <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 tracking-wide border-b border-gray-100 mb-1">
+            행 {rowCtxMenu.row + 1}
+          </div>
+          <button
+            className="w-full px-3 py-1.5 text-xs text-left hover:bg-gray-50 text-gray-700"
+            onClick={() => insertRowBefore(rowCtxMenu.row)}
+          >위에 행 삽입</button>
+          <button
+            className="w-full px-3 py-1.5 text-xs text-left hover:bg-gray-50 text-gray-700"
+            onClick={() => insertRowAfter(rowCtxMenu.row)}
+          >아래에 행 삽입</button>
+          <div className="my-1 border-t border-gray-100" />
+          <button
+            className="w-full px-3 py-1.5 text-xs text-left hover:bg-red-50 text-red-600 font-medium"
+            onClick={() => deleteRow(rowCtxMenu.row)}
+          >이 행 삭제</button>
+        </div>,
+        document.body
+      )}
+
       {/* ── Formula bar ── */}
       <div className="flex-shrink-0 flex items-center h-7 border-b border-gray-200 bg-gray-50 px-2 gap-2">
         <span className="text-[11px] text-gray-500 font-mono w-16 text-center border-r border-gray-200 pr-2 flex-shrink-0">{cellAddress}</span>
@@ -1064,9 +1152,32 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
           <tbody onMouseDown={onTbodyMouseDown} onMouseOver={onTbodyMouseOver} onDoubleClick={onTbodyDblClick}>
             {Array.from({ length: rows }, (_, r) => (
               <tr key={r}>
-                <td className={cn('sticky left-0 z-10 bg-gray-50 border border-gray-200 text-xs text-gray-400 font-medium text-center select-none',
+                <td className={cn('sticky left-0 z-10 bg-gray-50 border border-gray-200 text-xs text-gray-400 font-medium text-center select-none cursor-pointer',
                   range && r >= range.r1 && r <= range.r2 && 'bg-primary-50 text-gray-800')}
-                  style={{ width: CHW, height: RH }}>{r + 1}</td>
+                  style={{ width: CHW, height: RH }}
+                  data-rowheader={r}
+                  onMouseDown={e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setEditing(false);
+                    setSelStart([r, 0]);
+                    setSelEnd([r, cols - 1]);
+                    const onMove = (mv: MouseEvent) => {
+                      const el = document.elementFromPoint(mv.clientX, mv.clientY);
+                      const cell = el?.closest('td[data-rowheader]');
+                      if (cell) {
+                        const tr = Number((cell as HTMLElement).dataset.rowheader);
+                        setSelEnd([tr, cols - 1]);
+                      }
+                    };
+                    const onUp = () => {
+                      window.removeEventListener('mousemove', onMove);
+                      window.removeEventListener('mouseup', onUp);
+                    };
+                    window.addEventListener('mousemove', onMove);
+                    window.addEventListener('mouseup', onUp);
+                  }}
+                  onContextMenu={e => { e.preventDefault(); setRowCtxMenu({ row: r, x: e.clientX, y: e.clientY }); }}>{r + 1}</td>
 
                 {Array.from({ length: cols }, (_, c) => {
                   const k = ck(r, c);

@@ -543,6 +543,15 @@ export function CanvasPage() {
   const isDirty = useRef(false); // 유저가 직접 조작했을 때만 true
   const pendingRemoteUpdate = useRef(false); // 원격 변경이 왔는데 dirty라 바로 못 받았을 때
   const lastServerUpdatedAt = useRef<string>(''); // 마지막으로 로드한 서버 updatedAt (중복 로드 방지)
+  const lastSavedRef = useRef<string>(''); // 마지막으로 저장된 내용(직렬화) — 내용 변경 감지로 저장 판단
+
+  // 직렬화: 선택/드래그 등 일시적 상태 제거 (저장/히스토리 비교 공용)
+  const serialize = useCallback((ns: Node[], es: any[]) => {
+    const cleanN = ns.map(({ selected: _s, dragging: _d, width: _w, height: _h,
+      positionAbsolute: _pa, measured: _m, ...n }: any) => n);
+    const cleanE = es.map(({ selected: _s, ...e }: any) => e);
+    return JSON.stringify({ nodes: cleanN, edges: cleanE });
+  }, []);
 
   // 유저 상호작용 시에만 dirty 표시 (select 변경 제외)
   const onNodesChange = useCallback((changes: any[]) => {
@@ -567,6 +576,7 @@ export function CanvasPage() {
         const saved = typeof canvasData.data === 'string' ? JSON.parse(canvasData.data) : canvasData.data;
         if (saved?.nodes) setNodes(saved.nodes);
         if (saved?.edges) setEdges(saved.edges);
+        lastSavedRef.current = serialize(saved?.nodes ?? [], saved?.edges ?? []);
       } catch {}
       isDirty.current = false;
       lastServerUpdatedAt.current = serverTime;
@@ -601,19 +611,25 @@ export function CanvasPage() {
   const [assigneeNodeId, setAssigneeNodeId] = useState<string | null>(null);
   const selectedCount = nodes.filter((n) => n.selected).length + edges.filter((e) => e.selected).length;
 
-  // 자동 저장 - 유저가 직접 조작했을 때만 (isDirty)
+  // 자동 저장 - 실제 내용이 바뀌면 저장 (라벨/ERD 등 노드 내부 setNodes 편집까지 포함)
+  // isDirty 플래그에 의존하지 않고 직렬화 비교로 변경을 감지 → onNodesChange를 거치지 않는 편집도 저장됨
   useEffect(() => {
     if (!initialized || !projectId || !canvasId) return;
-    if (!isDirty.current) return;
+    if (isRestoringRef.current) return;
+    const snapshot = serialize(nodes, edges);
+    if (snapshot === lastSavedRef.current) return;
+    isDirty.current = true; // 미저장 변경 존재 → SSE 원격 갱신이 덮어쓰지 않도록
     const timer = setTimeout(() => {
-      if (!isDirty.current) return;
-      const cleanNodes = nodes.map(({ selected: _, ...n }) => n);
-      const cleanEdges = edges.map(({ selected: _, ...e }) => e);
+      const cur = serialize(nodesRef.current, edgesRef.current);
+      if (cur === lastSavedRef.current) return;
+      const cleanNodes = nodesRef.current.map(({ selected: _, ...n }) => n);
+      const cleanEdges = edgesRef.current.map(({ selected: _, ...e }) => e);
       saveCanvas.mutate({ nodes: cleanNodes, edges: cleanEdges });
+      lastSavedRef.current = cur;
       isDirty.current = false;
     }, 500);
     return () => clearTimeout(timer);
-  }, [nodes, edges, initialized, projectId, canvasId]);
+  }, [nodes, edges, initialized, projectId, canvasId, serialize]);
 
   // SSE: 다른 사람 변경 시 refetch
   useEffect(() => {
@@ -650,14 +666,6 @@ export function CanvasPage() {
   const historyRef = useRef<{ past: string[]; future: string[] }>({ past: [], future: [] });
   const lastSnapRef = useRef<string>('');
   const isRestoringRef = useRef(false);
-
-  // 직렬화: 선택/드래그 등 일시적 상태 제거
-  const serialize = useCallback((ns: Node[], es: any[]) => {
-    const cleanN = ns.map(({ selected: _s, dragging: _d, width: _w, height: _h,
-      positionAbsolute: _pa, measured: _m, ...n }: any) => n);
-    const cleanE = es.map(({ selected: _s, ...e }: any) => e);
-    return JSON.stringify({ nodes: cleanN, edges: cleanE });
-  }, []);
 
   const syncHistFlags = useCallback(() => {
     setCanUndo(historyRef.current.past.length > 0);
@@ -720,11 +728,13 @@ export function CanvasPage() {
   useEffect(() => { undoRef.current = undo; }, [undo]);
   useEffect(() => { redoRef.current = redo; }, [redo]);
 
-  // 페이지 이탈 시 미저장 변경사항 즉시 flush (isDirty 여부와 무관하게 초기화된 상태면 저장)
+  // 페이지 이탈 시 미저장 변경사항 즉시 flush (내용이 마지막 저장본과 다르면 저장)
   useEffect(() => {
     return () => {
       if (!initializedRef.current || !projectId || !canvasId) return;
-      if (!isDirty.current) return;
+      const cur = serialize(nodesRef.current, edgesRef.current);
+      if (cur === lastSavedRef.current) return;
+      lastSavedRef.current = cur;
       const cleanNodes = nodesRef.current.map(({ selected: _, ...n }) => n);
       const cleanEdges = edgesRef.current.map(({ selected: _, ...e }) => e);
       const token = getAccessToken();
